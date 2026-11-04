@@ -1,16 +1,26 @@
 <p align="center"><img src="assets/banner.png" alt="🤏 smolmaxxing: run the biggest model you can on the smallest hardware you own" width="100%"></p>
 
-**How far can you push LLMs on a cheap Android TV box?** This repo runs language models from 260 K to 9 B parameters on a **Xiaomi TV Box S (3rd Gen)**: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, **1.9 GB of RAM** (about 1 GB usable), eMMC flash, Android 14, no root. Everything here was measured on that box and is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E53).
+**Every device around you is more capable than it looks.** TV boxes, old phones, single-board computers and routers all ship with CPUs, RAM and flash that sit idle most of the day. **smolmaxxing** is about unlocking that capability: finding the biggest language model each device can really run, then pushing it further with custom kernels, smarter memory use and weight streaming. Every claim is measured on the hardware itself.
 
-The headline: **Qwen3.5-2B at 6.55 tok/s in real chat**, a **1-bit 8B model at 1.2 tok/s**, and a **9B model at 0.27 tok/s** by streaming its weights from flash, on a box with about 1 GB of usable RAM.
+**Device #1 is a Xiaomi TV Box S (3rd Gen)**: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, **1.9 GB of RAM** (about 1 GB usable), eMMC flash, Android 14, no root. On it, this repo runs models from 260 K to 9 B parameters:
+- **Qwen3.5-2B: 6.55 tok/s** in real chat.
+- **A 1-bit 8B model: 1.2 tok/s.**
+- **A 9B model: 0.27 tok/s**, streaming most of its weights from flash.
+
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E53).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
-## Where this is going
+### Devices
 
-The TV box is the first device, not the last. **Support for more devices is coming soon**: other TV boxes, phones, single-board computers, routers and whatever else has a CPU and a little RAM. The goal is to **unlock the capabilities already sitting in every device around us**, by measuring each one honestly and squeezing out what its memory, flash and cores can really do.
+| Device | Status |
+|---|---|
+| Xiaomi TV Box S (3rd Gen): Amlogic S7D, Cortex-A55, 2 GB | ✅ done: 260K → 9B parameters |
+| More TV boxes, phones, single-board computers, routers… | 🔜 coming soon |
 
-## Results
+The techniques aren't tied to this box. Any ARM chip with dotprod gets the kernels, and any Linux or Android device with more model than RAM can use the streaming engine.
+
+## Results on device #1
 
 Quality is English perplexity on a fixed 22 KB text, converted to **bits per byte** so models with different tokenizers compare fairly (lower is better). Speed is generation on the TV, measured either through llama-server with real chat requests ("chat") or with llama-bench ("bench").
 
