@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/banner.png" alt="🤏 smolmaxxing: LLMs on the devices you already own" width="100%"></p>
+<p align="center"><img src="assets/banner.png" alt="🤏 smolmaxxing: run the biggest model you can on the smallest hardware you own" width="100%"></p>
 
 **How far can you push LLMs on a cheap Android TV box?** This repo runs language models from 260 K to 9 B parameters on a **Xiaomi TV Box S (3rd Gen)**: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, **1.9 GB of RAM** (about 1 GB usable), eMMC flash, Android 14, no root. Everything here was measured on that box and is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E53).
 
