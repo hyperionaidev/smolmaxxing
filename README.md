@@ -1,4 +1,4 @@
-# smolmaxxing
+<p align="center"><img src="assets/banner.png" alt="🤏 smolmaxxing: LLMs on the devices you already own" width="100%"></p>
 
 **How far can you push LLMs on a cheap Android TV box?** This repo runs language models from 260 K to 9 B parameters on a **Xiaomi TV Box S (3rd Gen)**: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, **1.9 GB of RAM** (about 1 GB usable), eMMC flash, Android 14, no root. Everything here was measured on that box and is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E53).
 
@@ -142,4 +142,4 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 
 ## Credits
 
-Built on [llama.cpp](https://github.com/ggml-org/llama.cpp) and [llama2.c](https://github.com/karpathy/llama2.c). Models from [Qwen](https://huggingface.co/Qwen), [unsloth](https://huggingface.co/unsloth) (GGUFs and importance matrices), [PrismML](https://huggingface.co/prism-ml) (Bonsai), Google (Gemma) and [stories260K](https://huggingface.co/karpathy/tinyllamas). The evaluation texts are excerpts from Wikipedia (CC BY-SA 4.0).
+Built on [llama.cpp](https://github.com/ggml-org/llama.cpp) and [llama2.c](https://github.com/karpathy/llama2.c). Models from [Qwen](https://huggingface.co/Qwen), [unsloth](https://huggingface.co/unsloth) (GGUFs and importance matrices), [PrismML](https://huggingface.co/prism-ml) (Bonsai), Google (Gemma) and [stories260K](https://huggingface.co/karpathy/tinyllamas). The evaluation texts are excerpts from Wikipedia (CC BY-SA 4.0). The 🤏 logo is the pinching-hand emoji from Google's [Noto Emoji](https://github.com/googlefonts/noto-emoji) (Apache 2.0).
