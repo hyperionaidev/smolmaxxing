@@ -1,0 +1,34 @@
+== n_max=0 (q9-iq2-h65-mtp.gguf) LLAMA_STREAM_RESIDENT_MB=800 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64
+Traceback (most recent call last):
+  File "<repo>/tv-llm-ui/bench.py", line 60, in <module>
+    main()
+  File "<repo>/tv-llm-ui/bench.py", line 32, in main
+    post("/v1/chat/completions", {"messages": [{"role": "user", "content": "Hi"}], "max_tokens": 4, "temperature": 0})
+  File "<repo>/tv-llm-ui/bench.py", line 18, in post
+    return json.loads(urllib.request.urlopen(req, timeout=900).read())
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 214, in urlopen
+    return opener.open(url, data, timeout)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 517, in open
+    response = self._open(req, data)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 534, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 494, in _call_chain
+    result = func(*args)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 1375, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 1350, in do_open
+    r = h.getresponse()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/client.py", line 1349, in getresponse
+    response.begin()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/client.py", line 316, in begin
+    version, status, reason = self._read_status()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/client.py", line 285, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+http.client.RemoteDisconnected: Remote end closed connection without response
+tv-guard: killed, MemAvailable 165 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 165 MB, max RSS 997 MB
+== n_max=1 (q9-iq2-h65-mtp.gguf) LLAMA_STREAM_RESIDENT_MB=800 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64
+server did not start:
+0.21.991.141 I cmn          init: llama threadpool init, n_threads = 3
+tv-guard: killed, MemAvailable 175 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 175 MB, max RSS 1084 MB

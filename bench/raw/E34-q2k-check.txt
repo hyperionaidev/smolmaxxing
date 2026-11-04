@@ -1,0 +1,2 @@
+max |ref| 9.899   max abs err: gemv 1.28e-06  gemm 1.28e-06   (PASS)
+4 rows, 1 thread, cache-resident: 4x gemv 6.50  gemm 10.97 G weight-rows/s

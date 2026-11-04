@@ -1,0 +1,7 @@
+| model                          |       size |     params | backend    | threads | n_batch | n_ubatch |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ------: | -------: | --------------: | -------------------: |
+| qwen3 4B TQ1_0 - 1.69 bpw ternary | 841.71 MiB |     4.18 B | CPU        |       3 |     128 |      128 |           pp128 |          2.70 ± 0.06 |
+| qwen3 4B TQ1_0 - 1.69 bpw ternary | 841.71 MiB |     4.18 B | CPU        |       3 |     128 |      128 |            tg64 |          2.20 ± 0.02 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 921 MB, max RSS 873 MB

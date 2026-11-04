@@ -1,0 +1,7 @@
+max |ref| 1.810   max abs err vs compact-scale reference: gemv 3.08e-07  gemm 3.08e-07   (PASS)
+8-bit scales vs fp16: max rel err 0.0038, mean 0.00070; dot products max abs diff 1.40e-03 (7.71e-04 of max)
+cache-resident (512 x 4096), 1 thread: gemv 9.57  gemm(4 rows) 17.36 G weight-rows/s
+DRAM 49152 x 4096 (26.9 MB), 1 thread(s): gemv 10.33 G weights/s (1.38 GB/s)
+DRAM 49152 x 4096 (26.9 MB), 2 thread(s): gemv 18.40 G weights/s (2.46 GB/s)
+DRAM 49152 x 4096 (26.9 MB), 3 thread(s): gemv 16.51 G weights/s (2.21 GB/s)
+DRAM 49152 x 4096 (26.9 MB), 4 thread(s): gemv 21.21 G weights/s (2.84 GB/s)

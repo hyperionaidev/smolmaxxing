@@ -1,0 +1,5 @@
+# memprobe D-stock  model=w-q4k-h65.gguf  env='LLAMA_KEEP_MAPPED_COPIES=1'  bin=./patched2/llama-server  2026-11-03 21:26:01
+after load:    VmRSS:	 1091552 kB RssAnon:	 832436 kB RssFile:	 259116 kB VmSwap:	 62600 kB MemFree: 37916 kB MemAvailable: 409004 kB Cached: 427756 kB 
+after request: VmRSS:	 1065704 kB RssAnon:	 851156 kB RssFile:	 214548 kB VmSwap:	 73992 kB MemFree: 48340 kB MemAvailable: 359588 kB Cached: 368608 kB 
+speed: 
+text: A TV remote sends invisible radio waves to your TV. You press buttons like "power" or "channel," which send signals to the TV. The TV receives these signals and changes the picture or sound. It uses a small antenna to catch the waves and a receiver to decode them into commands.

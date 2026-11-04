@@ -1,0 +1,9 @@
+# E12: llama-bench -m Qwen3.5-2B-Q4_K_M-head32k.gguf -p 0 -n 48 -r 3 <options>   (2026-11-03 ~19:40)
+# NOTE: the last part overlapped a Wi-Fi transfer to the TV (adb exec-in), so numbers are noisy.
+-t 3                         4.01 ± 0.79
+-t 3 --poll 100              4.87 ± 0.16
+-t 3 --poll 0                4.90 ± 0.23
+-t 3 -C 0xE --cpu-strict 1   4.48 ± 0.04   (pinned to cores 1-3)
+-t 3 -C 0x7 --cpu-strict 1   4.40 ± 0.20   (pinned to cores 0-2)
+-t 4 --poll 100              4.38 ± 0.51
+-t 3 --prio 2                4.83 ± 0.23

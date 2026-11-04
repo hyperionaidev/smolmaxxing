@@ -1,0 +1,4 @@
+Bonsai-8B-Q1_0 en 0.48.640.026 I perplexity: tokenizing the input .. 3.07.750.788 I Final estimate: PPL = 13.8771 +/- 0.86844 3.07.750.788 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab) 
+Bonsai-8B-Q1_0 ml 0.37.074.600 I perplexity: tokenizing the input .. 2.52.284.798 I Final estimate: PPL = 19.6271 +/- 1.22322 2.52.284.798 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab) 
+b8-q1-hml en 1.01.958.022 I perplexity: tokenizing the input .. 2.35.217.824 I Final estimate: PPL = 13.2498 +/- 0.82255 2.35.217.825 I pruned-head misses: 24 of 2520 scored tokens (0.952%) skipped (target outside kept vocab) 
+b8-q1-hml ml 0.31.430.642 I perplexity: tokenizing the input .. 2.05.280.882 I Final estimate: PPL = 15.5768 +/- 0.95273 2.05.280.882 I pruned-head misses: 168 of 2520 scored tokens (6.667%) skipped (target outside kept vocab) 

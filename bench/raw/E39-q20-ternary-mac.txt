@@ -1,0 +1,4 @@
+Mac GGML_Q2_0_TERNARY=0: 1.44.202.756 I Final estimate: PPL = 12.3729 +/- 0.76147 1.44.202.757 I pruned-head misses: 24 of 2520 scored tokens (0.952%) skipped (target outside kept vocab) 
+Mac GGML_Q2_0_TERNARY=1: 1.26.749.187 I Final estimate: PPL = 12.3711 +/- 0.76066 1.26.749.188 I pruned-head misses: 24 of 2520 scored tokens (0.952%) skipped (target outside kept vocab) 
+Mac new gemm: 1.24.499.164 I Final estimate: PPL = 12.3711 +/- 0.76066
+tb4-q20-hml eval-ml: 1.24.669.270 I Final estimate: PPL = 14.3536 +/- 0.85804 1.24.669.270 I pruned-head misses: 168 of 2520 scored tokens (6.667%) skipped (target outside kept vocab) 

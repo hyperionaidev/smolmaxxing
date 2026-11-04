@@ -1,0 +1,43 @@
+== n_max=0 (w-q4k-h65.gguf)
+  tg  6.50 t/s  pp  17.5 t/s  n=44  'The capital of Australia is Canberra, which was chosen over Sydney bec'
+  tg  6.72 t/s  pp  18.2 t/s  n=56  'A TV remote sends invisible radio waves to your TV. You press buttons '
+  tg  6.74 t/s  pp  16.7 t/s  n=128  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  6.39 t/s  pp  16.9 t/s  n=128  '1. Mars has the largest volcano in the solar system, Olympus Mons, whi'
+MTP n_max=0: w-q4k-h65.gguf, patched3, t=3: generation 6.58 tok/s (token-weighted), prompt 17.3 tok/s, draft acceptance None
+VmRSS:	 1085652 kB
+== n_max=1 (w-q4k-h65.gguf)
+  tg  4.19 t/s  pp  15.6 t/s  n=44  'The capital of Australia is Canberra, which was chosen over Sydney bec'
+  tg  4.04 t/s  pp  15.3 t/s  n=56  'A TV remote sends invisible radio waves to your TV. You press buttons '
+  tg  5.16 t/s  pp  14.6 t/s  n=128  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  4.26 t/s  pp  12.5 t/s  n=128  '1. Mars has the largest volcano in the solar system, Olympus Mons, whi'
+MTP n_max=1: w-q4k-h65.gguf, patched3, t=3: generation 4.5 tok/s (token-weighted), prompt 14.5 tok/s, draft acceptance 0.759
+VmRSS:	 1000280 kB
+0.14.014.232 I common_speculative_init_result: creating MTP draft context against the target model 'w-q4k-h65.gguf'
+0.17.017.018 I slot print_timing: id  0 | task 0 | draft acceptance = 1.00000 (    1 accepted /     1 generated), mean len =  2.00
+0.29.441.006 I slot print_timing: id  0 | task 6 | draft acceptance = 0.59259 (   16 accepted /    27 generated), mean len =  1.59
+0.45.332.057 I slot print_timing: id  0 | task 36 | draft acceptance = 0.57143 (   20 accepted /    35 generated), mean len =  1.57
+1.12.129.390 I slot print_timing: id  0 | task 74 | draft acceptance = 0.96875 (   62 accepted /    64 generated), mean len =  1.97
+== n_max=2 (w-q4k-h65.gguf)
+  tg  3.97 t/s  pp  14.9 t/s  n=44  'The capital of Australia is Canberra, which was chosen over Sydney bec'
+  tg  3.10 t/s  pp  15.3 t/s  n=56  'A TV remote sends invisible radio waves to your TV. You press buttons '
+  tg  4.54 t/s  pp   6.8 t/s  n=128  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  0.77 t/s  pp  10.7 t/s  n=128  '1. Mars has the largest volcano in the solar system, Olympus Mons, whi'
+MTP n_max=2: w-q4k-h65.gguf, patched3, t=3: generation 1.59 tok/s (token-weighted), prompt 11.9 tok/s, draft acceptance 0.593
+VmRSS:	  890092 kB
+0.14.385.939 I common_speculative_init_result: creating MTP draft context against the target model 'w-q4k-h65.gguf'
+0.17.041.092 I slot print_timing: id  0 | task 0 | draft acceptance = 1.00000 (    2 accepted /     2 generated), mean len =  3.00
+0.30.238.877 I slot print_timing: id  0 | task 5 | draft acceptance = 0.57500 (   23 accepted /    40 generated), mean len =  2.15
+0.50.261.257 I slot print_timing: id  0 | task 28 | draft acceptance = 0.34848 (   23 accepted /    66 generated), mean len =  1.70
+1.22.728.376 I slot print_timing: id  0 | task 64 | draft acceptance = 0.89011 (   81 accepted /    91 generated), mean len =  2.76
+== n_max=3 (w-q4k-h65.gguf)
+  tg  4.75 t/s  pp  15.0 t/s  n=44  'The capital of Australia is Canberra, which was chosen over Sydney bec'
+  tg  3.28 t/s  pp  14.0 t/s  n=56  'A TV remote sends invisible radio waves to your TV. You press buttons '
+  tg  4.57 t/s  pp  13.8 t/s  n=128  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  1.85 t/s  pp  13.6 t/s  n=128  '1. Mars has the largest volcano in the solar system, Olympus Mons, whi'
+MTP n_max=3: w-q4k-h65.gguf, patched3, t=3: generation 2.88 tok/s (token-weighted), prompt 14.1 tok/s, draft acceptance 0.475
+VmRSS:	 1006548 kB
+0.16.138.749 I common_speculative_init_result: creating MTP draft context against the target model 'w-q4k-h65.gguf'
+0.21.084.423 I slot print_timing: id  0 | task 0 | draft acceptance = 1.00000 (    2 accepted /     2 generated), mean len =  3.00
+0.32.469.354 I slot print_timing: id  0 | task 5 | draft acceptance = 0.46296 (   25 accepted /    54 generated), mean len =  2.39
+0.51.712.046 I slot print_timing: id  0 | task 26 | draft acceptance = 0.23958 (   23 accepted /    96 generated), mean len =  1.72
+1.22.055.530 I slot print_timing: id  0 | task 61 | draft acceptance = 0.81818 (   90 accepted /   110 generated), mean len =  3.43

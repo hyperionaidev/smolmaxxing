@@ -1,0 +1,793 @@
+| qwen35 0.8B Q4_K - Medium      | 497.39 MiB |   752.39 M | CPU        |       3 |            tg32 |          8.30 ± 0.08 |
+| qwen35 0.8B Q4_K - Medium      | 497.39 MiB |   752.39 M | CPU        |       4 |           pp128 |         35.10 ± 0.18 |
+mem 03:32:32 avail 1027 swapfree 236 rss 0
+env: exec ./vulkan32/llama-bench: No such file or directory
+tv-guard: exit 127, min MemAvailable 1027 MB, max RSS 0 MB
+mem 03:32:57 avail 1011 swapfree 238 rss 1
+mem 03:32:57 avail 1007 swapfree 238 rss 28
+mem 03:32:57 avail 994 swapfree 238 rss 41
+mem 03:32:58 avail 978 swapfree 238 rss 57
+mem 03:32:58 avail 955 swapfree 238 rss 80
+mem 03:32:58 avail 945 swapfree 238 rss 88
+mem 03:32:59 avail 941 swapfree 238 rss 92
+mem 03:32:59 avail 777 swapfree 238 rss 611
+mem 03:32:59 avail 495 swapfree 238 rss 608
+mem 03:33:00 avail 293 swapfree 181 rss 802
+Killed 
+[ 1377.735145] (llama-bench) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+ggml_vulkan: Found 1 Vulkan devices:
+ggml_vulkan: 0 = Mali-G310 (Mali-G310) | uma: 1 | fp16: 1 | bf16: 0 | fp4: 0 | warp size: 16 | shared memory: 32768 | int dot: 0 | matrix cores: none
+| model                          |       size |     params | backend    | ngl | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | --------------: | -------------------: |
+[ 1379.377278] (llama-bench) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+tv-guard: killed, MemAvailable 293 MB < 450 MB
+tv-guard: exit 137, min MemAvailable 293 MB, max RSS 802 MB
+mem 03:33:29 avail 1004 swapfree 184 rss 0
+mem 03:33:29 avail 997 swapfree 184 rss 21
+mem 03:33:29 avail 983 swapfree 184 rss 34
+mem 03:33:30 avail 963 swapfree 185 rss 49
+mem 03:33:30 avail 931 swapfree 185 rss 71
+mem 03:33:30 avail 920 swapfree 185 rss 81
+mem 03:33:31 avail 918 swapfree 185 rss 84
+mem 03:33:31 avail 855 swapfree 185 rss 598
+mem 03:33:31 avail 451 swapfree 185 rss 798
+mem 03:33:32 avail 278 swapfree 185 rss 804
+mem 03:33:32 avail 315 swapfree 133 rss 804
+mem 03:33:32 avail 334 swapfree 104 rss 804
+mem 03:33:33 avail 341 swapfree 88 rss 804
+mem 03:33:33 avail 340 swapfree 88 rss 804
+mem 03:33:33 avail 340 swapfree 88 rss 804
+mem 03:33:34 avail 341 swapfree 88 rss 804
+mem 03:33:34 avail 341 swapfree 88 rss 804
+mem 03:33:35 avail 340 swapfree 88 rss 804
+mem 03:33:35 avail 341 swapfree 87 rss 799
+mem 03:33:35 avail 366 swapfree 59 rss 768
+mem 03:33:36 avail 359 swapfree 76 rss 795
+mem 03:33:36 avail 301 swapfree 77 rss 846
+mem 03:33:36 avail 244 swapfree 77 rss 897
+Killed 
+ggml_vulkan memory: ggml_vk_host_malloc(1048608)
+ggml_vulkan memory: Vulkan0: +1.00 MiB device at 4047688096. Total device: 700.32 MiB, total host: 0 B
+ggml_vulkan memory: Vulkan0: -1.00 MiB device at 4047687776. Total device: 699.32 MiB, total host: 0 B
+ggml_vulkan memory: Vulkan0: -1.00 MiB device at 4047689136. Total device: 698.32 MiB, total host: 0 B
+ggml_vulkan memory: Vulkan0: -1.00 MiB device at 4047688576. Total device: 697.32 MiB, total host: 0 B
+ggml_vulkan memory: Vulkan0: -1.00 MiB device at 4047688096. Total device: 696.32 MiB, total host: 0 B
+ggml_vulkan memory: ggml_backend_vk_host_buffer_type_alloc_buffer(993280)
+ggml_vulkan memory: ggml_vk_host_malloc(993312)
+ggml_vulkan memory: Vulkan0: +970.03 KiB device at 4121297920. Total device: 697.27 MiB, total host: 0 B
+ggml_vulkan memory: ggml_backend_vk_buffer_type_alloc_buffer(3145728)
+ggml_vulkan memory: Vulkan0: +3.00 MiB device at 4121296480. Total device: 700.27 MiB, total host: 0 B
+ggml_vulkan memory: ggml_backend_vk_buffer_type_alloc_buffer(20201472)
+ggml_vulkan memory: Vulkan0: +19.27 MiB device at 4121299520. Total device: 719.53 MiB, total host: 0 B
+ggml_vulkan memory: ggml_backend_vk_buffer_type_alloc_buffer(32327104)
+ggml_vulkan memory: Vulkan0: +30.83 MiB device at 4121300160. Total device: 750.36 MiB, total host: 0 B
+ggml_vulkan memory: ggml_backend_vk_host_buffer_type_alloc_buffer(542400)
+ggml_vulkan memory: ggml_vk_host_malloc(542432)
+ggml_vulkan memory: Vulkan0: +529.72 KiB device at 4121299280. Total device: 750.88 MiB, total host: 0 B
+ggml_vulkan memory: ggml_vk_preallocate_buffers(x_size: 0)
+ggml_vulkan memory: ggml_vk_preallocate_buffers(y_size: 0)
+ggml_vulkan memory: ggml_vk_preallocate_buffers(split_k_size: 0)
+ggml_vulkan memory: ggml_vk_preallocate_buffers(add_partials_size: 0x0)
+ggml_vulkan memory: Vulkan0: +1.00 KiB device at 4047507536. Total device: 750.88 MiB, total host: 0 B
+tv-guard: killed, MemAvailable 244 MB < 250 MB
+tv-guard: exit 137, min MemAvailable 244 MB, max RSS 897 MB
+mem 03:33:58 avail 1053 swapfree 91 rss 0
+mem 03:33:59 avail 1050 swapfree 91 rss 24
+mem 03:33:59 avail 1036 swapfree 92 rss 41
+mem 03:33:59 avail 1024 swapfree 92 rss 54
+mem 03:33:59 avail 1002 swapfree 92 rss 76
+mem 03:34:00 avail 989 swapfree 93 rss 88
+mem 03:34:00 avail 985 swapfree 93 rss 91
+mem 03:34:00 avail 981 swapfree 93 rss 597
+mem 03:34:01 avail 575 swapfree 93 rss 598
+mem 03:34:01 avail 352 swapfree 73 rss 817
+mem 03:34:02 avail 381 swapfree 52 rss 782
+mem 03:34:02 avail 400 swapfree 61 rss 747
+mem 03:34:02 avail 400 swapfree 61 rss 747
+mem 03:34:03 avail 401 swapfree 61 rss 747
+mem 03:34:03 avail 400 swapfree 61 rss 747
+mem 03:34:03 avail 401 swapfree 61 rss 747
+mem 03:34:04 avail 400 swapfree 61 rss 747
+mem 03:34:04 avail 399 swapfree 61 rss 748
+mem 03:34:04 avail 401 swapfree 61 rss 747
+mem 03:34:05 avail 404 swapfree 61 rss 744
+mem 03:34:05 avail 399 swapfree 73 rss 752
+mem 03:34:05 avail 347 swapfree 61 rss 805
+mem 03:34:06 avail 345 swapfree 62 rss 823
+mem 03:34:06 avail 367 swapfree 28 rss 817
+mem 03:34:06 avail 369 swapfree 28 rss 815
+mem 03:34:06 avail 363 swapfree 28 rss 825
+mem 03:34:07 avail 339 swapfree 29 rss 842
+mem 03:34:07 avail 338 swapfree 29 rss 842
+mem 03:34:07 avail 337 swapfree 29 rss 844
+mem 03:34:08 avail 354 swapfree 29 rss 823
+mem 03:34:08 avail 349 swapfree 29 rss 832
+mem 03:34:08 avail 348 swapfree 29 rss 832
+mem 03:34:08 avail 348 swapfree 29 rss 832
+mem 03:34:09 avail 353 swapfree 29 rss 823
+mem 03:34:09 avail 352 swapfree 31 rss 823
+mem 03:34:09 avail 344 swapfree 32 rss 840
+mem 03:34:10 avail 310 swapfree 32 rss 863
+mem 03:34:10 avail 347 swapfree 32 rss 825
+mem 03:34:10 avail 347 swapfree 32 rss 825
+mem 03:34:10 avail 346 swapfree 32 rss 827
+mem 03:34:11 avail 345 swapfree 32 rss 829
+mem 03:34:11 avail 345 swapfree 32 rss 829
+mem 03:34:11 avail 345 swapfree 32 rss 831
+mem 03:34:12 avail 318 swapfree 32 rss 860
+mem 03:34:12 avail 344 swapfree 32 rss 829
+mem 03:34:12 avail 343 swapfree 32 rss 829
+mem 03:34:12 avail 343 swapfree 32 rss 829
+mem 03:34:13 avail 342 swapfree 33 rss 830
+mem 03:34:13 avail 341 swapfree 33 rss 831
+mem 03:34:13 avail 340 swapfree 33 rss 831
+mem 03:34:14 avail 339 swapfree 33 rss 833
+mem 03:34:14 avail 339 swapfree 33 rss 830
+mem 03:34:14 avail 305 swapfree 33 rss 870
+mem 03:34:15 avail 295 swapfree 33 rss 871
+mem 03:34:15 avail 296 swapfree 33 rss 869
+mem 03:34:15 avail 296 swapfree 33 rss 870
+mem 03:34:15 avail 334 swapfree 33 rss 832
+mem 03:34:16 avail 334 swapfree 33 rss 832
+mem 03:34:16 avail 334 swapfree 33 rss 832
+mem 03:34:16 avail 335 swapfree 33 rss 830
+mem 03:34:17 avail 307 swapfree 33 rss 859
+mem 03:34:17 avail 307 swapfree 33 rss 860
+mem 03:34:17 avail 324 swapfree 33 rss 824
+mem 03:34:17 avail 339 swapfree 33 rss 827
+mem 03:34:18 avail 339 swapfree 33 rss 827
+mem 03:34:18 avail 338 swapfree 33 rss 827
+mem 03:34:18 avail 349 swapfree 33 rss 815
+mem 03:34:19 avail 355 swapfree 33 rss 813
+mem 03:34:19 avail 354 swapfree 33 rss 812
+mem 03:34:19 avail 354 swapfree 33 rss 813
+mem 03:34:20 avail 352 swapfree 33 rss 812
+mem 03:34:20 avail 352 swapfree 33 rss 813
+mem 03:34:20 avail 351 swapfree 33 rss 812
+mem 03:34:21 avail 351 swapfree 33 rss 813
+mem 03:34:21 avail 351 swapfree 33 rss 813
+mem 03:34:21 avail 351 swapfree 33 rss 813
+mem 03:34:21 avail 351 swapfree 34 rss 813
+mem 03:34:22 avail 350 swapfree 34 rss 813
+mem 03:34:22 avail 349 swapfree 34 rss 813
+mem 03:34:22 avail 349 swapfree 34 rss 813
+mem 03:34:23 avail 349 swapfree 34 rss 813
+mem 03:34:23 avail 348 swapfree 34 rss 813
+mem 03:34:23 avail 348 swapfree 34 rss 813
+mem 03:34:23 avail 348 swapfree 34 rss 812
+mem 03:34:24 avail 348 swapfree 34 rss 813
+mem 03:34:24 avail 348 swapfree 34 rss 812
+mem 03:34:24 avail 348 swapfree 34 rss 813
+mem 03:34:25 avail 349 swapfree 35 rss 813
+mem 03:34:25 avail 349 swapfree 35 rss 813
+mem 03:34:25 avail 348 swapfree 35 rss 813
+mem 03:34:26 avail 349 swapfree 36 rss 813
+mem 03:34:26 avail 361 swapfree 28 rss 801
+mem 03:34:26 avail 359 swapfree 28 rss 801
+mem 03:34:27 avail 358 swapfree 28 rss 801
+mem 03:34:27 avail 357 swapfree 28 rss 801
+mem 03:34:27 avail 357 swapfree 28 rss 801
+mem 03:34:27 avail 356 swapfree 28 rss 801
+mem 03:34:28 avail 355 swapfree 28 rss 801
+mem 03:34:28 avail 355 swapfree 28 rss 801
+mem 03:34:28 avail 355 swapfree 28 rss 801
+mem 03:34:29 avail 354 swapfree 28 rss 801
+mem 03:34:29 avail 355 swapfree 28 rss 801
+mem 03:34:29 avail 354 swapfree 28 rss 799
+mem 03:34:30 avail 355 swapfree 29 rss 801
+mem 03:34:30 avail 364 swapfree 18 rss 785
+mem 03:34:30 avail 362 swapfree 37 rss 785
+mem 03:34:31 avail 361 swapfree 40 rss 785
+mem 03:34:31 avail 369 swapfree 34 rss 782
+mem 03:34:31 avail 367 swapfree 35 rss 781
+mem 03:34:32 avail 366 swapfree 35 rss 783
+mem 03:34:32 avail 363 swapfree 38 rss 782
+mem 03:34:32 avail 362 swapfree 39 rss 783
+mem 03:34:33 avail 361 swapfree 39 rss 782
+mem 03:34:33 avail 361 swapfree 40 rss 783
+mem 03:34:33 avail 359 swapfree 40 rss 781
+mem 03:34:34 avail 375 swapfree 37 rss 783
+mem 03:34:34 avail 368 swapfree 37 rss 782
+mem 03:34:34 avail 368 swapfree 37 rss 783
+mem 03:34:35 avail 368 swapfree 37 rss 781
+mem 03:34:35 avail 367 swapfree 37 rss 783
+mem 03:34:35 avail 367 swapfree 37 rss 782
+mem 03:34:35 avail 367 swapfree 37 rss 783
+mem 03:34:36 avail 366 swapfree 37 rss 782
+mem 03:34:36 avail 365 swapfree 38 rss 783
+mem 03:34:36 avail 364 swapfree 38 rss 783
+mem 03:34:37 avail 364 swapfree 38 rss 783
+mem 03:34:37 avail 363 swapfree 38 rss 783
+mem 03:34:37 avail 363 swapfree 38 rss 783
+mem 03:34:38 avail 362 swapfree 38 rss 783
+mem 03:34:38 avail 361 swapfree 38 rss 783
+mem 03:34:38 avail 361 swapfree 38 rss 783
+mem 03:34:38 avail 360 swapfree 39 rss 785
+mem 03:34:39 avail 359 swapfree 39 rss 785
+mem 03:34:39 avail 359 swapfree 39 rss 785
+mem 03:34:39 avail 359 swapfree 39 rss 785
+mem 03:34:40 avail 359 swapfree 39 rss 785
+mem 03:34:40 avail 358 swapfree 39 rss 785
+mem 03:34:40 avail 358 swapfree 39 rss 784
+mem 03:34:41 avail 357 swapfree 39 rss 785
+mem 03:34:41 avail 357 swapfree 39 rss 784
+mem 03:34:41 avail 358 swapfree 39 rss 785
+mem 03:34:41 avail 358 swapfree 39 rss 784
+mem 03:34:42 avail 358 swapfree 40 rss 785
+mem 03:34:42 avail 358 swapfree 40 rss 784
+mem 03:34:42 avail 358 swapfree 40 rss 785
+mem 03:34:43 avail 357 swapfree 40 rss 785
+mem 03:34:43 avail 357 swapfree 40 rss 785
+mem 03:34:43 avail 357 swapfree 40 rss 784
+mem 03:34:44 avail 357 swapfree 40 rss 785
+mem 03:34:44 avail 356 swapfree 40 rss 785
+mem 03:34:44 avail 357 swapfree 40 rss 785
+mem 03:34:45 avail 356 swapfree 40 rss 785
+mem 03:34:45 avail 356 swapfree 40 rss 785
+mem 03:34:45 avail 356 swapfree 40 rss 785
+mem 03:34:45 avail 356 swapfree 40 rss 785
+mem 03:34:46 avail 356 swapfree 40 rss 785
+mem 03:34:46 avail 356 swapfree 40 rss 785
+mem 03:34:46 avail 355 swapfree 40 rss 785
+mem 03:34:47 avail 355 swapfree 40 rss 785
+mem 03:34:47 avail 355 swapfree 40 rss 785
+mem 03:34:47 avail 354 swapfree 40 rss 785
+mem 03:34:47 avail 354 swapfree 40 rss 785
+mem 03:34:48 avail 354 swapfree 41 rss 784
+mem 03:34:48 avail 370 swapfree 29 rss 785
+mem 03:34:49 avail 369 swapfree 29 rss 785
+mem 03:34:49 avail 368 swapfree 29 rss 785
+mem 03:34:49 avail 367 swapfree 29 rss 785
+mem 03:34:49 avail 367 swapfree 29 rss 785
+mem 03:34:50 avail 366 swapfree 29 rss 784
+mem 03:34:50 avail 366 swapfree 29 rss 785
+mem 03:34:50 avail 365 swapfree 29 rss 784
+mem 03:34:51 avail 364 swapfree 29 rss 785
+mem 03:34:51 avail 364 swapfree 29 rss 785
+mem 03:34:51 avail 363 swapfree 29 rss 785
+mem 03:34:52 avail 363 swapfree 29 rss 783
+mem 03:34:52 avail 363 swapfree 29 rss 785
+mem 03:34:52 avail 362 swapfree 29 rss 784
+mem 03:34:52 avail 362 swapfree 29 rss 785
+mem 03:34:53 avail 362 swapfree 29 rss 784
+mem 03:34:53 avail 362 swapfree 29 rss 785
+mem 03:34:53 avail 361 swapfree 29 rss 784
+mem 03:34:54 avail 361 swapfree 29 rss 785
+mem 03:34:54 avail 360 swapfree 29 rss 784
+mem 03:34:54 avail 360 swapfree 29 rss 785
+mem 03:34:55 avail 361 swapfree 30 rss 785
+mem 03:34:55 avail 362 swapfree 31 rss 785
+mem 03:34:55 avail 361 swapfree 31 rss 785
+mem 03:34:56 avail 361 swapfree 31 rss 785
+mem 03:34:56 avail 361 swapfree 31 rss 785
+mem 03:34:56 avail 361 swapfree 31 rss 785
+mem 03:34:56 avail 360 swapfree 31 rss 785
+mem 03:34:57 avail 360 swapfree 31 rss 785
+mem 03:34:57 avail 360 swapfree 31 rss 785
+mem 03:34:57 avail 360 swapfree 31 rss 784
+mem 03:34:58 avail 360 swapfree 31 rss 785
+mem 03:34:58 avail 359 swapfree 31 rss 784
+mem 03:34:58 avail 359 swapfree 31 rss 785
+mem 03:34:59 avail 446 swapfree 46 rss 517
+mem 03:34:59 avail 893 swapfree 81 rss 547
+mem 03:34:59 avail 1005 swapfree 102 rss 0
+| qwen35 0.8B Q4_K - Medium      | 497.39 MiB |   752.39 M | Vulkan     |  24 |       3 |            tg32 |          1.57 ± 0.02 |
+tv-guard: exit 0, min MemAvailable 295 MB, max RSS 871 MB
+32309504
+222816896
+507327104
+mem 03:35:11 avail 1093 swapfree 108 rss 1
+mem 03:35:11 avail 1090 swapfree 109 rss 24
+mem 03:35:12 avail 1072 swapfree 109 rss 41
+mem 03:35:12 avail 1060 swapfree 109 rss 54
+mem 03:35:12 avail 1037 swapfree 109 rss 77
+mem 03:35:12 avail 1024 swapfree 109 rss 88
+mem 03:35:13 avail 1019 swapfree 109 rss 92
+mem 03:35:13 avail 1018 swapfree 109 rss 597
+mem 03:35:13 avail 623 swapfree 109 rss 597
+mem 03:35:14 avail 378 swapfree 109 rss 816
+mem 03:35:14 avail 380 swapfree 110 rss 815
+mem 03:35:14 avail 380 swapfree 110 rss 816
+mem 03:35:15 avail 377 swapfree 110 rss 816
+mem 03:35:15 avail 379 swapfree 110 rss 816
+mem 03:35:15 avail 378 swapfree 110 rss 816
+mem 03:35:16 avail 379 swapfree 110 rss 816
+mem 03:35:16 avail 378 swapfree 110 rss 816
+mem 03:35:16 avail 378 swapfree 110 rss 816
+mem 03:35:17 avail 384 swapfree 105 rss 812
+mem 03:35:17 avail 386 swapfree 105 rss 811
+mem 03:35:17 avail 278 swapfree 101 rss 930
+mem 03:35:20 avail 318 swapfree 54 rss 893
+mem 03:35:22 avail 365 swapfree 92 rss 868
+mem 03:35:23 avail 370 swapfree 93 rss 867
+mem 03:35:26 avail 366 swapfree 93 rss 868
+mem 03:35:28 avail 365 swapfree 92 rss 866
+mem 03:35:30 avail 372 swapfree 87 rss 866
+mem 03:35:33 avail 366 swapfree 88 rss 866
+mem 03:35:36 avail 368 swapfree 98 rss 865
+mem 03:35:39 avail 361 swapfree 88 rss 864
+mem 03:35:43 avail 364 swapfree 92 rss 864
+mem 03:35:46 avail 371 swapfree 92 rss 865
+mem 03:35:49 avail 366 swapfree 92 rss 863
+mem 03:35:53 avail 366 swapfree 92 rss 864
+mem 03:35:59 avail 367 swapfree 92 rss 864
+mem 03:36:06 avail 369 swapfree 93 rss 863
+mem 03:36:09 avail 365 swapfree 91 rss 864
+mem 03:36:11 avail 367 swapfree 90 rss 866
+mem 03:36:13 avail 360 swapfree 93 rss 870
+mem 03:36:15 avail 370 swapfree 86 rss 867
+mem 03:36:16 avail 371 swapfree 109 rss 868
+mem 03:36:19 avail 374 swapfree 106 rss 865
+mem 03:36:20 avail 375 swapfree 106 rss 869
+mem 03:36:22 avail 375 swapfree 106 rss 868
+mem 03:36:24 avail 375 swapfree 105 rss 864
+mem 03:36:27 avail 373 swapfree 108 rss 866
+mem 03:36:28 avail 373 swapfree 108 rss 867
+mem 03:36:30 avail 372 swapfree 109 rss 868
+mem 03:36:31 avail 375 swapfree 108 rss 864
+mem 03:36:34 avail 365 swapfree 105 rss 865
+mem 03:36:37 avail 373 swapfree 108 rss 864
+mem 03:36:40 avail 373 swapfree 109 rss 865
+mem 03:36:44 avail 371 swapfree 107 rss 863
+mem 03:36:47 avail 372 swapfree 109 rss 864
+mem 03:36:51 avail 371 swapfree 109 rss 864
+mem 03:36:56 avail 369 swapfree 112 rss 866
+mem 03:37:01 avail 372 swapfree 111 rss 864
+mem 03:37:06 avail 373 swapfree 112 rss 864
+mem 03:37:10 avail 375 swapfree 109 rss 864
+mem 03:37:13 avail 374 swapfree 109 rss 866
+mem 03:37:15 avail 375 swapfree 80 rss 866
+mem 03:37:17 avail 367 swapfree 103 rss 866
+mem 03:37:20 avail 369 swapfree 103 rss 866
+mem 03:37:23 avail 366 swapfree 102 rss 865
+mem 03:37:25 avail 367 swapfree 101 rss 868
+mem 03:37:29 avail 374 swapfree 98 rss 865
+mem 03:37:31 avail 373 swapfree 101 rss 868
+mem 03:37:34 avail 374 swapfree 109 rss 866
+mem 03:37:37 avail 374 swapfree 108 rss 866
+mem 03:37:39 avail 374 swapfree 107 rss 867
+mem 03:37:43 avail 371 swapfree 109 rss 868
+mem 03:37:47 avail 374 swapfree 108 rss 865
+mem 03:37:54 avail 372 swapfree 111 rss 869
+mem 03:38:00 avail 375 swapfree 106 rss 865
+mem 03:38:04 avail 372 swapfree 105 rss 866
+mem 03:38:08 avail 378 swapfree 103 rss 867
+mem 03:38:12 avail 374 swapfree 102 rss 865
+mem 03:38:14 avail 368 swapfree 103 rss 866
+mem 03:38:17 avail 372 swapfree 103 rss 865
+mem 03:38:21 avail 374 swapfree 103 rss 864
+mem 03:38:25 avail 375 swapfree 104 rss 865
+mem 03:38:28 avail 370 swapfree 105 rss 867
+mem 03:38:29 avail 370 swapfree 102 rss 868
+mem 03:38:32 avail 369 swapfree 106 rss 864
+mem 03:38:36 avail 372 swapfree 105 rss 865
+mem 03:38:39 avail 371 swapfree 101 rss 865
+mem 03:39:03 avail 365 swapfree 101 rss 863
+mem 03:39:21 avail 363 swapfree 105 rss 863
+mem 03:39:30 avail 374 swapfree 115 rss 864
+mem 03:39:37 avail 372 swapfree 114 rss 863
+mem 03:39:43 avail 373 swapfree 114 rss 864
+mem 03:39:51 avail 374 swapfree 115 rss 863
+mem 03:39:59 avail 374 swapfree 115 rss 863
+mem 03:40:07 avail 373 swapfree 114 rss 863
+mem 03:40:14 avail 381 swapfree 111 rss 865
+mem 03:40:22 avail 377 swapfree 111 rss 864
+mem 03:40:29 avail 386 swapfree 122 rss 865
+mem 03:40:36 avail 381 swapfree 125 rss 864
+mem 03:40:40 avail 393 swapfree 132 rss 866
+mem 03:40:44 avail 391 swapfree 133 rss 868
+mem 03:40:47 avail 381 swapfree 125 rss 867
+mem 03:40:50 avail 373 swapfree 108 rss 867
+mem 03:40:55 avail 377 swapfree 105 rss 867
+mem 03:40:58 avail 380 swapfree 105 rss 866
+mem 03:40:59 avail 376 swapfree 104 rss 869
+mem 03:41:04 avail 376 swapfree 106 rss 865
+mem 03:41:07 avail 370 swapfree 96 rss 866
+mem 03:41:10 avail 373 swapfree 93 rss 869
+mem 03:41:11 avail 371 swapfree 98 rss 872
+mem 03:41:13 avail 374 swapfree 100 rss 868
+mem 03:41:15 avail 376 swapfree 95 rss 869
+mem 03:41:17 avail 371 swapfree 105 rss 870
+mem 03:41:18 avail 375 swapfree 101 rss 870
+mem 03:41:20 avail 370 swapfree 104 rss 868
+mem 03:41:22 avail 375 swapfree 99 rss 869
+mem 03:41:24 avail 372 swapfree 100 rss 869
+mem 03:41:26 avail 369 swapfree 102 rss 874
+mem 03:41:27 avail 375 swapfree 103 rss 869
+mem 03:41:30 avail 351 swapfree 102 rss 869
+mem 03:41:33 avail 370 swapfree 103 rss 867
+mem 03:41:36 avail 365 swapfree 105 rss 867
+mem 03:41:39 avail 370 swapfree 103 rss 867
+mem 03:41:44 avail 376 swapfree 101 rss 866
+mem 03:41:48 avail 369 swapfree 102 rss 867
+mem 03:41:52 avail 373 swapfree 102 rss 867
+mem 03:41:56 avail 372 swapfree 101 rss 868
+mem 03:41:58 avail 371 swapfree 102 rss 865
+mem 03:42:00 avail 369 swapfree 100 rss 867
+mem 03:42:03 avail 372 swapfree 100 rss 867
+mem 03:42:06 avail 368 swapfree 102 rss 867
+mem 03:42:08 avail 373 swapfree 99 rss 867
+mem 03:42:11 avail 371 swapfree 101 rss 869
+mem 03:42:13 avail 372 swapfree 95 rss 868
+mem 03:42:15 avail 368 swapfree 98 rss 868
+mem 03:42:18 avail 372 swapfree 96 rss 868
+mem 03:42:20 avail 371 swapfree 97 rss 869
+mem 03:42:24 avail 368 swapfree 99 rss 867
+mem 03:42:27 avail 369 swapfree 95 rss 869
+mem 03:42:31 avail 367 swapfree 97 rss 867
+mem 03:42:37 avail 377 swapfree 104 rss 867
+mem 03:42:40 avail 381 swapfree 108 rss 870
+mem 03:42:42 avail 377 swapfree 102 rss 872
+mem 03:42:44 avail 365 swapfree 105 rss 876
+mem 03:42:46 avail 363 swapfree 103 rss 870
+mem 03:42:47 avail 357 swapfree 115 rss 871
+mem 03:42:49 avail 374 swapfree 96 rss 873
+mem 03:42:51 avail 371 swapfree 108 rss 871
+mem 03:42:53 avail 376 swapfree 102 rss 872
+mem 03:42:55 avail 373 swapfree 107 rss 873
+mem 03:42:57 avail 377 swapfree 107 rss 872
+mem 03:42:58 avail 371 swapfree 108 rss 872
+mem 03:43:02 avail 371 swapfree 106 rss 869
+mem 03:43:05 avail 371 swapfree 107 rss 868
+mem 03:43:06 avail 370 swapfree 104 rss 887
+mem 03:43:10 avail 372 swapfree 58 rss 871
+mem 03:43:13 avail 371 swapfree 112 rss 872
+mem 03:43:15 avail 371 swapfree 113 rss 872
+mem 03:43:18 avail 365 swapfree 112 rss 874
+mem 03:43:21 avail 365 swapfree 111 rss 877
+mem 03:43:26 avail 372 swapfree 125 rss 871
+mem 03:43:29 avail 376 swapfree 133 rss 872
+mem 03:43:33 avail 376 swapfree 132 rss 873
+mem 03:43:36 avail 374 swapfree 132 rss 870
+mem 03:43:40 avail 374 swapfree 131 rss 869
+mem 03:43:43 avail 377 swapfree 128 rss 872
+mem 03:43:48 avail 372 swapfree 122 rss 904
+mem 03:43:50 avail 368 swapfree 130 rss 878
+mem 03:43:54 avail 377 swapfree 119 rss 875
+mem 03:43:58 avail 372 swapfree 118 rss 875
+mem 03:44:00 avail 374 swapfree 122 rss 879
+mem 03:44:02 avail 371 swapfree 110 rss 876
+mem 03:44:05 avail 376 swapfree 107 rss 875
+mem 03:44:07 avail 382 swapfree 109 rss 878
+mem 03:44:09 avail 373 swapfree 129 rss 875
+mem 03:44:11 avail 382 swapfree 124 rss 881
+mem 03:44:13 avail 376 swapfree 122 rss 877
+mem 03:44:15 avail 378 swapfree 123 rss 877
+mem 03:44:18 avail 383 swapfree 119 rss 874
+mem 03:44:21 avail 372 swapfree 123 rss 876
+mem 03:44:24 avail 381 swapfree 119 rss 875
+mem 03:44:26 avail 366 swapfree 122 rss 914
+mem 03:44:30 avail 375 swapfree 79 rss 876
+mem 03:44:34 avail 375 swapfree 111 rss 875
+mem 03:44:38 avail 372 swapfree 110 rss 876
+mem 03:44:42 avail 382 swapfree 115 rss 873
+mem 03:44:47 avail 381 swapfree 114 rss 873
+mem 03:44:50 avail 379 swapfree 115 rss 875
+mem 03:44:51 avail 377 swapfree 118 rss 876
+mem 03:44:54 avail 373 swapfree 119 rss 877
+mem 03:44:57 avail 382 swapfree 123 rss 877
+mem 03:44:59 avail 382 swapfree 139 rss 875
+mem 03:46:50 avail 381 swapfree 138 rss 880
+mem 03:47:02 avail 375 swapfree 128 rss 897
+mem 03:47:13 avail 379 swapfree 122 rss 897
+mem 03:47:22 avail 1130 swapfree 218 rss 0
+Terminated 
+tv-guard: exit 143, min MemAvailable 278 MB, max RSS 930 MB
+mem 03:47:23 avail 1144 swapfree 250 rss 3
+mem 03:47:23 avail 1125 swapfree 267 rss 4
+mem 03:47:24 avail 1101 swapfree 271 rss 17
+mem 03:47:24 avail 1084 swapfree 280 rss 31
+mem 03:47:24 avail 1060 swapfree 286 rss 42
+mem 03:47:25 avail 1038 swapfree 294 rss 47
+mem 03:47:25 avail 1009 swapfree 300 rss 69
+mem 03:47:25 avail 985 swapfree 306 rss 86
+mem 03:47:26 avail 980 swapfree 307 rss 89
+mem 03:47:26 avail 969 swapfree 309 rss 92
+mem 03:47:26 avail 943 swapfree 311 rss 611
+mem 03:47:27 avail 525 swapfree 312 rss 612
+mem 03:47:27 avail 547 swapfree 312 rss 612
+mem 03:47:28 avail 560 swapfree 297 rss 602
+mem 03:47:28 avail 565 swapfree 290 rss 586
+mem 03:47:28 avail 565 swapfree 290 rss 585
+mem 03:47:29 avail 565 swapfree 290 rss 578
+mem 03:47:29 avail 565 swapfree 290 rss 578
+mem 03:47:29 avail 565 swapfree 290 rss 578
+mem 03:47:29 avail 565 swapfree 292 rss 578
+mem 03:47:30 avail 360 swapfree 294 rss 832
+mem 03:47:30 avail 835 swapfree 302 rss 0
+Killed 
+tv-guard: exit 137, min MemAvailable 360 MB, max RSS 832 MB
+mem 03:54:54 avail 1012 swapfree 378 rss 1
+mem 03:54:54 avail 996 swapfree 378 rss 44
+mem 03:54:54 avail 986 swapfree 378 rss 51
+mem 03:54:55 avail 966 swapfree 378 rss 73
+mem 03:54:55 avail 946 swapfree 378 rss 92
+mem 03:54:55 avail 943 swapfree 378 rss 95
+mem 03:54:55 avail 940 swapfree 378 rss 110
+mem 03:54:56 avail 587 swapfree 378 rss 603
+mem 03:54:56 avail 368 swapfree 332 rss 802
+mem 03:54:57 avail 353 swapfree 332 rss 804
+mem 03:54:57 avail 353 swapfree 332 rss 790
+mem 03:54:57 avail 353 swapfree 332 rss 790
+mem 03:54:58 avail 352 swapfree 333 rss 790
+mem 03:54:58 avail 351 swapfree 333 rss 790
+mem 03:54:58 avail 352 swapfree 333 rss 790
+mem 03:54:58 avail 352 swapfree 333 rss 790
+mem 03:54:59 avail 350 swapfree 334 rss 790
+mem 03:54:59 avail 350 swapfree 334 rss 790
+mem 03:54:59 avail 351 swapfree 334 rss 788
+mem 03:55:00 avail 353 swapfree 334 rss 785
+mem 03:55:00 avail 353 swapfree 337 rss 785
+mem 03:55:00 avail 328 swapfree 337 rss 837
+mem 03:55:01 avail 294 swapfree 337 rss 849
+mem 03:55:01 avail 292 swapfree 338 rss 870
+mem 03:55:01 avail 282 swapfree 338 rss 877
+mem 03:55:02 avail 281 swapfree 338 rss 876
+mem 03:55:02 avail 287 swapfree 338 rss 874
+mem 03:55:02 avail 273 swapfree 338 rss 893
+mem 03:55:02 avail 260 swapfree 338 rss 897
+mem 03:55:03 avail 259 swapfree 338 rss 898
+mem 03:55:03 avail 274 swapfree 338 rss 879
+mem 03:55:03 avail 275 swapfree 338 rss 878
+mem 03:55:04 avail 269 swapfree 338 rss 887
+mem 03:55:04 avail 268 swapfree 338 rss 887
+mem 03:55:04 avail 272 swapfree 338 rss 879
+mem 03:55:04 avail 272 swapfree 338 rss 878
+mem 03:55:05 avail 274 swapfree 338 rss 877
+mem 03:55:05 avail 276 swapfree 338 rss 875
+mem 03:55:05 avail 251 swapfree 338 rss 909
+mem 03:55:06 avail 230 swapfree 338 rss 921
+Killed 
+tv-guard: killed, MemAvailable 230 MB < 250 MB
+tv-guard: exit 137, min MemAvailable 230 MB, max RSS 921 MB
+mem 04:07:05 avail 861 swapfree 333 rss 0
+mem 04:07:06 avail 857 swapfree 334 rss 14
+mem 04:07:06 avail 855 swapfree 334 rss 31
+mem 04:07:06 avail 840 swapfree 334 rss 44
+mem 04:07:07 avail 826 swapfree 334 rss 59
+mem 04:07:07 avail 804 swapfree 334 rss 81
+mem 04:07:07 avail 793 swapfree 334 rss 91
+mem 04:07:07 avail 789 swapfree 334 rss 95
+mem 04:07:08 avail 778 swapfree 334 rss 111
+mem 04:07:08 avail 514 swapfree 335 rss 615
+mem 04:07:09 avail 202 swapfree 294 rss 815
+Killed 
+tv-guard: killed, MemAvailable 202 MB < 250 MB
+tv-guard: exit 137, min MemAvailable 202 MB, max RSS 815 MB
+mem 04:07:29 avail 827 swapfree 283 rss 0
+mem 04:07:29 avail 817 swapfree 284 rss 40
+mem 04:07:30 avail 802 swapfree 287 rss 52
+mem 04:07:30 avail 785 swapfree 287 rss 65
+mem 04:07:30 avail 762 swapfree 287 rss 89
+mem 04:07:31 avail 757 swapfree 287 rss 92
+mem 04:07:31 avail 753 swapfree 287 rss 96
+mem 04:07:31 avail 528 swapfree 287 rss 454
+mem 04:07:32 avail 182 swapfree 287 rss 795
+Killed 
+tv-guard: killed, MemAvailable 182 MB < 250 MB
+tv-guard: exit 137, min MemAvailable 182 MB, max RSS 795 MB
+mem 04:07:50 avail 851 swapfree 282 rss 1
+tv-guard: exit 1, min MemAvailable 851 MB, max RSS 1 MB
+mem 04:08:06 avail 848 swapfree 284 rss 0
+mem 04:08:06 avail 835 swapfree 284 rss 31
+mem 04:08:07 avail 822 swapfree 284 rss 41
+mem 04:08:07 avail 810 swapfree 284 rss 54
+mem 04:08:07 avail 786 swapfree 284 rss 76
+mem 04:08:07 avail 782 swapfree 284 rss 80
+mem 04:08:08 avail 777 swapfree 284 rss 84
+mem 04:08:08 avail 578 swapfree 284 rss 434
+mem 04:08:08 avail 188 swapfree 284 rss 797
+Killed 
+tv-guard: killed, MemAvailable 188 MB < 250 MB
+tv-guard: exit 137, min MemAvailable 188 MB, max RSS 797 MB
+Killed 
+tv-guard: killed, MemAvailable 238 MB < 250 MB
+tv-guard: exit 137, min MemAvailable 238 MB, max RSS 700 MB
+Killed 
+tv-guard: killed, MemAvailable 186 MB < 250 MB
+tv-guard: exit 137, min MemAvailable 186 MB, max RSS 754 MB
+MemAvailable:     972912 kB
+Killed 
+tv-guard: killed, MemAvailable 194 MB < 220 MB
+tv-guard: exit 137, min MemAvailable 194 MB, max RSS 830 MB
+Killed 
+mem 04:10:11 avail 913 swapfree 167 rss 0 anon 0 file 1 | free 733 cached 234 unevict 21 anonall 213
+mem 04:10:11 avail 899 swapfree 167 rss 27 anon 19 file 11 | free 706 cached 241 unevict 21 anonall 230
+mem 04:10:11 avail 884 swapfree 167 rss 38 anon 29 file 11 | free 691 cached 246 unevict 21 anonall 243
+mem 04:10:12 avail 863 swapfree 167 rss 61 anon 53 file 11 | free 665 cached 246 unevict 21 anonall 267
+mem 04:10:12 avail 844 swapfree 167 rss 78 anon 67 file 11 | free 652 cached 246 unevict 21 anonall 280
+mem 04:10:12 avail 839 swapfree 167 rss 82 anon 70 file 11 | free 647 cached 247 unevict 21 anonall 284
+mem 04:10:13 avail 666 swapfree 167 rss 433 anon 73 file 359 | free 366 cached 247 unevict 21 anonall 286
+mem 04:10:13 avail 552 swapfree 167 rss 439 anon 74 file 364 | free 286 cached 320 unevict 21 anonall 287
+mem 04:10:13 avail 551 swapfree 167 rss 439 anon 74 file 364 | free 205 cached 402 unevict 21 anonall 287
+mem 04:10:14 avail 551 swapfree 167 rss 439 anon 74 file 364 | free 124 cached 482 unevict 21 anonall 287
+mem 04:10:14 avail 554 swapfree 167 rss 439 anon 74 file 364 | free 139 cached 472 unevict 21 anonall 287
+mem 04:10:14 avail 497 swapfree 167 rss 511 anon 176 file 364 | free 34 cached 460 unevict 21 anonall 404
+mem 04:10:15 avail 331 swapfree 167 rss 667 anon 313 file 362 | free 34 cached 337 unevict 21 anonall 530
+mem 04:10:15 avail 273 swapfree 167 rss 724 anon 372 file 360 | free 46 cached 268 unevict 21 anonall 589
+mem 04:10:15 avail 208 swapfree 167 rss 789 anon 435 file 360 | free 56 cached 200 unevict 21 anonall 647
+Killed 
+mem 04:10:28 avail 889 swapfree 173 rss 2 anon 2 file 7 | free 695 cached 239 unevict 21 anonall 245
+mem 04:10:28 avail 869 swapfree 173 rss 28 anon 20 file 11 | free 666 cached 246 unevict 21 anonall 262
+mem 04:10:28 avail 855 swapfree 173 rss 42 anon 33 file 11 | free 649 cached 250 unevict 21 anonall 276
+mem 04:10:29 avail 832 swapfree 173 rss 65 anon 56 file 11 | free 626 cached 250 unevict 21 anonall 300
+mem 04:10:29 avail 819 swapfree 173 rss 78 anon 67 file 11 | free 617 cached 250 unevict 21 anonall 309
+mem 04:10:29 avail 814 swapfree 173 rss 82 anon 71 file 11 | free 612 cached 250 unevict 21 anonall 313
+mem 04:10:30 avail 602 swapfree 173 rss 433 anon 73 file 363 | free 320 cached 252 unevict 21 anonall 316
+mem 04:10:30 avail 525 swapfree 173 rss 439 anon 74 file 364 | free 286 cached 290 unevict 21 anonall 316
+mem 04:10:30 avail 529 swapfree 173 rss 439 anon 74 file 364 | free 204 cached 373 unevict 21 anonall 316
+mem 04:10:31 avail 528 swapfree 173 rss 439 anon 74 file 364 | free 127 cached 449 unevict 21 anonall 316
+mem 04:10:31 avail 533 swapfree 173 rss 439 anon 74 file 364 | free 110 cached 475 unevict 21 anonall 316
+mem 04:10:31 avail 511 swapfree 173 rss 464 anon 105 file 364 | free 83 cached 473 unevict 21 anonall 349
+mem 04:10:32 avail 469 swapfree 173 rss 510 anon 158 file 362 | free 45 cached 460 unevict 21 anonall 404
+mem 04:10:32 avail 393 swapfree 173 rss 586 anon 234 file 360 | free 54 cached 381 unevict 21 anonall 480
+mem 04:10:32 avail 327 swapfree 173 rss 651 anon 299 file 360 | free 51 cached 318 unevict 21 anonall 545
+mem 04:10:33 avail 263 swapfree 173 rss 717 anon 364 file 359 | free 49 cached 255 unevict 21 anonall 610
+mem 04:10:33 avail 197 swapfree 173 rss 782 anon 429 file 359 | free 47 cached 192 unevict 21 anonall 675
+Killed 
+mem 04:10:34 avail 902 swapfree 161 rss 0 anon 1 file 6 | free 793 cached 163 unevict 21 anonall 232
+mem 04:10:34 avail 884 swapfree 161 rss 28 anon 20 file 11 | free 768 cached 170 unevict 21 anonall 250
+mem 04:10:34 avail 876 swapfree 161 rss 42 anon 33 file 11 | free 753 cached 174 unevict 21 anonall 264
+mem 04:10:35 avail 851 swapfree 161 rss 66 anon 57 file 11 | free 728 cached 174 unevict 21 anonall 289
+mem 04:10:35 avail 837 swapfree 161 rss 78 anon 67 file 11 | free 719 cached 174 unevict 21 anonall 297
+mem 04:10:35 avail 832 swapfree 161 rss 82 anon 71 file 11 | free 714 cached 174 unevict 21 anonall 301
+mem 04:10:36 avail 628 swapfree 162 rss 582 anon 73 file 508 | free 411 cached 181 unevict 21 anonall 304
+mem 04:10:36 avail 396 swapfree 162 rss 588 anon 74 file 513 | free 217 cached 234 unevict 21 anonall 305
+mem 04:10:36 avail 395 swapfree 162 rss 588 anon 74 file 513 | free 135 cached 317 unevict 21 anonall 305
+mem 04:10:37 avail 417 swapfree 138 rss 588 anon 74 file 513 | free 144 cached 329 unevict 21 anonall 281
+mem 04:10:37 avail 415 swapfree 139 rss 588 anon 74 file 513 | free 119 cached 352 unevict 21 anonall 283
+mem 04:10:38 avail 416 swapfree 139 rss 588 anon 74 file 513 | free 135 cached 336 unevict 21 anonall 283
+mem 04:10:38 avail 415 swapfree 139 rss 588 anon 74 file 513 | free 144 cached 327 unevict 21 anonall 283
+mem 04:10:38 avail 414 swapfree 139 rss 588 anon 74 file 513 | free 125 cached 344 unevict 21 anonall 283
+mem 04:10:39 avail 356 swapfree 139 rss 650 anon 145 file 512 | free 62 cached 334 unevict 21 anonall 358
+mem 04:10:39 avail 283 swapfree 139 rss 722 anon 222 file 509 | free 41 cached 283 unevict 21 anonall 435
+mem 04:10:39 avail 215 swapfree 139 rss 793 anon 281 file 509 | free 47 cached 216 unevict 21 anonall 490
+Killed 
+mem 04:10:40 avail 914 swapfree 139 rss 0 anon 1 file 6 | free 796 cached 174 unevict 21 anonall 211
+mem 04:10:40 avail 898 swapfree 139 rss 28 anon 20 file 11 | free 773 cached 180 unevict 21 anonall 229
+mem 04:10:41 avail 889 swapfree 139 rss 41 anon 32 file 11 | free 756 cached 184 unevict 21 anonall 242
+mem 04:10:41 avail 866 swapfree 139 rss 64 anon 55 file 11 | free 732 cached 184 unevict 21 anonall 265
+mem 04:10:41 avail 851 swapfree 139 rss 78 anon 67 file 11 | free 722 cached 184 unevict 21 anonall 276
+mem 04:10:42 avail 846 swapfree 139 rss 82 anon 71 file 11 | free 718 cached 184 unevict 21 anonall 280
+mem 04:10:42 avail 638 swapfree 139 rss 595 anon 73 file 521 | free 407 cached 184 unevict 21 anonall 282
+mem 04:10:42 avail 396 swapfree 139 rss 601 anon 74 file 527 | free 213 cached 238 unevict 21 anonall 283
+mem 04:10:43 avail 395 swapfree 139 rss 601 anon 74 file 527 | free 125 cached 326 unevict 21 anonall 283
+mem 04:10:43 avail 396 swapfree 139 rss 601 anon 74 file 527 | free 131 cached 320 unevict 21 anonall 283
+mem 04:10:43 avail 395 swapfree 139 rss 601 anon 74 file 527 | free 149 cached 308 unevict 21 anonall 283
+mem 04:10:44 avail 402 swapfree 139 rss 601 anon 74 file 527 | free 122 cached 335 unevict 21 anonall 283
+mem 04:10:44 avail 402 swapfree 139 rss 602 anon 74 file 527 | free 131 cached 326 unevict 21 anonall 283
+mem 04:10:44 avail 400 swapfree 139 rss 602 anon 74 file 527 | free 150 cached 307 unevict 21 anonall 283
+mem 04:10:45 avail 362 swapfree 139 rss 644 anon 124 file 527 | free 86 cached 318 unevict 21 anonall 337
+mem 04:10:45 avail 291 swapfree 139 rss 716 anon 202 file 523 | free 57 cached 272 unevict 21 anonall 415
+mem 04:10:45 avail 218 swapfree 139 rss 787 anon 272 file 522 | free 57 cached 207 unevict 21 anonall 480
+Killed 
+MemAvailable:     925280 kB
+mem 04:11:32 avail 902 swapfree 153 rss 1 anon 1 file 6 | free 635 cached 310 unevict 21 anonall 237
+mem 04:11:32 avail 883 swapfree 153 rss 29 anon 20 file 11 | free 611 cached 318 unevict 21 anonall 255
+mem 04:11:33 avail 868 swapfree 153 rss 45 anon 35 file 11 | free 590 cached 321 unevict 21 anonall 271
+mem 04:11:33 avail 840 swapfree 153 rss 70 anon 61 file 11 | free 560 cached 321 unevict 21 anonall 297
+mem 04:11:33 avail 830 swapfree 153 rss 78 anon 70 file 11 | free 553 cached 321 unevict 21 anonall 305
+mem 04:11:34 avail 825 swapfree 153 rss 82 anon 72 file 11 | free 549 cached 321 unevict 21 anonall 308
+mem 04:11:34 avail 466 swapfree 153 rss 581 anon 73 file 512 | free 99 cached 340 unevict 21 anonall 309
+mem 04:11:34 avail 401 swapfree 153 rss 588 anon 74 file 513 | free 114 cached 342 unevict 21 anonall 309
+mem 04:11:35 avail 400 swapfree 153 rss 588 anon 74 file 513 | free 113 cached 343 unevict 21 anonall 310
+mem 04:11:35 avail 400 swapfree 153 rss 588 anon 74 file 513 | free 123 cached 335 unevict 21 anonall 310
+mem 04:11:36 avail 401 swapfree 153 rss 588 anon 74 file 513 | free 132 cached 324 unevict 21 anonall 310
+mem 04:11:36 avail 401 swapfree 153 rss 588 anon 74 file 513 | free 107 cached 349 unevict 21 anonall 310
+mem 04:11:36 avail 400 swapfree 153 rss 588 anon 74 file 513 | free 124 cached 333 unevict 21 anonall 310
+mem 04:11:37 avail 400 swapfree 153 rss 591 anon 86 file 513 | free 97 cached 342 unevict 21 anonall 328
+mem 04:11:37 avail 319 swapfree 153 rss 673 anon 170 file 511 | free 64 cached 296 unevict 21 anonall 410
+mem 04:11:37 avail 249 swapfree 153 rss 745 anon 244 file 509 | free 42 cached 256 unevict 21 anonall 471
+mem 04:11:38 avail 214 swapfree 123 rss 793 anon 280 file 531 | free 63 cached 192 unevict 21 anonall 483
+mem 04:11:38 avail 192 swapfree 93 rss 842 anon 289 file 554 | free 48 cached 204 unevict 21 anonall 456
+mem 04:11:39 avail 230 swapfree 62 rss 853 anon 284 file 563 | free 70 cached 219 unevict 21 anonall 413
+mem 04:11:39 avail 275 swapfree 63 rss 799 anon 230 file 564 | free 118 cached 226 unevict 21 anonall 361
+mem 04:11:39 avail 288 swapfree 20 rss 757 anon 197 file 564 | free 102 cached 226 unevict 21 anonall 334
+mem 04:11:40 avail 262 swapfree 0 rss 761 anon 199 file 560 | free 133 cached 186 unevict 21 anonall 332
+mem 04:11:40 avail 260 swapfree 0 rss 761 anon 200 file 560 | free 131 cached 186 unevict 21 anonall 333
+mem 04:11:40 avail 269 swapfree 0 rss 743 anon 180 file 561 | free 144 cached 186 unevict 21 anonall 312
+mem 04:11:41 avail 262 swapfree 0 rss 750 anon 189 file 561 | free 132 cached 186 unevict 21 anonall 322
+mem 04:11:41 avail 262 swapfree 0 rss 751 anon 189 file 561 | free 133 cached 186 unevict 21 anonall 322
+mem 04:11:41 avail 262 swapfree 0 rss 751 anon 190 file 561 | free 132 cached 186 unevict 21 anonall 322
+mem 04:11:42 avail 266 swapfree 0 rss 742 anon 181 file 561 | free 136 cached 186 unevict 21 anonall 313
+mem 04:11:42 avail 264 swapfree 0 rss 742 anon 179 file 562 | free 134 cached 187 unevict 21 anonall 312
+mem 04:11:42 avail 236 swapfree 0 rss 779 anon 222 file 562 | free 92 cached 187 unevict 21 anonall 358
+mem 04:11:43 avail 221 swapfree 0 rss 784 anon 222 file 562 | free 90 cached 187 unevict 21 anonall 355
+mem 04:11:43 avail 259 swapfree 0 rss 745 anon 182 file 562 | free 128 cached 187 unevict 21 anonall 316
+mem 04:11:43 avail 258 swapfree 0 rss 747 anon 185 file 562 | free 127 cached 187 unevict 21 anonall 318
+mem 04:11:43 avail 257 swapfree 0 rss 748 anon 186 file 562 | free 126 cached 187 unevict 21 anonall 319
+mem 04:11:44 avail 257 swapfree 0 rss 749 anon 187 file 562 | free 126 cached 187 unevict 21 anonall 320
+mem 04:11:44 avail 256 swapfree 0 rss 751 anon 189 file 562 | free 126 cached 187 unevict 21 anonall 322
+mem 04:11:44 avail 240 swapfree 0 rss 777 anon 223 file 562 | free 91 cached 187 unevict 21 anonall 360
+mem 04:11:45 avail 216 swapfree 0 rss 791 anon 228 file 562 | free 85 cached 187 unevict 21 anonall 361
+mem 04:11:45 avail 215 swapfree 0 rss 790 anon 227 file 562 | free 84 cached 187 unevict 21 anonall 361
+mem 04:11:45 avail 255 swapfree 1 rss 750 anon 187 file 562 | free 124 cached 188 unevict 21 anonall 320
+mem 04:11:46 avail 254 swapfree 1 rss 751 anon 188 file 562 | free 122 cached 188 unevict 21 anonall 322
+mem 04:11:46 avail 253 swapfree 1 rss 751 anon 188 file 562 | free 122 cached 188 unevict 21 anonall 322
+mem 04:11:46 avail 253 swapfree 1 rss 749 anon 186 file 562 | free 121 cached 188 unevict 21 anonall 320
+mem 04:11:47 avail 252 swapfree 1 rss 749 anon 193 file 563 | free 111 cached 188 unevict 21 anonall 331
+mem 04:11:47 avail 211 swapfree 1 rss 790 anon 227 file 563 | free 79 cached 188 unevict 21 anonall 360
+mem 04:11:47 avail 210 swapfree 1 rss 789 anon 184 file 563 | free 120 cached 188 unevict 21 anonall 318
+mem 04:11:48 avail 252 swapfree 1 rss 749 anon 186 file 563 | free 120 cached 188 unevict 21 anonall 319
+mem 04:11:48 avail 252 swapfree 1 rss 751 anon 187 file 563 | free 120 cached 188 unevict 21 anonall 321
+mem 04:11:48 avail 253 swapfree 1 rss 752 anon 189 file 563 | free 121 cached 188 unevict 21 anonall 322
+mem 04:11:49 avail 252 swapfree 1 rss 752 anon 189 file 563 | free 120 cached 188 unevict 21 anonall 322
+mem 04:11:49 avail 251 swapfree 1 rss 750 anon 186 file 563 | free 119 cached 188 unevict 21 anonall 320
+mem 04:11:49 avail 233 swapfree 1 rss 781 anon 215 file 563 | free 94 cached 189 unevict 21 anonall 349
+mem 04:11:50 avail 227 swapfree 1 rss 780 anon 215 file 563 | free 94 cached 189 unevict 21 anonall 349
+mem 04:11:50 avail 261 swapfree 1 rss 743 anon 178 file 569 | free 123 cached 190 unevict 21 anonall 312
+mem 04:11:50 avail 257 swapfree 1 rss 748 anon 178 file 569 | free 123 cached 190 unevict 21 anonall 312
+mem 04:11:51 avail 256 swapfree 1 rss 748 anon 178 file 569 | free 123 cached 190 unevict 21 anonall 312
+mem 04:11:51 avail 256 swapfree 1 rss 747 anon 176 file 568 | free 124 cached 190 unevict 21 anonall 310
+mem 04:11:51 avail 257 swapfree 1 rss 746 anon 176 file 569 | free 124 cached 190 unevict 21 anonall 310
+mem 04:11:52 avail 257 swapfree 1 rss 746 anon 176 file 569 | free 124 cached 190 unevict 21 anonall 310
+mem 04:11:52 avail 258 swapfree 1 rss 746 anon 176 file 568 | free 124 cached 190 unevict 21 anonall 310
+mem 04:11:52 avail 258 swapfree 1 rss 746 anon 176 file 569 | free 125 cached 190 unevict 21 anonall 310
+mem 04:11:53 avail 258 swapfree 1 rss 746 anon 176 file 569 | free 123 cached 193 unevict 21 anonall 310
+mem 04:11:53 avail 259 swapfree 1 rss 746 anon 176 file 569 | free 123 cached 193 unevict 21 anonall 310
+mem 04:11:53 avail 259 swapfree 1 rss 746 anon 176 file 569 | free 123 cached 193 unevict 21 anonall 310
+mem 04:11:54 avail 259 swapfree 1 rss 746 anon 176 file 569 | free 122 cached 193 unevict 21 anonall 310
+mem 04:11:54 avail 259 swapfree 1 rss 746 anon 176 file 569 | free 121 cached 193 unevict 21 anonall 310
+mem 04:11:54 avail 259 swapfree 1 rss 746 anon 176 file 569 | free 122 cached 193 unevict 21 anonall 310
+mem 04:11:55 avail 259 swapfree 1 rss 746 anon 176 file 569 | free 122 cached 193 unevict 21 anonall 310
+mem 04:11:55 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 122 cached 193 unevict 21 anonall 311
+mem 04:11:55 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 122 cached 193 unevict 21 anonall 310
+mem 04:11:56 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 122 cached 193 unevict 21 anonall 310
+mem 04:11:56 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 122 cached 193 unevict 21 anonall 311
+mem 04:11:56 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 122 cached 193 unevict 21 anonall 311
+mem 04:11:57 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 122 cached 194 unevict 21 anonall 311
+mem 04:11:57 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 122 cached 194 unevict 21 anonall 311
+mem 04:11:57 avail 259 swapfree 2 rss 745 anon 176 file 568 | free 121 cached 194 unevict 21 anonall 311
+mem 04:11:58 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 121 cached 194 unevict 21 anonall 311
+mem 04:11:58 avail 259 swapfree 2 rss 746 anon 176 file 569 | free 121 cached 194 unevict 21 anonall 311
+mem 04:11:58 avail 259 swapfree 2 rss 745 anon 176 file 569 | free 121 cached 194 unevict 21 anonall 311
+mem 04:11:59 avail 258 swapfree 2 rss 746 anon 176 file 569 | free 121 cached 194 unevict 21 anonall 311
+mem 04:11:59 avail 258 swapfree 2 rss 746 anon 176 file 569 | free 121 cached 194 unevict 21 anonall 311
+mem 04:11:59 avail 258 swapfree 2 rss 746 anon 176 file 569 | free 121 cached 194 unevict 21 anonall 311
+mem 04:12:00 avail 258 swapfree 2 rss 746 anon 176 file 569 | free 116 cached 198 unevict 21 anonall 313
+mem 04:12:00 avail 257 swapfree 4 rss 746 anon 176 file 569 | free 114 cached 199 unevict 21 anonall 314
+mem 04:12:00 avail 256 swapfree 4 rss 746 anon 176 file 569 | free 112 cached 199 unevict 21 anonall 314
+mem 04:12:01 avail 255 swapfree 4 rss 746 anon 176 file 569 | free 111 cached 199 unevict 21 anonall 314
+mem 04:12:01 avail 254 swapfree 4 rss 746 anon 176 file 569 | free 111 cached 199 unevict 21 anonall 314
+mem 04:12:01 avail 254 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 199 unevict 21 anonall 314
+mem 04:12:02 avail 254 swapfree 4 rss 746 anon 176 file 568 | free 111 cached 200 unevict 21 anonall 314
+mem 04:12:02 avail 254 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:02 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:03 avail 254 swapfree 4 rss 746 anon 176 file 568 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:03 avail 254 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:03 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:04 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:04 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:04 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:05 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:05 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:05 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:06 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:06 avail 253 swapfree 4 rss 746 anon 176 file 569 | free 110 cached 200 unevict 21 anonall 314
+mem 04:12:06 avail 637 swapfree 73 rss 543 anon 25 file 520 | free 712 cached 200 unevict 21 anonall 164
+mem 04:12:07 avail 859 swapfree 109 rss 88 anon 52 file 36 | free 718 cached 200 unevict 21 anonall 190
+| qwen35 0.8B Q4_K - Medium      | 497.39 MiB |   752.39 M | Vulkan     |  24 |       3 |      64 |       64 |    1 |   0 |            tg16 |          1.94 ± 0.00 |
+tv-guard: exit 0, min MemAvailable 194 MB, max RSS 922 MB
+Killed 
+tv-guard: killed, MemAvailable 155 MB < 170 MB
+tv-guard: exit 137, min MemAvailable 155 MB, max RSS 959 MB
+MemAvailable:    1048708 kB
+Killed 
+tv-guard: killed, MemAvailable 144 MB < 150 MB
+tv-guard: exit 137, min MemAvailable 144 MB, max RSS 979 MB
+| gemma3 270M Q4_K - Medium      | 235.16 MiB |   268.10 M | Vulkan     |  99 |      64 |       64 |    1 |   0 |            pp64 |         38.49 ± 0.07 |
+| gemma3 270M Q4_K - Medium      | 235.16 MiB |   268.10 M | Vulkan     |  99 |      64 |       64 |    1 |   0 |            tg32 |          8.30 ± 0.00 |
+tv-guard: exit 0, min MemAvailable 456 MB, max RSS 661 MB
+--- CPU (64-bit, repacked)
+| gemma3 270M Q4_K - Medium      | 235.16 MiB |   268.10 M | CPU        |       4 |            pp64 |         72.86 ± 4.17 |
+| gemma3 270M Q4_K - Medium      | 235.16 MiB |   268.10 M | CPU        |       4 |            tg32 |         22.04 ± 0.21 |
+MemAvailable:    1058312 kB
+tv-guard: exit 134, min MemAvailable 1022 MB, max RSS 2 MB
+tv-guard: exit 134, min MemAvailable 1011 MB, max RSS 2 MB
+== Wed Nov  4 04:36:58 +04 2026
+ngl 0:  tv-guard: exit 137, min MemAvailable 121 MB, max RSS 912 MB
+ngl 8:  tv-guard: exit 137, min MemAvailable 156 MB, max RSS 1049 MB
+ngl 16:  tv-guard: exit 137, min MemAvailable 132 MB, max RSS 1005 MB
+ngl 20:  tv-guard: exit 137, min MemAvailable 164 MB, max RSS 1045 MB
+ALL DONE Wed Nov  4 04:37:54 +04 2026
+MemAvailable:    1154628 kB

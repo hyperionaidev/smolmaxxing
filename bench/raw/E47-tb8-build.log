@@ -1,0 +1,5 @@
+untied output.weight: the pruned head is cut from it
+pruned head: 61592 of 151669 rows, 71.0 MB (emb['type']=42)
+  output.weight                               174.72 MB
+  token_embd.weight                           174.72 MB
+wrote 2,206,603,648 bytes (398 + 2 tensors, 36 keys)

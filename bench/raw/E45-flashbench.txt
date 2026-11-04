@@ -1,0 +1,16 @@
+O_DIRECT bs   128 KB threads 1:  159.1 MB/s
+O_DIRECT bs   128 KB threads 2:  159.7 MB/s
+O_DIRECT bs   128 KB threads 4:  186.0 MB/s
+O_DIRECT bs   512 KB threads 1:  199.2 MB/s
+O_DIRECT bs   512 KB threads 2:  210.6 MB/s
+O_DIRECT bs   512 KB threads 4:  218.1 MB/s
+O_DIRECT bs  2048 KB threads 1:  207.3 MB/s
+O_DIRECT bs  2048 KB threads 2:  241.4 MB/s
+O_DIRECT bs  2048 KB threads 4:  262.3 MB/s
+O_DIRECT bs  8192 KB threads 1:  244.5 MB/s
+O_DIRECT bs  8192 KB threads 2:  268.5 MB/s
+O_DIRECT bs  8192 KB threads 4:  277.6 MB/s
+buffered bs   128 KB threads 1:  235.4 MB/s
+buffered bs   512 KB threads 1:  244.6 MB/s
+buffered bs  2048 KB threads 1:  232.7 MB/s
+buffered bs  8192 KB threads 1:  251.4 MB/s

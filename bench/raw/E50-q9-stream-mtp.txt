@@ -1,0 +1,43 @@
+== n_max=0 (q9-iq2-h65-mtp.gguf) LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64
+  tg  0.16 t/s  pp   0.8 t/s  n=24  'The capital of Australia is Canberra, which was chosen as a compromise'
+  tg  0.16 t/s  pp   0.8 t/s  n=24  'A TV remote sends signals using infrared light. When you press a butto'
+  tg  0.16 t/s  pp   0.8 t/s  n=24  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  0.16 t/s  pp   0.8 t/s  n=24  '1. Mars has a thin atmosphere composed primarily of carbon dioxide, wi'
+stream MTP n_max=0: q9-iq2-h65-mtp.gguf, patched15, LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64: generation 0.16 tok/s (token-weighted), prompt 0.8 tok/s, draft acceptance None
+VmRSS:	  761560 kB
+== n_max=1 (q9-iq2-h65-mtp.gguf) LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64
+  tg  0.25 t/s  pp   0.8 t/s  n=24  'The capital of Australia is Canberra, which was chosen as a compromise'
+  tg  0.27 t/s  pp   0.8 t/s  n=24  'A TV remote sends signals using infrared light. When you press a butto'
+  tg  0.28 t/s  pp   0.8 t/s  n=24  '```python\ndef is_prime(n: int) -> bool:\n    """\n    Check if a number '
+  tg  0.26 t/s  pp   0.8 t/s  n=24  '1. Mars has a thin atmosphere composed primarily of carbon dioxide, wh'
+stream MTP n_max=1: q9-iq2-h65-mtp.gguf, patched15, LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64: generation 0.27 tok/s (token-weighted), prompt 0.8 tok/s, draft acceptance 0.913
+VmRSS:	  822416 kB
+== n_max=2 (q9-iq2-h65-mtp.gguf) LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64
+Traceback (most recent call last):
+  File "<repo>/tv-llm-ui/bench.py", line 60, in <module>
+    main()
+  File "<repo>/tv-llm-ui/bench.py", line 37, in main
+    r = post("/v1/chat/completions", {"messages": [{"role": "user", "content": p}], "max_tokens": n, "temperature": 0})
+  File "<repo>/tv-llm-ui/bench.py", line 18, in post
+    return json.loads(urllib.request.urlopen(req, timeout=900).read())
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 214, in urlopen
+    return opener.open(url, data, timeout)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 517, in open
+    response = self._open(req, data)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 534, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 494, in _call_chain
+    result = func(*args)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 1375, in http_open
+    return self.do_open(http.client.HTTPConnection, req)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/urllib/request.py", line 1350, in do_open
+    r = h.getresponse()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/client.py", line 1349, in getresponse
+    response.begin()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/client.py", line 316, in begin
+    version, status, reason = self._read_status()
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/client.py", line 285, in _read_status
+    raise RemoteDisconnected("Remote end closed connection without"
+http.client.RemoteDisconnected: Remote end closed connection without response
+tv-guard: killed, MemAvailable 176 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 176 MB, max RSS 966 MB

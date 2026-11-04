@@ -1,0 +1,20 @@
+# E44 Q1_0 bit-plane kernel, tools/kbench/q1_check.cpp on the TV (fp16-scale layout, before E52's compact scales)
+## 2 accumulator chains
+max |ref| 1.040   max abs err: gemv 1.16e-07  gemm 1.16e-07   (PASS)
+cache-resident (512 x 4096), 1 thread: gemv 9.35  gemm(4 rows) 17.33 G weight-rows/s
+DRAM 49152 x 4096 (28.3 MB), 1 thread(s): gemv 9.37 G weights/s (1.32 GB/s)
+DRAM 49152 x 4096 (28.3 MB), 2 thread(s): gemv 15.90 G weights/s (2.24 GB/s)
+DRAM 49152 x 4096 (28.3 MB), 3 thread(s): gemv 20.82 G weights/s (2.93 GB/s)
+DRAM 49152 x 4096 (28.3 MB), 4 thread(s): gemv 25.08 G weights/s (3.53 GB/s)
+## 4 accumulator chains (kept)
+max |ref| 1.040   max abs err: gemv 1.16e-07  gemm 1.16e-07   (PASS)
+cache-resident (512 x 4096), 1 thread: gemv 10.59  gemm(4 rows) 17.71 G weight-rows/s
+DRAM 49152 x 4096 (28.3 MB), 1 thread(s): gemv 9.30 G weights/s (1.31 GB/s)
+DRAM 49152 x 4096 (28.3 MB), 2 thread(s): gemv 17.44 G weights/s (2.45 GB/s)
+DRAM 49152 x 4096 (28.3 MB), 3 thread(s): gemv 24.51 G weights/s (3.45 GB/s)
+DRAM 49152 x 4096 (28.3 MB), 4 thread(s): gemv 26.98 G weights/s (3.79 GB/s)
+## llama.cpp, Bonsai-4B Q1_0 (o-Bonsai-4B-Q1_0.gguf), llama-bench -t 3 -p 64 -n 32 (logs: tv-logs-9b/b4q1-*.log.gz)
+GGML_Q1_TV=0 (upstream 4x4): pp64 9.43, tg32 3.02
+GGML_Q1_TV=1 (new, 2 chains): pp64 11.02, tg32 4.22
+## perplexity, eval-en.txt, -c 128 --chunks 6 (tv-logs-9b/p-b4-*.log.gz)
+GGML_Q1_TV=1: 10.0139   GGML_Q1_TV=0: 10.0162

@@ -1,0 +1,7 @@
+| model                          |       size |     params | backend    | threads | n_batch | n_ubatch |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ------: | -------: | --------------: | -------------------: |
+| qwen35 0.8B Q2_K - Medium      | 294.02 MiB |   752.39 M | CPU        |       3 |     128 |      128 |           pp128 |         13.62 ± 0.18 |
+| qwen35 0.8B Q2_K - Medium      | 294.02 MiB |   752.39 M | CPU        |       3 |     128 |      128 |            tg64 |          8.47 ± 0.09 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 773 MB, max RSS 451 MB

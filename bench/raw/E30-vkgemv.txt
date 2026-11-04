@@ -1,0 +1,21 @@
+[ 4809.910894] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+[ 4809.916930] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+gemv K=2048 rows=8192 rows/wg=1: 2.198 ms  4.29 GB/s (Q4_0-equivalent bytes)  7.6 Gweights/s
+[ 4810.254180] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+[ 4810.258420] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+gemv K=2048 rows=8192 rows/wg=2: 2.219 ms  4.25 GB/s (Q4_0-equivalent bytes)  7.6 Gweights/s
+[ 4810.577901] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+[ 4810.584462] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+gemv K=2048 rows=8192 rows/wg=4: 2.216 ms  4.26 GB/s (Q4_0-equivalent bytes)  7.6 Gweights/s
+[ 4810.912862] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+[ 4810.916941] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+gemv K=2048 rows=8192 rows/wg=8: 2.216 ms  4.26 GB/s (Q4_0-equivalent bytes)  7.6 Gweights/s
+[ 4811.247274] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+[ 4811.251326] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+gemv K=1024 rows=3584 rows/wg=4: 1.577 ms  1.31 GB/s (Q4_0-equivalent bytes)  2.3 Gweights/s
+[ 4811.484702] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+[ 4811.490334] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+gemv K=6144 rows=2048 rows/wg=4: 2.849 ms  2.48 GB/s (Q4_0-equivalent bytes)  4.4 Gweights/s
+[ 4811.827093] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+[ 4811.834200] (vkgemv) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+gemv K=1024 rows=65536 rows/wg=4: 9.419 ms  4.01 GB/s (Q4_0-equivalent bytes)  7.1 Gweights/s

@@ -1,0 +1,6 @@
+rows    64  max rel err vs scalar: tq1 plain 4.5e-07 r4 4.5e-07 | tq2 plain 4.4e-06 r4 4.4e-06
+   TQ1_0 plain 3T 11.67  r4 3T 21.68  r4 4T 20.72 G weights/s
+   TQ2_0 plain 3T 13.96  r4 3T 33.10  r4 4T 32.66 G weights/s
+rows 29184  max rel err vs scalar: tq1 plain 1.9e-06 r4 1.9e-06 | tq2 plain 1.7e-06 r4 1.7e-06
+   TQ1_0 plain 3T  9.46  r4 3T 14.38  r4 4T 17.01 G weights/s
+   TQ2_0 plain 3T 11.94  r4 3T 19.08  r4 4T 24.03 G weights/s

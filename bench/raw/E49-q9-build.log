@@ -1,0 +1,8 @@
+set qwen35.block_count = 33 (u32)
+set qwen35.nextn_predict_layers = 1 (u32)
+untied output.weight: the pruned head is cut from it
+pruned head: 65668 of 248320 rows, 184.9 MB (emb['type']=13)
+adding 15 tensors from models/9b/mtp9-q4
+  output.weight                               699.27 MB
+  token_embd.weight                           437.04 MB
+wrote 2,813,452,032 bytes (426 + 17 tensors, 48 keys)

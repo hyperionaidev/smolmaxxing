@@ -1,0 +1,26 @@
+== b8-q1-hml resident 920 MiB (direct)
+done_getting_tensors: tensor 'token_embd.weight' (q1_0) (and 146 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+repack_cache_alloc: 964.7 MB resident in RAM, 47.5 MB streamed from /data/local/tmp/llm/cache/b8q1.1012225536
+tv-guard: killed, MemAvailable 176 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 176 MB, max RSS 1160 MB
+== tb8-q20-hml resident 920 MiB (direct)
+done_getting_tensors: tensor 'token_embd.weight' (q2_0) (and 146 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+repack_cache_alloc: 964.7 MB resident in RAM, 722.4 MB streamed from /data/local/tmp/llm/cache/tb8.1687042560
+tv-guard: killed, MemAvailable 166 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 166 MB, max RSS 1142 MB
+== b8-q1-hml resident 850 MiB window 64 (direct)
+repack_cache_alloc: 891.3 MB resident in RAM, 120.9 MB streamed from /data/local/tmp/llm/cache/b8q1.1012225536
+ggml_cpu_stream_register: stream zone 120.9 MB (file offset 891289600), window 64 MB, 3 O_DIRECT readers
+ggml_cpu_stream_hook: trace of 30 zone tensors recorded
+|        3 |      32 |       32 |            pp32 |          5.26 ± 0.00 |
+|        3 |      32 |       32 |             tg8 |          1.59 ± 0.00 |
+stream: read 1374.1 MB, freed 1321.9 MB, trace 30 tensors, 330 matmuls, 84 not ready on arrival, thread-0 wait 2.29 s
+tv-guard: exit 0, min MemAvailable 213 MB, max RSS 1116 MB
+== tb8-q20-hml resident 850 MiB window 64 (direct)
+repack_cache_alloc: 891.3 MB resident in RAM, 795.8 MB streamed from /data/local/tmp/llm/cache/tb8.1687042560
+ggml_cpu_stream_register: stream zone 795.8 MB (file offset 891289600), window 64 MB, 3 O_DIRECT readers
+ggml_cpu_stream_hook: trace of 122 zone tensors recorded
+|        3 |      32 |       32 |            pp32 |          3.21 ± 0.00 |
+|        3 |      32 |       32 |             tg8 |          0.30 ± 0.00 |
+stream: read 8773.9 MB, freed 8736.0 MB, trace 122 tensors, 1342 matmuls, 771 not ready on arrival, thread-0 wait 22.60 s
+tv-guard: exit 0, min MemAvailable 204 MB, max RSS 1167 MB

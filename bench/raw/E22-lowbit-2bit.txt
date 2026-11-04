@@ -1,0 +1,101 @@
+== iq2m (IQ2_M) 834 MB
+| qwen35 2B IQ2_M - 2.7 bpw      | 823.39 MiB |     2.01 B | CPU        |       3 |            tg64 |          3.12 ± 0.03 |
+| qwen35 2B IQ2_M - 2.7 bpw      | 823.39 MiB |     2.01 B | CPU        |       4 |           pp128 |          4.96 ± 0.03 |
+llama_model_quantize_impl: quant size  =   823.39 MiB (3.44 BPW)
+[15]12.5347
+17.52.668.355 I Final estimate: PPL = 12.3193 +/- 0.70982
+== iq2xxs (IQ2_XXS) 762 MB
+| qwen35 2B IQ2_XXS - 2.0625 bpw | 751.41 MiB |     2.01 B | CPU        |       3 |            tg64 |          4.16 ± 0.06 |
+| qwen35 2B IQ2_XXS - 2.0625 bpw | 751.41 MiB |     2.01 B | CPU        |       4 |           pp128 |          5.57 ± 0.09 |
+llama_model_quantize_impl: quant size  =   751.41 MiB (3.14 BPW)
+[15]20.4381
+14.36.230.606 I Final estimate: PPL = 20.2306 +/- 1.25049
+== q2k (Q2_K) 867 MB
+| qwen35 2B Q2_K - Medium        | 857.01 MiB |     2.01 B | CPU        |       3 |            tg64 |          4.46 ± 0.10 |
+| qwen35 2B Q2_K - Medium        | 857.01 MiB |     2.01 B | CPU        |       4 |           pp128 |          7.23 ± 0.18 |
+llama_model_quantize_impl: quant size  =   857.01 MiB (3.58 BPW)
+[15]12.9456
+12.06.138.714 I Final estimate: PPL = 12.2004 +/- 0.72572
+== q20 (Q2_0) 722 MB
+| qwen35 2B Q2_0                 | 711.92 MiB |     2.01 B | CPU        |       3 |            tg64 |          4.56 ± 0.12 |
+| qwen35 2B Q2_0                 | 711.92 MiB |     2.01 B | CPU        |       4 |           pp128 |          7.32 ± 0.02 |
+llama_model_quantize_impl: quant size  =   711.92 MiB (2.97 BPW)
+[15]312891.9400
+12.21.176.554 I Final estimate: PPL = 377511.4512 +/- 20201.40750
+=== iq2m answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is **Canterbury** (officially known as **Canterbury** in English, though often referred to as **Canterbury** in Australian English).
+It was chosen over Sydney because it was the site of the **1787 Act of the British Parliament** that established the **1787 Act** that established the **1787 Act** that established the **1787 Act
+
+> Write a Python function that checks if a number is prime, with a short docstring.
+Here's a Python function to check if a number is prime, along with a short docstring:
+
+def isPrime(n):
+    """
+    Check if a number is prime.
+
+    A prime number is a natural number greater than 1 that has no dividers other than 1 and itself.
+
+    Parameters:
+        n (int): The number to check.
+
+    Returns:
+        bool: True if n is
+
+=== iq2xxs answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is Sydney. It was chosen over London because it was chosen over London because it was chosen over London.
+
+Wait, I'm sorry, I'm sorry. I'm sorry. I'm sorry.
+
+Wait, I'm sorry. I'm sorry. I'm sorry.
+
+Wait, I'm sorry. I'm sorry. I'm sorry.
+
+Wait, I'm sorry. I'm sorry. I'm sorry.
+
+
+> Write a Python function that checks if a number is prime, with a short docstring.
+Here is a Python function that checks if a number is prime:
+
+    def is_pyprime(self):
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+    self = self
+   
+
+=== q2k answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is **Canterbury** (officially **Canterbury** is the capital, but the question asks why it was chosen over Sydney).
+
+**Canterbury** is the capital of Australia because it is the seat of the federal government, which is the only reason it was chosen over Sydney.
+
+**Canterbury** is the capital of Australia because it is the seat of the federal government, which is the only
+
+> Write a Python function that checks if a number is prime, with a short docstring.
+Here is a Python function that checks if a number is prime.
+
+**Note on performance and edge cases**
+This function is optimized for large numbers. It uses a pre-computed square root of the number to avoid unnecessary square root calculations.
+
+**Edge cases**
+*   **0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
+
+=== q20 answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+wellimorekinsizenantaallerlegeecess fallctic_CURatinpowerigeoid tack?osscount
+ith UsashaolaraganaternielVinger2etchomesuz DNSoveliestANCEutesemosamy oversteevsonicatorщukaninghamorcerientangemare Perrenchinct committed LandanganoirollywoodonceorgeuntoorfCompuster�essougarietiesosisnownoolsobilshr Gr midotten furowl resultsцustersosied Steregoьives
+
+> Write a Python function that checks if a number is prime, with a short docstring.
+enesya parsoothott зjetmodignishesuhomain hesissionsessses-offsetwarewareirthilia�Postsemb uns  finAIMleetetti-ila�lickDEDimososickiciaystendarligendo paninishloicialeldigekt-stripokeinglyän� aged Whiteigosooameatatarrijrama gre loALEaturalorseillsipse fork� creditsietautINES>w regesisojohn examinationicingustery dembersaps
+

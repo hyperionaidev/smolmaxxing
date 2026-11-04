@@ -1,0 +1,12 @@
+# E24 mixes (tools/tv-mixes.sh), TV, 2026-11-04
+== m1  1104 MB
+| qwen35 2B Q4_K - Medium        |   1.07 GiB |     2.01 B | CPU        |       3 |            tg64 |          5.82 ± 0.84 |
+| qwen35 2B Q4_K - Medium        |   1.07 GiB |     2.01 B | CPU        |       4 |           pp128 |         17.09 ± 0.57 |
+5.29.378.162 I Final estimate: PPL = 8.8318 +/- 0.49340
+== m2  1113 MB
+| qwen35 2B Q4_K - Medium        |   1.08 GiB |     2.01 B | CPU        |       3 |            tg64 |          6.09 ± 0.20 |
+| qwen35 2B Q4_K - Medium        |   1.08 GiB |     2.01 B | CPU        |       4 |           pp128 |         15.20 ± 2.02 |
+5.34.997.184 I Final estimate: PPL = 8.8050 +/- 0.49101
+ALL DONE Wed Nov  4 00:52:14 +04 2026
+--- m1 quant
+--- m2 quant

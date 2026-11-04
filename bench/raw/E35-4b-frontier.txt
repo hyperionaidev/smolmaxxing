@@ -1,0 +1,8 @@
+q2k | --pure --token-embedding-type q4_K Q2_K | file 1461.54 MiB (2.92 BPW) | Final estimate: PPL = 12.3508 +/- 0.71054
+q8_0 | (unsloth Q8_0 as downloaded) | file 4274 MiB | Final estimate: PPL = 8.2523 +/- 0.44629
+iq2xxs | --pure --token-embedding-type q4_K IQ2_XXS | file 1222.21 MiB (2.44 BPW) | 2.19.947.084 I Final estimate: PPL = 19.0492 +/- 1.15510
+# eval-en tokens: Qwen3.5 5905, Qwen3 (Bonsai) 5756; bytes 22031. bits/byte = log2(PPL) * tokens / bytes
+# Qwen3.5-2B all-Q4_K full vocab (TV, E29): PPL 10.478 = 0.909 bits/byte
+tb4-q2_0g64 | Ternary-Bonsai-4B-Q2_0_g64.gguf as downloaded (sha256 9d968b04...) | file 1085 MiB | Final estimate: PPL = 12.9020 +/- 0.79891
+tb4-TQ1_0 | --pure requantized from Q2_0_g64 | 2.23.370.178 I Final estimate: PPL = 13.9342 +/- 0.90226
+tb4-TQ2_0 | --pure requantized from Q2_0_g64 | 1.54.551.210 I Final estimate: PPL = 13.9342 +/- 0.90226

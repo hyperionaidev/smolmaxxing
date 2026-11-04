@@ -1,0 +1,4 @@
+tb4-TQ1_0-h64 eval-en: 1.31.929.861 I Final estimate: PPL = 12.8477 +/- 0.82176 1.31.929.861 I pruned-head misses: 107 of 2520 scored tokens (4.246%) skipped (target outside kept vocab) 
+tb4-TQ1_0-h64 eval-ml: 1.29.351.707 I Final estimate: PPL = 8.4735 +/- 0.59454 1.29.351.708 I pruned-head misses: 933 of 2520 scored tokens (37.024%) skipped (target outside kept vocab) 
+tb4-TQ1_0-hml eval-en: 1.31.800.266 I Final estimate: PPL = 13.3779 +/- 0.86133 1.31.800.267 I pruned-head misses: 24 of 2520 scored tokens (0.952%) skipped (target outside kept vocab) 
+tb4-TQ1_0-hml eval-ml: 1.28.599.865 I Final estimate: PPL = 15.9293 +/- 1.00007 1.28.599.866 I pruned-head misses: 168 of 2520 scored tokens (6.667%) skipped (target outside kept vocab) 

@@ -1,0 +1,7 @@
+| model                          |       size |     params | backend    | threads | n_batch | n_ubatch |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ------: | -------: | --------------: | -------------------: |
+| qwen3 4B Q2_0                  |   1.10 GiB |     4.18 B | CPU        |       3 |     128 |      128 |           pp128 |          7.20 ± 0.17 |
+| qwen3 4B Q2_0                  |   1.10 GiB |     4.18 B | CPU        |       3 |     128 |      128 |            tg64 |          3.21 ± 0.07 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 205 MB, max RSS 1025 MB

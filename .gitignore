@@ -1,0 +1,15 @@
+# large or rebuildable: models, third-party sources/builds, binaries, corpora
+third_party/
+models/
+bin/
+data/*
+!data/README.md
+!data/head-ids-*.txt
+!data/eval/
+tiny-llm-web/build/
+
+# generated at run time
+tv-llm-ui/config.json
+__pycache__/
+*.pyc
+.DS_Store

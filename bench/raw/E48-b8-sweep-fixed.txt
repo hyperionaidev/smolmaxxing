@@ -1,0 +1,18 @@
+==  resident  MiB window  MB readers 3
+sw-b8q1:tv-guard.sh[12]: b8-q1-hml: inaccessible or not found
+sw-b8q1:tv-guard: exit 127, min MemAvailable 1143 MB, max RSS 0 MB
+== b8-q1-hml resident 850 MiB window 64 MB readers 3
+pp32 |          5.77 ± 0.00 |
+tg16 |          1.52 ± 0.00 |
+stream: read 2332.5 MB, freed 2288.4 MB, trace 30 tensors, 570 matmuls, 111 not ready on arrival, thread-0 wait 3.46 s
+tv-guard: exit 0, min MemAvailable 237 MB, max RSS 1108 MB
+== b8-q1-hml resident 880 MiB window 32 MB readers 3
+pp32 |          5.70 ± 0.00 |
+tg16 |          1.66 ± 0.00 |
+stream: read 1715.8 MB, freed 1691.3 MB, trace 23 tensors, 437 matmuls, 141 not ready on arrival, thread-0 wait 3.64 s
+tv-guard: exit 0, min MemAvailable 239 MB, max RSS 1160 MB
+== b8-q1-hml resident 900 MiB window 16 MB readers 3
+pp32 |          5.81 ± 0.00 |
+tg16 |          1.83 ± 0.00 |
+stream: read 1310.0 MB, freed 1293.3 MB, trace 17 tensors, 323 matmuls, 181 not ready on arrival, thread-0 wait 3.64 s
+tv-guard: exit 0, min MemAvailable 236 MB, max RSS 1134 MB

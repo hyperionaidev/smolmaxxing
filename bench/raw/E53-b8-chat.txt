@@ -1,0 +1,18 @@
+== n_max=0 (b8-q1-hml.gguf) GGML_REPACK_CACHE=/data/local/tmp/llm/cache/b8c GGML_REPACK_RESIDENT_MB=800 GGML_STREAM_MODE=cache GGML_STREAM_WINDOW_MB=64
+  tg  1.23 t/s  pp   5.3 t/s  n=64  'The capital of Australia is Canberra, chosen to be the seat of governm'
+  tg  1.25 t/s  pp   5.1 t/s  n=64  'A TV remote control works by sending signals through the air to your T'
+  tg  1.14 t/s  pp   4.5 t/s  n=64  '```python\ndef isprime(n):\n    """\n    Check if a number is prime.\n\n   '
+  tg  1.24 t/s  pp   4.8 t/s  n=64  '1. Mars is the fourth planet from the Sun and the second smallest in t'
+stream MTP n_max=0: b8-q1-hml.gguf, patched16, GGML_REPACK_CACHE=/data/local/tmp/llm/cache/b8c GGML_REPACK_RESIDENT_MB=800 GGML_STREAM_MODE=cache GGML_STREAM_WINDOW_MB=64: generation 1.21 tok/s (token-weighted), prompt 4.9 tok/s, draft acceptance None
+VmRSS:	  900140 kB
+== n_max=0 (b8-q1-hml.gguf) GGML_REPACK_CACHE=/data/local/tmp/llm/cache/b8c GGML_REPACK_RESIDENT_MB=870 GGML_STREAM_MODE=cache GGML_STREAM_WINDOW_MB=64
+Traceback (most recent call last):
+http.client.RemoteDisconnected: Remote end closed connection without response
+tv-guard: killed, MemAvailable 174 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 174 MB, max RSS 1135 MB
+== n_max=0 (b8-q1-hml.gguf) GGML_REPACK_CACHE=/data/local/tmp/llm/cache/b8c GGML_REPACK_RESIDENT_MB=880 GGML_STREAM_MODE=direct GGML_STREAM_WINDOW_MB=16
+  tg  2.17 t/s  pp   5.6 t/s  n=64  'The capital of Australia is Canberra, chosen to be the seat of governm'
+Traceback (most recent call last):
+http.client.RemoteDisconnected: Remote end closed connection without response
+tv-guard: killed, MemAvailable 167 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 167 MB, max RSS 1146 MB

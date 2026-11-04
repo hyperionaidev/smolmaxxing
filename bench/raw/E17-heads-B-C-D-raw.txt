@@ -1,0 +1,57 @@
+# E17: sh tv-eval.sh <model> <tag> all  (speed: tg64 x5 common tokens, pp128 x2; ppl: ctx 128 x 40 chunks; en first, then ml)
+# A = unsloth Q4_K_M + id32k head (ppl killed by tv-guard: too big), B = all-Q4_K + id32k, C = all-Q4_K + H45 (ml40k ids), D = all-Q4_K + H65 (ml60k ids)
+# "Killed" lines = tv-guard stopped that run at < 180 MB MemAvailable (C and D English ppl).  2026-11-03 20:35-21:10
+== q-A.out
+Killed 
+Killed 
+      1 [1]1.1796,tv-guard: killed, MemAvailable 156 MB < 180 MB
+      1 tv-guard: exit 137, min MemAvailable 134 MB, max RSS 1168 MB
+      1 tv-guard: exit 137, min MemAvailable 156 MB, max RSS 1147 MB
+      1 tv-guard: killed, MemAvailable 134 MB < 180 MB
+== q-B.out
+| qwen35 2B Q4_K - Medium        |   1.05 GiB |     2.01 B | CPU        |       3 |            tg64 |          6.18 ± 0.42 |
+| qwen35 2B Q4_K - Medium        |   1.05 GiB |     2.01 B | CPU        |       4 |           pp128 |         17.38 ± 0.37 |
+[opprof] MUL_MAT                q4_K         6171    4087.5   72.4%      6.54
+[opprof] GET_ROWS               f32          1254     187.3    3.3%      3.56
+[opprof] GET_ROWS               q4_K           33      42.1    0.7%    224.16
+5.37.481.992 I Final estimate: PPL = 8.8896 +/- 0.49677
+5.37.482.112 I pruned-head misses: 251 of 2520 scored tokens (9.960%) skipped (target outside kept vocab)
+5.27.425.327 I Final estimate: PPL = 4.8787 +/- 0.30047
+5.27.425.409 I pruned-head misses: 1282 of 2520 scored tokens (50.873%) skipped (target outside kept vocab)
+      1 tv-guard: exit 0, min MemAvailable 184 MB, max RSS 1165 MB
+      1 tv-guard: exit 0, min MemAvailable 214 MB, max RSS 1208 MB
+      1 tv-guard: exit 0, min MemAvailable 337 MB, max RSS 1188 MB
+      1 tv-guard: exit 0, min MemAvailable 386 MB, max RSS 1204 MB
+      1 tv-guard: exit 0, min MemAvailable 428 MB, max RSS 1186 MB
+== q-C.out
+| qwen35 2B Q4_K - Medium        |   1.07 GiB |     2.04 B | CPU        |       3 |            tg64 |          6.13 ± 0.35 |
+| qwen35 2B Q4_K - Medium        |   1.07 GiB |     2.04 B | CPU        |       4 |           pp128 |         17.21 ± 0.61 |
+[opprof] MUL_MAT                q4_K         6171    4767.3   69.6%      5.71
+[opprof] GET_ROWS               f32          1254     199.3    2.9%      3.35
+[opprof] GET_ROWS               q4_K           33      50.3    0.7%    187.65
+Killed 
+5.41.922.729 I Final estimate: PPL = 7.7382 +/- 0.42229
+5.41.922.833 I pruned-head misses: 497 of 2520 scored tokens (19.722%) skipped (target outside kept vocab)
+      1 [1]6.2401,[2]5.5284,[3]7.5746,[4]7.7804,[5]7.4222,[6]7.9128,[7]8.0568,[8]8.2191,[9]8.2125,[10]9.1036,[11]8.5095,[12]8.4788,tv-guard: killed, MemAvailable 179 MB < 180 MB
+      1 tv-guard: exit 0, min MemAvailable 204 MB, max RSS 1167 MB
+      1 tv-guard: exit 0, min MemAvailable 326 MB, max RSS 1145 MB
+      1 tv-guard: exit 0, min MemAvailable 387 MB, max RSS 1179 MB
+      1 tv-guard: exit 0, min MemAvailable 389 MB, max RSS 1165 MB
+      1 tv-guard: exit 137, min MemAvailable 179 MB, max RSS 1176 MB
+== q-D.out
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          6.03 ± 0.17 |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       4 |           pp128 |         16.79 ± 0.17 |
+[opprof] MUL_MAT                q4_K         6171    4746.8   74.3%      5.89
+[opprof] GET_ROWS               f32          1254     185.3    2.9%      3.60
+[opprof] GET_ROWS               q4_K           33      52.6    0.8%    179.63
+Killed 
+5.51.045.189 I Final estimate: PPL = 9.9570 +/- 0.56006
+5.51.045.320 I pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab)
+      1 tv-guard: exit 0, min MemAvailable 185 MB, max RSS 1169 MB
+      1 tv-guard: exit 0, min MemAvailable 366 MB, max RSS 1159 MB
+      1 tv-guard: exit 0, min MemAvailable 388 MB, max RSS 1196 MB
+      1 tv-guard: exit 0, min MemAvailable 405 MB, max RSS 1092 MB
+      1 tv-guard: exit 137, min MemAvailable 176 MB, max RSS 1152 MB
+      1 tv-guard: killed, MemAvailable 176 MB < 180 MB
+
+[exited with code 0]

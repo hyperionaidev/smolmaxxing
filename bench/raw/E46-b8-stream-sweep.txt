@@ -1,0 +1,36 @@
+== resident 850 MiB window 16 MB
+|        3 |      32 |       32 |            pp32 |          5.74 ± 0.00 |
+|        3 |      32 |       32 |            tg32 |          0.99 ± 0.00 |
+stream: prefetched 3477.2 MB, dropped 4221.5 MB, trace 30 tensors, passes 34
+tv-guard: exit 0, min MemAvailable 225 MB, max RSS 1082 MB
+== resident 850 MiB window 128 MB
+|        3 |      32 |       32 |            pp32 |          5.74 ± 0.00 |
+|        3 |      32 |       32 |            tg32 |          1.39 ± 0.00 |
+stream: prefetched 3895.9 MB, dropped 4221.5 MB, trace 30 tensors, passes 34
+tv-guard: exit 0, min MemAvailable 297 MB, max RSS 1116 MB
+== resident 900 MiB window 128 MB
+|        3 |      32 |       32 |            pp32 |          5.22 ± 0.00 |
+|        3 |      32 |       32 |            tg32 |          1.85 ± 0.00 |
+stream: prefetched 2339.3 MB, dropped 2388.3 MB, trace 17 tensors, passes 34
+tv-guard: exit 0, min MemAvailable 211 MB, max RSS 1127 MB
+== resident 800 MiB window 128 MB
+|        3 |      32 |       32 |            pp32 |          5.47 ± 0.00 |
+|        3 |      32 |       32 |            tg32 |          0.94 ± 0.00 |
+stream: prefetched 5278.0 MB, dropped 6054.5 MB, trace 44 tensors, passes 34
+tv-guard: exit 0, min MemAvailable 294 MB, max RSS 1172 MB
+== resident 850 MiB window 128 MB
+|        3 |            tg32 |          1.24 ± 0.00 |
+stream: prefetched 3694.8 MB, dropped 3979.8 MB, trace 30 tensors, passes 32, cached at use 67.5% of 3859.0 MB
+tv-guard: exit 0, min MemAvailable 285 MB, max RSS 1171 MB
+== resident 920 MiB window 128 MB
+|        3 |            tg32 |          2.24 ± 0.00 |
+stream: prefetched 1513.5 MB, dropped 1560.3 MB, trace 10 tensors, passes 32, cached at use 94.8% of 1513.7 MB
+tv-guard: exit 0, min MemAvailable 215 MB, max RSS 1143 MB
+== resident 940 MiB
+repack_cache_alloc: 985.7 MB resident in RAM, 26.6 MB streamed from /data/local/tmp/llm/cache/b8q1.1012225536
+tv-guard: killed, MemAvailable 166 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 166 MB, max RSS 993 MB
+== resident 99999 MiB
+repack_cache_alloc: 1012.2 MB resident in RAM, 0.0 MB streamed from /data/local/tmp/llm/cache/b8q1.1012225536
+tv-guard: killed, MemAvailable 147 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 147 MB, max RSS 1096 MB

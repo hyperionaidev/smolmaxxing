@@ -1,0 +1,9 @@
+lzm=auto | qwen3 4B Q2_0                  |   1.10 GiB |     4.18 B | CPU        |       3 |            tg64 |          3.22 ± 0.03 | tv-guard: exit 0, min MemAvailable 226 MB, max RSS 967 MB
+lzm=on | qwen3 4B Q2_0                  |   1.10 GiB |     4.18 B | CPU        |       3 | on         |            tg64 |          3.13 ± 0.06 | tv-guard: exit 0, min MemAvailable 195 MB, max RSS 900 MB
+[opprof] MUL_MAT                q2_0         8349   11281.1   82.0%      3.12   9747.3ms   1351.2
+[opprof] GET_ROWS               q2_0           33      98.7    0.7%     36.51     98.6ms   2990.7
+[opprof] GET_ROWS               f32            66       2.9    0.0%      0.23      0.4ms     43.9
+lzm=on           3.12 ± 0.09 | tv-guard: exit 0, min MemAvailable 216 MB, max RSS 900 MB
+lzm=auto           3.14 ± 0.08 | tv-guard: exit 0, min MemAvailable 217 MB, max RSS 1021 MB
+lzm=on           3.11 ± 0.07 | tv-guard: exit 0, min MemAvailable 207 MB, max RSS 937 MB
+lzm=auto           3.17 ± 0.20 | tv-guard: exit 0, min MemAvailable 174 MB, max RSS 1019 MB

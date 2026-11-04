@@ -1,0 +1,14 @@
+#version 450
+// each invocation streams a contiguous slice of the buffer (uvec4 loads) and writes one checksum
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) readonly buffer Src { uvec4 v[]; } src;
+layout(std430, binding = 1) writeonly buffer Dst { uint o[]; } dst;
+layout(push_constant) uniform P { uint per_inv; uint n_inv; } p;
+void main() {
+    uint id = gl_GlobalInvocationID.x;
+    if (id >= p.n_inv) return;
+    uvec4 a = uvec4(0);
+    // interleaved so that neighbouring invocations read neighbouring 16-byte chunks (coalesced)
+    for (uint i = 0; i < p.per_inv; i++) a ^= src.v[i * p.n_inv + id];
+    dst.o[id] = a.x ^ a.y ^ a.z ^ a.w;
+}

@@ -1,0 +1,4 @@
+#!/bin/sh
+# zig cc for the TV box: drop GCC-style -march (zig rejects it), target Cortex-A55 (dotprod + fp16)
+for a in "$@"; do shift; case "$a" in -march=*) ;; *) set -- "$@" "$a";; esac; done
+exec zig cc -target aarch64-linux-musl -mcpu=cortex_a55 "$@"

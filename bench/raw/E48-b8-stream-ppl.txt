@@ -1,0 +1,4 @@
+[1]8.0364,[2]5.5377,[3]7.5404,[4]7.4600,[5]7.2935,[6]8.1719,
+2.39.680.231 I Final estimate: PPL = 8.1719 +/- 1.13202
+2.39.772.070 I stream: read 6747.7 MB, freed 6686.6 MB, trace 71 tensors, 1739 matmuls, 72 not ready on arrival, thread-0 wait 5.22 s
+tv-guard: exit 0, min MemAvailable 201 MB, max RSS 1077 MB

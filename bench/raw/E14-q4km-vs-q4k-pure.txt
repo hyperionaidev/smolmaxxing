@@ -1,0 +1,20 @@
+# E14: unsloth Q4_K_M + id-ranked 32K head (A) vs all-Q4_K quantized on the TV from BF16 + same head (B)
+# sh tv-eval.sh <model> <tag> speed   (llama-bench tg64 x3 random tokens, pp128 x2; opprof tg32)   2026-11-03 ~19:55
+== A  Qwen3.5-2B-Q4_K_M-head32k.gguf (1.23 GiB)
+tg64  4.82 ± 0.17   (3 threads)
+pp128 14.48 ± 1.60  (4 threads)
+[opprof] MUL_MAT                q4_K         3234    2834.9   33.4%      5.99
+[opprof] MUL_MAT                q6_K          561    1861.3   22.0%      3.23
+[opprof] MUL_MAT                q5_K         1188    1402.7   16.5%      4.88
+[opprof] GET_ROWS               q6_K           33     436.1    5.1%     31.57
+[opprof] GET_ROWS               f32          1254     191.6    2.3%      3.48
+[opprof] MUL_MAT                q8_0         1188      47.0    0.6%      0.88
+== B  w-q4k.gguf (tv-quant.sh q4k: --pure Q4_K, token_embd q4_K, head q4_K, imatrix_unsloth; 1.05 GiB; MTP block included but not loaded)
+tg64  5.59 ± 0.62
+pp128 17.39 ± 0.43
+[opprof] MUL_MAT                q4_K         6171    5104.3   63.0%      5.24
+[opprof] GET_ROWS               q4_K           33     435.5    5.4%     21.68
+[opprof] GET_ROWS               f32          1254     228.2    2.8%      2.92
+# repeat of B (opprof, tg32 x2): default poll 6.05 ± 0.15 t/s, q4_K matmul 6.60 GB/s; --poll 100: 5.66 ± 0.02
+# GET_ROWS q4_K (embedding lookup) ~10-13 ms per token: llama-bench draws tg tokens uniformly from the full 248K vocab,
+# so almost every token's embedding row is a cold page of the memory-mapped table -> read from flash.

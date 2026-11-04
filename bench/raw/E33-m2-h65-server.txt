@@ -1,0 +1,7 @@
+== n_max=0 (w-m2-h65.gguf)
+  tg  6.33 t/s  pp  16.7 t/s  n=44  'The capital of Australia is Canberra, which was chosen over Sydney bec'
+  tg  6.42 t/s  pp  16.9 t/s  n=65  'A TV remote sends invisible radio waves to your TV. You press buttons '
+  tg  6.09 t/s  pp  16.2 t/s  n=128  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  6.17 t/s  pp  15.8 t/s  n=128  '1. Mars has the largest volcano in the solar system, Olympus Mons, whi'
+MTP n_max=0: w-m2-h65.gguf, patched5, t=3: generation 6.2 tok/s (token-weighted), prompt 16.4 tok/s, draft acceptance None
+VmRSS:	  957520 kB

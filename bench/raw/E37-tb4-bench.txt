@@ -1,0 +1,8 @@
+== tb4-TQ1_0-hml MemAvailable:    1035696 kB
+| qwen3 4B TQ1_0 - 1.69 bpw ternary | 841.71 MiB |     4.18 B | CPU        |       3 |     128 |      128 |           pp128 |          2.70 ± 0.06 |
+| qwen3 4B TQ1_0 - 1.69 bpw ternary | 841.71 MiB |     4.18 B | CPU        |       3 |     128 |      128 |            tg64 |          2.20 ± 0.02 |
+tv-guard: exit 0, min MemAvailable 921 MB, max RSS 873 MB
+== tb4-TQ2_0-hml MemAvailable:    1182512 kB
+| qwen3 4B TQ2_0 - 2.06 bpw ternary |   1.00 GiB |     4.18 B | CPU        |       3 |     128 |      128 |           pp128 |          3.19 ± 0.01 |
+tv-guard: exit 143, min MemAvailable 1077 MB, max RSS 916 MB
+tb4-TQ2_0-hml: killed after >20 min of llama-bench (pp128 never finished): 1.04 GB mmapped working set > page cache, RSS stuck at 842 MB (RssFile 835 MB), re-reading from flash

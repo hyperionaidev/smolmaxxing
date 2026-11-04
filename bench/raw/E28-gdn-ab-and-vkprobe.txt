@@ -1,0 +1,70 @@
+== E28 w-q4k-h65.gguf Wed Nov  4 02:55:17 +04 2026
+ppl stock: 2.01.004.290 I Final estimate: PPL = 8.7254 +/- 0.79716
+ppl new: 1.50.622.401 I Final estimate: PPL = 8.7356 +/- 0.79724
+ppl stock-kernel-only: 1.53.702.967 I Final estimate: PPL = 8.7254 +/- 0.79716
+gen: TEXT DIFFERS (see eval/gdn-gen-*.txt)
+tg stock run1:           6.31 ± 0.11 
+tg new run1:           6.71 ± 0.14 
+tg stock run2:           6.15 ± 0.39 
+tg new run2:           6.09 ± 0.80 
+pp stock:          18.06 ± 1.14 
+--- opprof stock
+[opprof] 33 graphs, 5.270 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q4_K         6171    4053.1   76.9%      6.90   3826.3ms    656.8
+[opprof] GATED_DELTA_NET        f32           594     364.9    6.9%      0.01    317.3ms    614.3
+[opprof] CPY                    f32          2376     223.6    4.2%      3.05    203.0ms     94.1
+[opprof] GET_ROWS               f32          1254     195.3    3.7%      3.42    193.8ms    155.7
+[opprof] GET_ROWS               q4_K           33      72.6    1.4%    129.97     72.6ms   2201.0
+[opprof] UNARY                  f32          2574      65.3    1.2%      0.32     62.7ms     25.4
+[opprof] RMS_NORM               f32          3795      60.9    1.2%      0.51     47.0ms     16.0
+[opprof] GLU                    f32           792      45.9    0.9%      0.42     43.1ms     58.0
+[opprof] FILL                   f32            33      42.5    0.8%      0.77     39.1ms   1287.1
+[opprof] ADD                    f32          2178      28.1    0.5%      0.46     21.8ms     12.9
+pp new:          18.65 ± 0.86 
+--- opprof new
+[opprof] 33 graphs, 4.907 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q4_K         6171    4074.1   83.0%      6.87   3800.9ms    660.2
+[opprof] GATED_DELTA_NET        f32           594     236.9    4.8%      0.02    208.8ms    398.9
+[opprof] GET_ROWS               f32          1254     172.9    3.5%      3.86    171.0ms    137.9
+[opprof] UNARY                  f32          2574      59.8    1.2%      0.35     55.4ms     23.2
+[opprof] RMS_NORM               f32          3795      56.9    1.2%      0.55     42.8ms     15.0
+[opprof] GET_ROWS               q4_K           33      50.6    1.0%    186.68     50.5ms   1532.4
+[opprof] FILL                   f32            33      42.0    0.9%      0.78     38.3ms   1271.3
+[opprof] GLU                    f32           792      39.1    0.8%      0.50     37.5ms     49.4
+[opprof] CONCAT                 f32           594      29.7    0.6%      1.48     18.1ms     50.0
+[opprof] SSM_CONV               f32           594      28.3    0.6%      2.06     21.6ms     47.6
+ALL DONE Wed Nov  4 03:08:14 +04 2026
+#### gen
+> Explain in three sentences why the sky is blue.
+Sunlight, which contains all visible colors, scatters when it hits the Earth's atmosphere.
+Blue light has a shorter wavelength than other colors, causing it to scatter more efficiently in all directions.
+This preferential scattering of blue light makes the sky appear blue to our eyes during the day.
+
+---
+> Explain in three sentences why the sky is blue.
+Sunlight, which is composed of all visible colors, travels through the atmosphere and hits gas molecules called nitrogen and oxygen. These molecules absorb the longer wavelengths of light, such as red and orange, while scattering the shorter wavelengths, specifically blue light, in all directions. This scattering effect, known as Rayleigh scattering, is most intense for blue light, making it the dominant color we see when looking up
+
+#### vkprobe
+[26711.260919] (vkprobe) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+physical devices: 1
+device: Mali-G310  api 1.3.247  driver 0xb001000  vendor 0x13b5  type 1
+limits: maxComputeWorkGroupInvocations 512, maxComputeSharedMemorySize 32768, maxStorageBufferRange 2048 MB, maxPushConstants 256
+extensions (112 total): KHR_16bit_storage=1 KHR_shader_float16_int8=1 KHR_8bit_storage=1 KHR_shader_integer_dot_product=1 KHR_cooperative_matrix=0 EXT_subgroup_size_control=1 KHR_maintenance4=1 KHR_shader_subgroup_extended_types=1 EXT_shader_subgroup_ballot=1 KHR_buffer_device_address=1 EXT_pipeline_robustness=1 KHR_shader_bfloat16=0
+features: shaderFloat16 1 shaderInt8 1 storageBuffer16BitAccess 1 shaderInt16 1 shaderInt64 1
+subgroup: size 16 ops 0xff stages 0x3f30
+heap 0: 1910 MB flags 0x1
+memtype 0: heap 0 flags 0x7
+memtype 1: heap 0 flags 0xb
+memtype 2: heap 0 flags 0x11
+[26711.282410] (vkprobe) Successfully parsed 1 environment variable(s) from /vendor/etc/mali_platform.config.
+read 128 MB with   1024 invocations: 7.50 GB/s (17.89 ms)
+read 128 MB with   4096 invocations: 6.35 GB/s (21.14 ms)
+read 128 MB with  16384 invocations: 7.02 GB/s (19.12 ms)
+read 128 MB with  65536 invocations: 7.99 GB/s (16.79 ms)
+submit + wait round trip (tiny dispatch): 92.8 us
+ok
+rc=0
+
+[exited with code 0]

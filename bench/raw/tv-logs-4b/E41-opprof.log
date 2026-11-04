@@ -1,0 +1,20 @@
+| model                          |       size |     params | backend    | threads | lazy_mode  |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ---------- | --------------: | -------------------: |
+| qwen3 4B Q2_0                  |   1.10 GiB |     4.18 B | CPU        |       3 | on         |            tg32 |          2.86 ± 0.00 |
+
+[opprof] 33 graphs, 13.758 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q2_0         8349   11281.1   82.0%      3.12   9747.3ms   1351.2
+[opprof] RMS_NORM               f32          4785    1698.0   12.3%      0.03   1526.6ms    354.9
+[opprof] FLASH_ATTN_EXT         f32          1188     179.9    1.3%      0.11    154.4ms    151.4
+[opprof] GLU                    f32          1188     135.1    1.0%      0.34     98.4ms    113.7
+[opprof] ADD                    f32          2376     133.0    1.0%      0.18     38.0ms     56.0
+[opprof] ROPE                   f32          2376     109.3    0.8%      0.22     39.4ms     46.0
+[opprof] GET_ROWS               q2_0           33      98.7    0.7%     36.51     98.6ms   2990.7
+[opprof] SET_ROWS               f32          2409      76.9    0.6%      0.23     25.2ms     31.9
+[opprof] FILL                   f32            33      31.3    0.2%      0.64     25.8ms    947.9
+[opprof] CONT                   f32            66      11.5    0.1%      2.45      8.9ms    173.8
+[opprof] GET_ROWS               f32            66       2.9    0.0%      0.23      0.4ms     43.9
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 225 MB, max RSS 901 MB

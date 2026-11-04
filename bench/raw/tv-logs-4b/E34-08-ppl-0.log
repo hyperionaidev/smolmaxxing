@@ -1,0 +1,12 @@
+0.03.694.108 I cmn          init: llama threadpool init, n_threads = 3
+0.03.978.364 I 
+0.03.978.527 I system_info: n_threads = 3 (n_threads_batch = 3) / 4 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | REPACK = 1 | 
+0.03.978.539 I perplexity: tokenizing the input ..
+0.04.011.738 I perplexity: tokenization took 33.182 ms
+0.04.011.759 I perplexity: calculating perplexity over 40 chunks, n_ctx=128, batch_size=128, n_seq=1
+0.14.257.645 I perplexity: 10.25 seconds per pass - ETA 6.82 minutes
+[1]207.1299,[2]180.7897,[3]211.6599,[4]204.1126,[5]192.0189,[6]217.0188,[7]250.0534,[8]255.5694,[9]253.2257,[10]266.4195,[11]228.9689,[12]233.0587,[13]225.5202,[14]255.5754,[15]268.1973,[16]274.0445,[17]284.5209,[18]310.7401,[19]318.6491,[20]331.3893,[21]342.6348,[22]340.5674,[23]345.0353,[24]350.6981,[25]345.5331,[26]349.6265,[27]356.3625,[28]368.7017,[29]345.5659,[30]320.0284,[31]307.0257,[32]297.6289,[33]278.1888,[34]266.0463,[35]268.3310,[36]252.7702,[37]238.3845,[38]231.2233,[39]243.5043,[40]247.3445,
+6.55.401.775 I Final estimate: PPL = 247.3445 +/- 19.19924
+6.55.401.778 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab)
+
+tv-guard: exit 0, min MemAvailable 644 MB, max RSS 568 MB

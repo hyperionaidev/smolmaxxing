@@ -1,0 +1,25 @@
+# E18: tv-quant.sh q40 / iq4nl (pure, same id32k head, from BF16) then tv-eval.sh speed. B (Q4_K) for comparison: tg64 6.18, pp128 17.4.
+# Q4_0 English ppl (ctx128 x40, same head as B): 9.1565 +/- 0.514 vs B 8.8896 +/- 0.497 (251 misses each). 2026-11-03 21:05-21:40
+
+-rw-rw-rw- 1 shell shell 1143546464 2026-11-03 21:19 w-iq4nl.gguf
+-rw-rw-rw- 1 shell shell 1143546464 2026-11-03 21:12 w-q40.gguf
+== E q40
+| qwen35 2B Q4_0                 |   1.05 GiB |     2.01 B | CPU        |       3 |            tg64 |          6.47 ± 0.11 |
+| qwen35 2B Q4_0                 |   1.05 GiB |     2.01 B | CPU        |       4 |           pp128 |         19.67 ± 0.08 |
+[opprof] MUL_MAT                q4_0         6171    5146.7   73.9%      5.19
+[opprof] GET_ROWS               f32          1254     173.6    2.5%      3.84
+[opprof] GET_ROWS               q4_0           33      39.9    0.6%    236.82
+      1 tv-guard: exit 0, min MemAvailable 366 MB, max RSS 1134 MB
+      1 tv-guard: exit 0, min MemAvailable 380 MB, max RSS 1184 MB
+      1 tv-guard: exit 0, min MemAvailable 415 MB, max RSS 1177 MB
+== F iq4nl
+| qwen35 2B IQ4_NL - 4.5 bpw     |   1.05 GiB |     2.01 B | CPU        |       3 |            tg64 |          5.74 ± 0.82 |
+| qwen35 2B IQ4_NL - 4.5 bpw     |   1.05 GiB |     2.01 B | CPU        |       4 |           pp128 |         10.59 ± 3.32 |
+[opprof] MUL_MAT                iq4_nl       6171    6438.8   66.9%      4.15
+[opprof] GET_ROWS               f32          1254     251.1    2.6%      2.66
+[opprof] GET_ROWS               iq4_nl         33      69.5    0.7%    135.89
+      1 tv-guard: exit 0, min MemAvailable 279 MB, max RSS 1187 MB
+      1 tv-guard: exit 0, min MemAvailable 299 MB, max RSS 1171 MB
+      1 tv-guard: exit 0, min MemAvailable 391 MB, max RSS 1083 MB
+
+[exited with code 0]

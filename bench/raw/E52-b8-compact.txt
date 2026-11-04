@@ -1,0 +1,35 @@
+/dev/block/dm-50  26G  25G  1.0G  97% /data/user/0
+repack_cache_alloc: repack cache /data/local/tmp/llm/cache/b8c.961840480 (961.8 MB) building
+repack_cache_free: repack cache /data/local/tmp/llm/cache/b8c.961840480 complete
+tv-guard: exit 0, min MemAvailable 1058 MB, max RSS 856 MB
+-rw-r--r--  1 shell shell  961840480 2026-11-04 18:18 b8c.961840480
+-rw-rw-rw-  1 shell shell         10 2026-11-04 18:19 b8c.961840480.ok
+-rw-r--r--  1 shell shell 1687042560 2026-11-04 15:56 tb8.1687042560
+-rw-rw-rw-  1 shell shell         11 2026-11-04 15:57 tb8.1687042560.ok
+repack_cache_alloc: 961.8 MB resident in RAM, 0.0 MB streamed from /data/local/tmp/llm/cache/b8c.961840480
+pp32 |          5.06 ± 0.00 |
+tv-guard: killed, MemAvailable 176 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 176 MB, max RSS 1088 MB
+repack_cache_alloc: 961.8 MB resident in RAM, 0.0 MB streamed from /data/local/tmp/llm/cache/b8c.961840480
+pp32 |          4.75 ± 0.00 |
+tv-guard: killed, MemAvailable 179 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 179 MB, max RSS 1085 MB
+== b8-q1-hml resident 900 MiB window 16 MB readers 3 mode direct
+pp32 |          5.02 ± 0.00 |
+tv-guard: killed, MemAvailable 171 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 171 MB, max RSS 1100 MB
+== b8-q1-hml resident 880 MiB window 16 MB readers 3 mode direct
+pp32 |          5.54 ± 0.00 |
+tg32 |          2.21 ± 0.00 |
+stream: read 1373.8 MB, freed 1360.4 MB, trace 9 tensors, 315 matmuls, 174 not ready on arrival, thread-0 wait 3.81 s
+tv-guard: exit 0, min MemAvailable 223 MB, max RSS 1122 MB
+== b8-q1-hml resident 900 MiB window 64 MB readers 3 mode cache
+pp32 |          4.86 ± 0.00 |
+tg32 |          2.23 ± 0.00 |
+stream: read 645.9 MB, freed 627.2 MB, trace 3 tensors, 105 matmuls, 38 not ready on arrival, thread-0 wait 3.77 s
+tv-guard: exit 0, min MemAvailable 193 MB, max RSS 1079 MB
+== b8-q1-hml resident 880 MiB window 64 MB readers 3 mode cache
+pp32 |          5.68 ± 0.00 |
+tg32 |          1.95 ± 0.00 |
+stream: read 1388.3 MB, freed 1360.4 MB, trace 9 tensors, 315 matmuls, 38 not ready on arrival, thread-0 wait 3.06 s
+tv-guard: exit 0, min MemAvailable 220 MB, max RSS 1141 MB

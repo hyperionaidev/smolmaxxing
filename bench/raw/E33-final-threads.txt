@@ -1,0 +1,2 @@
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          6.69 ± 0.15 |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       4 |            tg64 |          5.95 ± 0.31 |

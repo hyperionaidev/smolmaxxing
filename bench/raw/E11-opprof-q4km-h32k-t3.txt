@@ -1,0 +1,26 @@
+# E11: GGML_OPPROF=1 ./patched/llama-bench -m Qwen3.5-2B-Q4_K_M-head32k.gguf -t 3 -p 0 -n 32 -r 2   (2026-11-03)
+# time per node = thread 0's compute + barrier wait (i.e. the slowest thread); GB/s = src0 bytes / time
+| qwen35 2B Q4_K - Medium        |   1.23 GiB |     1.95 B | CPU        |       3 |            tg32 |          4.77 ± 0.13 |
+[opprof] 65 graphs, 15.918 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)
+[opprof] MUL_MAT                q4_K         6370    5386.3   33.8%      6.21
+[opprof] MUL_MAT                q6_K         1105    3516.2   22.1%      3.37
+[opprof] MUL_MAT                q5_K         2340    2884.2   18.1%      4.68
+[opprof] GET_ROWS               q6_K           65     840.4    5.3%     32.27
+[opprof] GATED_DELTA_NET        f32          1170     786.6    4.9%      0.01
+[opprof] RMS_NORM               f32          7475     627.0    3.9%      0.10
+[opprof] CPY                    f32          4680     493.8    3.1%      2.72
+[opprof] GET_ROWS               f32          2470     382.4    2.4%      3.44
+[opprof] SSM_CONV               f32          1170     256.7    1.6%      0.45
+[opprof] UNARY                  f32          5070     152.5    1.0%      0.27
+[opprof] SCALE                  f32          4680      94.0    0.6%      0.85
+[opprof] GLU                    f32          1560      90.7    0.6%      0.42
+[opprof] FILL                   f32            65      82.9    0.5%      0.78
+[opprof] ADD                    f32          4290      78.1    0.5%      0.33
+[opprof] MUL_MAT                q8_0         2340      69.9    0.4%      1.17
+[opprof] CONCAT                 f32          1170      56.7    0.4%      1.52
+[opprof] ROPE                   f32           780      35.5    0.2%      0.11
+[opprof] MUL                    f32          2730      27.4    0.2%      0.47
+[opprof] CONT                   f32           520      23.9    0.2%      3.31
+[opprof] FLASH_ATTN_EXT         f32           390      18.0    0.1%      0.18
+[opprof] SET_ROWS               f32           845      15.5    0.1%      0.65

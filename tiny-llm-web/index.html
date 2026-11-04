@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tiny LLM</title>
+<style>
+  :root {
+    --bg: #0e1014;
+    --panel: #161a21;
+    --panel-2: #1d222b;
+    --line: #2a313c;
+    --text: #ebe7df;
+    --muted: #8d96a3;
+    --prompt: #7fa7d9;
+    --accent: #f3b562;
+    --accent-ink: #1a1206;
+    --u: clamp(9px, 1.05vw, 22px);           /* one layout unit; scales 960 → 1920 wide */
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+  body {
+    font: calc(var(--u) * 1.5)/1.4 Roboto, "Noto Sans", system-ui, sans-serif;
+    /* 5% safe area: the Samsung TV overscan crops the edges */
+    padding: 5vh 5vw;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: calc(var(--u) * 1.6);
+    overflow: hidden;
+  }
+  header { display: flex; align-items: baseline; gap: calc(var(--u) * 1.4); }
+  h1 { margin: 0; font-size: calc(var(--u) * 2.6); font-weight: 700; letter-spacing: -0.01em; }
+  h1 b { color: var(--accent); font-weight: 700; }
+  .sub { color: var(--muted); font-size: calc(var(--u) * 1.3); }
+
+  main { display: grid; grid-template-columns: 1fr calc(var(--u) * 24); gap: calc(var(--u) * 1.6); min-height: 0; }
+
+  #story {
+    background: var(--panel);
+    border: 2px solid var(--line);
+    border-radius: calc(var(--u) * 1);
+    padding: calc(var(--u) * 1.8) calc(var(--u) * 2.2);
+    overflow-y: auto;
+    scrollbar-width: none;
+    font: calc(var(--u) * 1.85)/1.55 "Noto Serif", Georgia, serif;
+    white-space: pre-wrap;
+    min-height: 0;
+    outline: none;
+  }
+  #story::-webkit-scrollbar { display: none; }
+  #story:focus { border-color: var(--accent); }
+  #story .p { color: var(--prompt); }
+  #story .new { color: var(--accent); }
+  #story .hint { color: var(--muted); font-style: italic; }
+  .caret {
+    display: inline-block; width: 0.5em; height: 1.05em; margin-left: 0.08em;
+    vertical-align: -0.15em; background: var(--accent); animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  aside { display: flex; flex-direction: column; gap: calc(var(--u) * 1.1); min-height: 0; }
+  .group { display: flex; flex-direction: column; gap: calc(var(--u) * 0.5); }
+  .label { color: var(--muted); font-size: calc(var(--u) * 1.15); text-transform: uppercase; letter-spacing: 0.08em; }
+  .row { display: flex; gap: calc(var(--u) * 0.5); flex-wrap: wrap; }
+
+  button, input {
+    font: inherit; font-size: calc(var(--u) * 1.3);
+    color: var(--text); background: var(--panel-2);
+    border: 2px solid var(--line); border-radius: calc(var(--u) * 0.6);
+    padding: calc(var(--u) * 0.45) calc(var(--u) * 0.9);
+    outline: none; transition: transform 0.08s, background 0.08s;
+  }
+  button[aria-pressed="true"] { border-color: var(--prompt); color: #fff; background: #223147; }
+  input { width: 100%; }
+  input::placeholder { color: var(--muted); }
+  button:focus, input:focus {
+    border-color: var(--accent); background: var(--accent); color: var(--accent-ink);
+    transform: scale(1.06); box-shadow: 0 0 0 4px rgba(243, 181, 98, 0.25);
+  }
+  input:focus { background: #fff; color: #111; transform: none; }
+  #go {
+    font-size: calc(var(--u) * 1.8); font-weight: 700; padding: calc(var(--u) * 0.8);
+    background: #2b2418; border-color: #5a4626;
+  }
+
+  footer { display: flex; justify-content: space-between; gap: calc(var(--u) * 2); color: var(--muted); font-size: calc(var(--u) * 1.2); }
+  #stats b { color: var(--text); font-weight: 600; }
+  .dot { display: inline-block; width: 0.6em; height: 0.6em; border-radius: 50%; background: var(--muted); margin-right: 0.4em; }
+  .dot.on { background: var(--accent); animation: blink 0.8s steps(1) infinite; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Tiny <b>LLM</b></h1>
+    <span class="sub" id="sub">260,032 parameters · running on this TV box's CPU · no internet</span>
+  </header>
+
+  <main>
+    <div id="story" tabindex="0"><span class="hint">Press OK on “Write a story” to have the model write something.</span></div>
+
+    <aside>
+      <button id="go">▶ Write a story</button>
+
+      <div class="group">
+        <span class="label">Start with</span>
+        <div class="row" id="prompts">
+          <button data-prompt="Once upon a time" aria-pressed="true">Once upon a time</button>
+          <button data-prompt="The little dog">The little dog</button>
+          <button data-prompt="Tom found a box">Tom found a box</button>
+          <button data-prompt="One day, a dragon">A dragon</button>
+          <button data-prompt="">Nothing</button>
+        </div>
+        <input id="custom" placeholder="…or type your own" maxlength="200" autocomplete="off" autocapitalize="sentences">
+      </div>
+
+      <div class="group">
+        <span class="label">Imagination</span>
+        <div class="row" id="temps">
+          <button data-t="0">Steady</button>
+          <button data-t="0.8" aria-pressed="true">Creative</button>
+          <button data-t="1.3">Wild</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="label">Speed</span>
+        <div class="row" id="speeds">
+          <button data-delay="60" aria-pressed="true">Typewriter</button>
+          <button data-delay="0">Full speed</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <span id="stats"><span class="dot" id="dot"></span>Ready</span>
+    <span id="model">llama2.c · stories260K</span>
+  </footer>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const story = $('#story'), stats = $('#stats'), go = $('#go'), custom = $('#custom');
+  const state = { prompt: 'Once upon a time', t: 0.8, delay: 60 };
+  let ctrl = null;
+
+  // ---- option groups (one pressed button per group) ----
+  function group(sel, apply) {
+    const btns = [...document.querySelectorAll(sel + ' button')];
+    btns.forEach((b) => b.addEventListener('click', () => {
+      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      apply(b);
+    }));
+    return btns;
+  }
+  const promptBtns = group('#prompts', (b) => { state.prompt = b.dataset.prompt; custom.value = ''; });
+  group('#temps', (b) => { state.t = parseFloat(b.dataset.t); });
+  group('#speeds', (b) => { state.delay = parseInt(b.dataset.delay, 10); });
+  custom.addEventListener('input', () => {
+    if (!custom.value.trim()) return;
+    state.prompt = custom.value;
+    promptBtns.forEach((x) => x.setAttribute('aria-pressed', 'false'));
+  });
+  custom.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); custom.blur(); go.focus(); generate(); } });
+
+  // ---- model info from the server ----
+  fetch('/info').then((r) => r.json()).then((i) => {
+    $('#sub').textContent = `${i.params.toLocaleString('en-US')} parameters · running on this TV box's CPU · no internet`;
+    $('#model').textContent = `llama2.c · stories260K · ${i.n_layers} layers · dim ${i.dim} · vocab ${i.vocab_size} · ${(i.file_bytes / 1048576).toFixed(2)} MB`;
+  }).catch(() => {});
+
+  // ---- generation ----
+  function setStatus(html, busy) {
+    stats.innerHTML = `<span class="dot${busy ? ' on' : ''}"></span>` + html;
+  }
+
+  async function generate() {
+    if (ctrl) ctrl.abort();
+    const my = ctrl = new AbortController();
+    story.textContent = '';
+    const promptSpan = document.createElement('span');
+    promptSpan.className = 'p';
+    const body = document.createElement('span');
+    const caret = document.createElement('span');
+    caret.className = 'caret';
+    story.append(promptSpan, body, caret);
+
+    let count = 0, last = null, statsJson = '', inStats = false;
+    const t0 = performance.now();
+    setStatus('Thinking…', true);
+
+    const add = (piece, isPrompt) => {
+      if (isPrompt) { promptSpan.textContent += piece; return; }
+      if (last) last.className = '';
+      last = document.createElement('span');
+      last.className = 'new';
+      last.textContent = piece;
+      body.appendChild(last);
+      count++;
+      if (count % 4 === 0 || state.delay) {
+        setStatus(`Writing… <b>${count}</b> tokens · ${((performance.now() - t0) / 1000).toFixed(1)} s`, true);
+      }
+    };
+    const feed = (text) => {
+      for (const ch of text) {
+        if (inStats) { statsJson += ch; continue; }
+        if (ch === '\x1e') { inStats = true; continue; }
+        if (ch === '\x1d' || ch === '\x1f') { add(feed.buf, ch === '\x1d'); feed.buf = ''; continue; }
+        feed.buf += ch;
+      }
+      story.scrollTop = story.scrollHeight;
+    };
+    feed.buf = '';
+
+    try {
+      const url = `/gen?prompt=${encodeURIComponent(state.prompt)}&t=${state.t}&delay=${state.delay}`;
+      const res = await fetch(url, { signal: my.signal, cache: 'no-store' });
+      if (res.body && res.body.getReader) {
+        const reader = res.body.getReader(), dec = new TextDecoder();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          feed(dec.decode(value, { stream: true }));
+        }
+      } else {
+        feed(await res.text());
+      }
+      if (my !== ctrl) return;
+      caret.remove();
+      if (last) last.className = '';
+      const s = statsJson ? JSON.parse(statsJson) : null;
+      if (s) {
+        const why = s.stop === 'end' ? 'the model ended the story' : 'hit the 512-token limit';
+        setStatus(`<b>${s.tokens}</b> tokens · <b>${Math.round(s.tok_s)}</b> tok/s at full speed · ` +
+                  `temperature ${s.t} · seed ${s.seed} · ${why}`, false);
+      } else {
+        setStatus('Done', false);
+      }
+    } catch (e) {
+      if (my !== ctrl) return;  // replaced by a newer request
+      caret.remove();
+      setStatus('Lost the connection to the model server. Is it running on the box?', false);
+    }
+  }
+  go.addEventListener('click', generate);
+
+  // ---- d-pad navigation (spatial focus) ----
+  const FOCUSABLE = 'button, input, #story';
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'MediaPlayPause' || e.key === 'MediaPlay') { e.preventDefault(); generate(); return; }
+    const dir = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
+    if (!dir) return;
+    const a = document.activeElement;
+    if (a === custom && dir[1] === 0) return;                 // left/right move the text caret
+    if (a === story && dir[1] !== 0) {                         // up/down scroll the story
+      const before = story.scrollTop;
+      story.scrollTop += dir[1] * story.clientHeight * 0.6;
+      if (story.scrollTop !== before) { e.preventDefault(); return; }
+    }
+    if (!a || !a.matches(FOCUSABLE)) { e.preventDefault(); go.focus(); return; }
+    const r0 = a.getBoundingClientRect();
+    const cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
+    let best = null, bestScore = Infinity;
+    for (const el of document.querySelectorAll(FOCUSABLE)) {
+      if (el === a) continue;
+      const r = el.getBoundingClientRect();
+      // distance from our centre to the nearest point of the candidate
+      const nx = Math.max(r.left, Math.min(cx, r.right)), ny = Math.max(r.top, Math.min(cy, r.bottom));
+      const dx = nx - cx, dy = ny - cy;
+      const along = dx * dir[0] + dy * dir[1];
+      const edgeAhead = dir[0] ? (dir[0] > 0 ? r.left >= r0.right - 2 : r.right <= r0.left + 2)
+                               : (dir[1] > 0 ? r.top >= r0.bottom - 2 : r.bottom <= r0.top + 2);
+      if (!edgeAhead) continue;
+      const across = Math.abs(dx * dir[1]) + Math.abs(dy * dir[0]);
+      const score = Math.max(along, 0) + across * 2.5;
+      if (score < bestScore) { bestScore = score; best = el; }
+    }
+    if (best) { e.preventDefault(); best.focus(); }
+  });
+
+  go.focus();
+})();
+</script>
+</body>
+</html>

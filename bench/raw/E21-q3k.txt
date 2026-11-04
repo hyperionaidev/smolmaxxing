@@ -1,0 +1,24 @@
+# E21: G = stock Q3_K_M (tv-quant.sh q3km), H = all-Q4_K with ffn_up/ffn_gate Q3_K; same 32K head; tv-eval.sh speed. 2026-11-03 22:20-22:35
+
+== G q3km
+| qwen35 2B Q3_K - Medium        | 928.33 MiB |     2.01 B | CPU        |       3 |            tg64 |          4.12 ± 0.05 |
+| qwen35 2B Q3_K - Medium        | 928.33 MiB |     2.01 B | CPU        |       4 |           pp128 |          7.16 ± 0.43 |
+[opprof] MUL_MAT                q3_K         4356    5673.9   59.0%      2.03
+[opprof] MUL_MAT                q4_K         1683    1394.7   14.5%      6.95
+[opprof] MUL_MAT                q6_K           33     939.7    9.8%      1.94
+[opprof] GET_ROWS               f32          1254     211.6    2.2%      3.15
+[opprof] MUL_MAT                q5_K           99     163.6    1.7%      5.24
+[opprof] GET_ROWS               q3_K           33      39.1    0.4%    184.51
+      1 tv-guard: exit 0, min MemAvailable 800 MB, max RSS 1065 MB
+      1 tv-guard: exit 0, min MemAvailable 806 MB, max RSS 1084 MB
+      1 tv-guard: exit 0, min MemAvailable 819 MB, max RSS 1119 MB
+== H q4k+q3ffn
+| qwen35 2B Q4_K - Medium        | 1000.43 MiB |     2.01 B | CPU        |       3 |            tg64 |          4.66 ± 0.13 |
+| qwen35 2B Q4_K - Medium        | 1000.43 MiB |     2.01 B | CPU        |       4 |           pp128 |          8.81 ± 0.19 |
+[opprof] MUL_MAT                q3_K         1584    4989.9   54.5%      1.72
+[opprof] MUL_MAT                q4_K         4587    2603.6   28.4%      5.96
+[opprof] GET_ROWS               f32          1254     181.5    2.0%      3.68
+[opprof] GET_ROWS               q4_K           33      41.8    0.5%    225.79
+      1 tv-guard: exit 0, min MemAvailable 677 MB, max RSS 1117 MB
+      1 tv-guard: exit 0, min MemAvailable 692 MB, max RSS 1074 MB
+      1 tv-guard: exit 0, min MemAvailable 702 MB, max RSS 1153 MB

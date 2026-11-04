@@ -1,0 +1,9 @@
+rows    48 (    39 KB)  max rel err vs scalar: plain 8.5e-06  r4 4.3e-06
+   plain 1T  2.98  3T  8.61 G weights/s (3T 2.83 GB/s)   r4 1T  6.81  3T 19.35 G weights/s (3T 6.35 GB/s)
+rows 27648 ( 22680 KB)  max rel err vs scalar: plain 3.7e-05  r4 2.1e-05
+   plain 1T  2.74  3T  7.10 G weights/s (3T 2.33 GB/s)   r4 1T  5.90  3T 13.09 G weights/s (3T 4.29 GB/s)
+   r4 prefetch  672 B: 3T 10.62  4T 14.61 G weights/s
+   r4 prefetch 1344 B: 3T 10.59  4T 13.66 G weights/s
+   r4 prefetch 2688 B: 3T 11.82  4T 13.26 G weights/s
+   r4 prefetch 5376 B: 3T 11.57  4T 11.06 G weights/s
+   r4 no prefetch 4T 12.61   plain 4T  8.81

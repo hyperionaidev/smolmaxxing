@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Box LLM</title>
+<style>
+  :root {
+    --bg: #0d0f13; --panel: #151920; --panel2: #1c212a; --line: #2a313c;
+    --text: #ece8e1; --muted: #8c95a2; --dim: #5d6673;
+    --accent: #f3b562; --accent-ink: #1a1206; --good: #6fcf97; --warn: #f2994a; --bad: #eb5757; --user: #7fa7d9;
+    --u: clamp(8px, 0.95vw, 20px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); }
+  body {
+    font: calc(var(--u) * 1.35)/1.4 Roboto, "Noto Sans", system-ui, sans-serif;
+    padding: 4vh 4.5vw;               /* TV overscan safe area */
+    display: grid; grid-template-rows: auto 1fr auto; gap: calc(var(--u) * 1.1);
+    overflow: hidden;
+  }
+  header { display: flex; align-items: center; gap: calc(var(--u) * 1.2); }
+  h1 { margin: 0; font-size: calc(var(--u) * 2.1); font-weight: 700; letter-spacing: -0.01em; white-space: nowrap; }
+  h1 b { color: var(--accent); }
+  .pill { font-size: calc(var(--u) * 1.15); padding: 0.15em 0.75em; border-radius: 99px; background: var(--panel2); color: var(--muted); border: 1px solid var(--line); white-space: nowrap; }
+  .pill.busy { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+  .pill.err { color: #fff; background: var(--bad); border-color: var(--bad); }
+  .hdr-speed { margin-left: auto; text-align: right; white-space: nowrap; }
+  .hdr-speed .n { font-size: calc(var(--u) * 2.6); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent); }
+  .hdr-speed .l { color: var(--muted); font-size: calc(var(--u) * 1.1); }
+
+  main { display: grid; grid-template-columns: 1.65fr 1fr; gap: calc(var(--u) * 1.1); min-height: 0; }
+  .left { display: grid; grid-template-rows: 1fr auto; gap: calc(var(--u) * 0.9); min-height: 0; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: calc(var(--u) * 0.8); padding: calc(var(--u) * 0.9) calc(var(--u) * 1.1); }
+  .panel h2 { margin: 0 0 calc(var(--u) * 0.45); font-size: calc(var(--u) * 1.0); font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+
+  #chat { overflow-y: auto; scrollbar-width: none; min-height: 0; outline: none; }
+  #chat::-webkit-scrollbar { display: none; }
+  #chat:focus { border-color: var(--accent); }
+  .msg { margin: 0 0 calc(var(--u) * 0.9); }
+  .msg .who { font-size: calc(var(--u) * 1.0); color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+  .msg.user .body { color: var(--user); font-size: calc(var(--u) * 1.5); }
+  .msg.bot .body { font: calc(var(--u) * 1.6)/1.55 "Noto Serif", Georgia, serif; white-space: pre-wrap; }
+  .hint { color: var(--muted); font-style: italic; }
+  /* token confidence colouring */
+  .tk { border-radius: 3px; }
+  .tk.p2 { background: rgba(243, 181, 98, 0.16); }          /* 0.1-0.3 */
+  .tk.p3 { background: rgba(235, 87, 87, 0.30); }           /* < 0.1: the model was unsure */
+  .tk.fast { box-shadow: inset 0 -3px 0 var(--good); }     /* arrived together: accepted speculative draft */
+  .tk.new { color: var(--accent); }
+  .tk.b { font-weight: 700; }
+  .chips .tk { outline: 1px solid var(--line); margin: 0 1px; }
+  .caret { display: inline-block; width: 0.5em; height: 1em; vertical-align: -0.12em; background: var(--accent); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .latest { display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u) * 1.2); align-items: center; }
+  .latest .cur { font: 700 calc(var(--u) * 2.2) ui-monospace, "Roboto Mono", monospace; color: var(--accent); min-width: 5ch; white-space: pre; }
+  .latest .cur small { display: block; font: calc(var(--u) * 1.05) Roboto, sans-serif; color: var(--muted); }
+  .alts { display: grid; gap: 4px; }
+  .alt { display: grid; grid-template-columns: 9ch 1fr 5ch; gap: calc(var(--u) * 0.6); align-items: center; font-size: calc(var(--u) * 1.15); }
+  .alt code { font: calc(var(--u) * 1.15) ui-monospace, "Roboto Mono", monospace; white-space: pre; overflow: hidden; text-overflow: ellipsis; }
+  .bar { height: 0.7em; background: var(--panel2); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--user); border-radius: 99px; }
+  .alt.top .bar i { background: var(--accent); }
+  .alt span:last-child { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .right { display: flex; flex-direction: column; gap: calc(var(--u) * 0.6); min-height: 0; overflow: hidden; }
+  .right .panel { padding: calc(var(--u) * 0.6) calc(var(--u) * 1.0); }
+  dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0 calc(var(--u) * 0.9); font-size: calc(var(--u) * 1.05); line-height: 1.32; }
+  dt { color: var(--muted); white-space: nowrap; }
+  dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  dd.ok { color: var(--good); } dd.warn { color: var(--warn); } dd.bad { color: var(--bad); }
+  #spark { width: 100%; height: calc(var(--u) * 2.6); display: block; margin-top: 4px; }
+  .speedrow { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: calc(var(--u) * 1.12); color: var(--muted); }
+  .speedrow b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .mem { height: 0.8em; display: flex; border-radius: 99px; overflow: hidden; background: var(--panel2); margin: 4px 0 2px; }
+  .mem i { display: block; height: 100%; }
+
+  footer { display: grid; grid-template-columns: auto 1fr auto auto; gap: calc(var(--u) * 0.7); align-items: center; }
+  .presets { display: flex; gap: calc(var(--u) * 0.5); }
+  button, input {
+    font: inherit; font-size: calc(var(--u) * 1.2); color: var(--text); background: var(--panel2);
+    border: 2px solid var(--line); border-radius: calc(var(--u) * 0.55); padding: calc(var(--u) * 0.4) calc(var(--u) * 0.8); outline: none;
+  }
+  input { width: 100%; }
+  input::placeholder { color: var(--dim); }
+  button:focus, input:focus { border-color: var(--accent); }
+  button:focus { background: var(--accent); color: var(--accent-ink); }
+  input:focus { background: #fff; color: #111; }
+  #send { font-weight: 700; background: #2b2418; border-color: #5a4626; }
+  button[aria-pressed="true"] { border-color: var(--user); background: #223147; }
+</style>
+</head>
+<body>
+  <header>
+    <h1 id="title">Qwen3.5-2B <b>on this TV box</b></h1>
+    <span class="pill" id="state">connecting…</span>
+    <div class="hdr-speed"><span class="n" id="tps">–</span> <span class="l">tok/s</span></div>
+  </header>
+
+  <main>
+    <section class="left">
+      <div class="panel" id="chat" tabindex="0">
+        <div class="hint">Pick a question below (or type one) and press Send. Tokens appear as the TV's CPU produces them:
+          <span class="tk p2">amber</span> = the model hesitated, <span class="tk p3">red</span> = it was unsure,
+          <span class="tk fast">green underline</span> = came in a batch (speculative decoding).</div>
+      </div>
+      <div class="panel latest">
+        <div class="cur" id="cur">·<small>latest token</small></div>
+        <div class="alts" id="alts"></div>
+      </div>
+    </section>
+
+    <aside class="right">
+      <div class="panel">
+        <h2>Speed</h2>
+        <div class="speedrow"><span>generation <b id="gen">–</b></span><span>prompt <b id="pp">–</b></span><span>tokens <b id="ntok">0</b></span></div>
+        <svg id="spark" viewBox="0 0 120 30" preserveAspectRatio="none"></svg>
+        <div class="speedrow"><span>per-token latency (last 120)</span><span id="lat">–</span></div>
+      </div>
+      <div class="panel">
+        <h2>Model</h2>
+        <dl id="model"><dt>loading…</dt><dd></dd></dl>
+      </div>
+      <div class="panel">
+        <h2>The box</h2>
+        <div class="mem" id="membar"></div>
+        <dl id="box"><dt>waiting for stats…</dt><dd></dd></dl>
+      </div>
+      <div class="panel">
+        <h2>Config</h2>
+        <dl id="config"><dt>loading…</dt><dd></dd></dl>
+      </div>
+    </aside>
+  </main>
+
+  <footer>
+    <div class="presets" id="presets">
+      <button data-q="What is the capital of Australia, and why was it chosen over Sydney?">Australia</button>
+      <button data-q="Explain how a TV remote control works, in simple words.">TV remote</button>
+      <button data-q="Write a haiku about a small TV box that learned to think.">Haiku</button>
+      <button data-q="Write a Python function that checks if a number is prime.">Code</button>
+    </div>
+    <input id="q" placeholder="…or type a question" autocomplete="off" maxlength="400">
+    <button id="tokview" aria-pressed="false">Tokens</button>
+    <button id="send">▶ Send</button>
+  </footer>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const chat = $('#chat'), q = $('#q');
+  const fmt = (x, d = 1) => (x == null || isNaN(x)) ? '–' : Number(x).toFixed(d);
+  const mb = (b) => (b / 1048576).toFixed(0) + ' MB';
+  const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const showTok = (t) => t.replace(/\n/g, '⏎').replace(/ /g, '·') || '∅';
+  let history = [], busy = false, ctrl = null, lat = [], cfg = {}, props = {}, meta = {};
+
+  function setState(text, cls) { const s = $('#state'); s.textContent = text; s.className = 'pill' + (cls ? ' ' + cls : ''); }
+  function dl(el, rows) {
+    el.innerHTML = rows.filter(Boolean).map(([k, v, c]) => `<dt>${esc(k)}</dt><dd class="${c || ''}" title="${esc(v)}">${esc(v)}</dd>`).join('');
+  }
+
+  // ---------- static info: model + config ----------
+  async function loadInfo() {
+    try {
+      [props, meta, cfg] = await Promise.all([
+        fetch('/props').then((r) => r.json()),
+        fetch('/v1/models').then((r) => r.json()).then((d) => d.data[0].meta || {}),
+        fetch('/config.json', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      ]);
+      const gp = (props.default_generation_settings || {}).params || {};
+      $('#title').innerHTML = `${esc(cfg.model_name || 'LLM')} <b>on this TV box</b>`;
+      dl($('#model'), [
+        ['file', props.model_path],
+        ['parameters', (meta.n_params / 1e9).toFixed(2) + ' B'],
+        ['size in RAM', mb(meta.size)],
+        ['quantization', meta.ftype],
+        ['vocabulary', meta.n_vocab && meta.n_vocab.toLocaleString('en-US') + ' tokens'],
+        cfg.head_rows && ['LM head kept', `${cfg.head_rows.toLocaleString('en-US')} rows (${cfg.head_mb} MB)`],
+        cfg.mtp && ['MTP head', cfg.mtp],
+        ['context', `${meta.n_ctx} (trained ${(meta.n_ctx_train / 1024).toFixed(0)}K)`],
+      ]);
+      dl($('#config'), [
+        ['engine', `llama.cpp ${props.build_info || ''}${cfg.patched ? ' + patch' : ''}`],
+        ['threads', cfg.threads || '?'],
+        ['speculative', gp['speculative.types'] || 'none'],
+        ['sampling', `temp ${fmt(cfg.temp ?? 0.7, 1)} · top-k ${gp.top_k} · top-p ${fmt(gp.top_p, 2)}`],
+        ['draft acceptance', '–', ''],
+      ]);
+      setState('ready');
+    } catch (e) {
+      setState('server offline', 'err');
+      setTimeout(loadInfo, 3000);
+    }
+  }
+
+  // ---------- live box stats + metrics ----------
+  async function pollBox() {
+    try {
+      const b = await fetch('/box.json', { cache: 'no-store' }).then((r) => r.json());
+      const used = b.memtotal_mb - b.memavail_mb, model = Math.min(b.server_rss_mb, used);
+      $('#membar').innerHTML =
+        `<i style="width:${model / b.memtotal_mb * 100}%;background:var(--accent)"></i>` +
+        `<i style="width:${(used - model) / b.memtotal_mb * 100}%;background:var(--dim)"></i>`;
+      const flash = b.flash_read_mb_s;
+      dl($('#box'), [
+        ['model process', b.server_rss_mb + ' MB'],
+        ['free RAM', `${b.memavail_mb} / ${b.memtotal_mb} MB`, b.memavail_mb < 150 ? 'bad' : b.memavail_mb < 300 ? 'warn' : 'ok'],
+        ['flash reads', flash + ' MB/s' + (flash > 20 ? ' (streaming!)' : ''), flash > 20 ? 'warn' : 'ok'],
+        ['CPU', `4× Cortex-A55 @ ${(b.cpu0_mhz / 1000).toFixed(2)} GHz · load ${b.load1}`],
+      ]);
+    } catch (e) { /* stats loop not running */ }
+    setTimeout(pollBox, 1000);
+  }
+  async function pollMetrics() {
+    try {
+      const t = await fetch('/metrics').then((r) => r.text());
+      const m = {};
+      t.split('\n').forEach((l) => { const p = l.match(/^llamacpp:(\S+) (\S+)/); if (p) m[p[1]] = +p[2]; });
+      const drafted = m.spec_decode_num_draft_tokens_total, acc = m.spec_decode_num_accepted_tokens_total;
+      const dd = [...document.querySelectorAll('#config dd')].pop();
+      if (dd) dd.textContent = drafted ? `${(acc / drafted * 100).toFixed(0)}% of ${drafted} drafted` : '–';
+      if (!busy && m.predicted_tokens_seconds) $('#tps').textContent = fmt(m.predicted_tokens_seconds);
+    } catch (e) {}
+    setTimeout(pollMetrics, 2000);
+  }
+
+  // ---------- sparkline ----------
+  function drawSpark() {
+    const s = $('#spark'), n = lat.length;
+    if (!n) { s.innerHTML = ''; return; }
+    const max = Math.max(...lat, 50);
+    const w = 120 / 120;
+    s.innerHTML = lat.map((v, i) => {
+      const h = Math.max(0.8, v / max * 30);
+      const c = v < 25 ? 'var(--good)' : 'var(--user)';
+      return `<rect x="${(120 - n + i) * w}" y="${30 - h}" width="${w * 0.8}" height="${h}" fill="${c}"/>`;
+    }).join('');
+    const sorted = [...lat].sort((a, b) => a - b);
+    $('#lat').textContent = `median ${Math.round(sorted[n >> 1])} ms · max ${Math.round(sorted[n - 1])} ms`;
+  }
+
+  // ---------- latest token + alternatives ----------
+  function showLatest(lp) {
+    if (!lp) return;
+    const p = Math.exp(lp.logprob);
+    $('#cur').innerHTML = `${esc(showTok(lp.token))}<small>${(p * 100).toFixed(1)}% · id ${lp.id}</small>`;
+    $('#alts').innerHTML = (lp.top_logprobs || []).slice(0, 3).map((a, i) => {
+      const ap = Math.exp(a.logprob) * 100;
+      return `<div class="alt${a.id === lp.id ? ' top' : ''}"><code>${esc(showTok(a.token))}</code><div class="bar"><i style="width:${ap}%"></i></div><span>${ap.toFixed(0)}%</span></div>`;
+    }).join('');
+  }
+
+  // ---------- chat ----------
+  function addMsg(who, text) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + who;
+    d.innerHTML = `<div class="who">${who === 'user' ? 'you' : 'model'}</div><div class="body"></div>`;
+    d.querySelector('.body').textContent = text || '';
+    if (chat.querySelector('.hint')) chat.innerHTML = '';
+    chat.appendChild(d);
+    chat.scrollTop = chat.scrollHeight;
+    return d.querySelector('.body');
+  }
+
+  async function send(text) {
+    text = (text || '').trim();
+    if (!text || busy) return;
+    busy = true; lat = []; drawSpark();
+    history.push({ role: 'user', content: text });
+    addMsg('user', text);
+    const body = addMsg('bot', '');
+    const caret = document.createElement('span'); caret.className = 'caret'; body.appendChild(caret);
+    setState('reading prompt…', 'busy');
+    let reply = '', ntok = 0, last = null, prevT = 0, newest = null, bold = false;
+    ctrl = new AbortController();
+    try {
+      const res = await fetch('/v1/chat/completions', {
+        method: 'POST', signal: ctrl.signal, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history, stream: true, max_tokens: 400, temperature: cfg.temp ?? 0.7,
+          logprobs: true, top_logprobs: 3, timings_per_token: true, stream_options: { include_usage: true } }),
+      });
+      const reader = res.body.getReader(), dec = new TextDecoder();
+      let buf = '';
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n\n')) >= 0) {
+          const line = buf.slice(0, i).trim(); buf = buf.slice(i + 2);
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+          if (data === '[DONE]') continue;
+          const ev = JSON.parse(data);
+          const tm = ev.timings;
+          if (tm) {
+            $('#pp').textContent = fmt(tm.prompt_per_second) + ' t/s';
+            if (tm.predicted_per_second) { $('#tps').textContent = fmt(tm.predicted_per_second); $('#gen').textContent = fmt(tm.predicted_per_second) + ' t/s'; }
+          }
+          const ch = ev.choices && ev.choices[0];
+          if (!ch) continue;
+          const content = ch.delta && ch.delta.content;
+          const lps = (ch.logprobs && ch.logprobs.content) || [];
+          if (content) {
+            const now = performance.now();
+            const gap = prevT ? now - prevT : 0; prevT = now;
+            if (ntok === 0) setState('writing…', 'busy');
+            const span = document.createElement('span');
+            const p = lps.length ? Math.min(...lps.map((l) => Math.exp(l.logprob))) : 1;
+            span.className = 'tk' + (p < 0.1 ? ' p3' : p < 0.3 ? ' p2' : '') + (gap && gap < 25 ? ' fast' : '');
+            const nStar = content.split('**').length - 1;   // markdown bold markers: hide them, toggle weight
+            span.textContent = nStar ? content.split('**').join('') : content;
+            if (bold) span.classList.add('b');
+            if (nStar % 2) bold = !bold;
+            if (newest) newest.classList.remove('new');
+            span.classList.add('new'); newest = span;
+            body.insertBefore(span, caret);
+            reply += content; ntok += Math.max(1, lps.length);
+            if (gap) { lat.push(gap); if (lat.length > 120) lat.shift(); drawSpark(); }
+            $('#ntok').textContent = ntok;
+            showLatest(lps[lps.length - 1]);
+            chat.scrollTop = chat.scrollHeight;
+          }
+          if (ch.finish_reason) setState(ch.finish_reason === 'stop' ? 'done' : 'stopped: ' + ch.finish_reason);
+        }
+      }
+      history.push({ role: 'assistant', content: reply });
+      if (history.length > 8) history = history.slice(-8);
+    } catch (e) {
+      setState('error: ' + e.message, 'err');
+    }
+    caret.remove();
+    if (newest) newest.classList.remove('new');
+    busy = false;
+  }
+
+  // ---------- controls ----------
+  $('#presets').addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) send(b.dataset.q); });
+  $('#send').addEventListener('click', () => { send(q.value); q.value = ''; });
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); send(q.value); q.value = ''; } });
+  $('#tokview').addEventListener('click', (e) => {
+    const on = chat.classList.toggle('chips'); e.target.setAttribute('aria-pressed', String(on));
+  });
+
+  // d-pad spatial navigation (for browsers that pass arrow keys instead of using a cursor)
+  const FOC = 'button, input, #chat';
+  document.addEventListener('keydown', (e) => {
+    const dir = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
+    if (!dir) return;
+    const a = document.activeElement;
+    if (a === q && dir[1] === 0) return;
+    if (a === chat && dir[1]) { const b = chat.scrollTop; chat.scrollTop += dir[1] * chat.clientHeight * 0.6; if (chat.scrollTop !== b) { e.preventDefault(); return; } }
+    if (!a || !a.matches(FOC)) { e.preventDefault(); document.querySelector('#presets button').focus(); return; }
+    const r0 = a.getBoundingClientRect(), cx = r0.left + r0.width / 2, cy = r0.top + r0.height / 2;
+    let best = null, bs = Infinity;
+    for (const el of document.querySelectorAll(FOC)) {
+      if (el === a) continue;
+      const r = el.getBoundingClientRect();
+      const ahead = dir[0] ? (dir[0] > 0 ? r.left >= r0.right - 2 : r.right <= r0.left + 2) : (dir[1] > 0 ? r.top >= r0.bottom - 2 : r.bottom <= r0.top + 2);
+      if (!ahead) continue;
+      const nx = Math.max(r.left, Math.min(cx, r.right)), ny = Math.max(r.top, Math.min(cy, r.bottom));
+      const dx = nx - cx, dy = ny - cy, sc = Math.abs(dx * dir[0] + dy * dir[1]) + 2.5 * Math.abs(dx * dir[1] + dy * dir[0]);
+      if (sc < bs) { bs = sc; best = el; }
+    }
+    if (best) { e.preventDefault(); best.focus(); }
+  });
+
+  loadInfo(); pollBox(); pollMetrics();
+  document.querySelector('#presets button').focus();
+})();
+</script>
+</body>
+</html>

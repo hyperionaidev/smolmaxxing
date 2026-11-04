@@ -1,0 +1,31 @@
+== n_max=0 (w-q4k-h65.gguf)
+  tg  6.05 t/s  pp  17.6 t/s  n=44  'The capital of Australia is Canberra, which was chosen over Sydney bec'
+  tg  6.70 t/s  pp  17.7 t/s  n=56  'A TV remote sends invisible radio waves to your TV. You press buttons '
+  tg  6.57 t/s  pp  16.6 t/s  n=128  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  6.64 t/s  pp  17.1 t/s  n=128  '1. Mars has the largest volcano in the solar system, Olympus Mons, whi'
+MTP n_max=0: w-q4k-h65.gguf, patched5, t=3: generation 6.55 tok/s (token-weighted), prompt 17.3 tok/s, draft acceptance None
+VmRSS:	 1090004 kB
+== n_max=2 (w-q4k-h65.gguf)
+  tg  4.67 t/s  pp  15.1 t/s  n=44  'The capital of Australia is Canberra, which was chosen over Sydney bec'
+  tg  3.90 t/s  pp  15.3 t/s  n=56  'A TV remote sends invisible radio waves to your TV. You press buttons '
+  tg  5.98 t/s  pp  15.1 t/s  n=128  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  2.81 t/s  pp  11.2 t/s  n=128  '1. Mars has the largest volcano in the solar system, Olympus Mons, whi'
+MTP n_max=2: w-q4k-h65.gguf, patched5, t=3: generation 3.92 tok/s (token-weighted), prompt 14.2 tok/s, draft acceptance 0.593
+VmRSS:	 1031400 kB
+0.14.498.395 I common_speculative_init_result: creating MTP draft context against the target model 'w-q4k-h65.gguf'
+0.16.884.590 I slot print_timing: id  0 | task 0 | draft acceptance = 1.00000 (    2 accepted /     2 generated), mean len =  3.00
+0.28.366.424 I slot print_timing: id  0 | task 5 | draft acceptance = 0.57500 (   23 accepted /    40 generated), mean len =  2.15
+0.44.715.760 I slot print_timing: id  0 | task 28 | draft acceptance = 0.34848 (   23 accepted /    66 generated), mean len =  1.70
+1.08.046.566 I slot print_timing: id  0 | task 64 | draft acceptance = 0.89011 (   81 accepted /    91 generated), mean len =  2.76
+== n_max=3 (w-q4k-h65.gguf)
+  tg  4.60 t/s  pp  13.7 t/s  n=44  'The capital of Australia is Canberra, which was chosen over Sydney bec'
+  tg  3.49 t/s  pp  15.0 t/s  n=56  'A TV remote sends invisible radio waves to your TV. You press buttons '
+  tg  6.55 t/s  pp   9.8 t/s  n=128  '```python\ndef isprime(n: int) -> bool:\n    """\n    Check if a number i'
+  tg  3.86 t/s  pp  13.1 t/s  n=128  '1. Mars has the largest volcano in the solar system, Olympus Mons, whi'
+MTP n_max=3: w-q4k-h65.gguf, patched5, t=3: generation 4.54 tok/s (token-weighted), prompt 12.9 tok/s, draft acceptance 0.475
+VmRSS:	 1039520 kB
+0.14.719.907 I common_speculative_init_result: creating MTP draft context against the target model 'w-q4k-h65.gguf'
+0.19.012.799 I slot print_timing: id  0 | task 0 | draft acceptance = 1.00000 (    2 accepted /     2 generated), mean len =  3.00
+0.30.940.802 I slot print_timing: id  0 | task 5 | draft acceptance = 0.46296 (   25 accepted /    54 generated), mean len =  2.39
+0.49.075.870 I slot print_timing: id  0 | task 26 | draft acceptance = 0.23958 (   23 accepted /    96 generated), mean len =  1.72
+1.11.653.584 I slot print_timing: id  0 | task 61 | draft acceptance = 0.81818 (   90 accepted /   110 generated), mean len =  3.43

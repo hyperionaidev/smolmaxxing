@@ -1,0 +1,195 @@
+# E25 trained 1-bit / ternary models (tools/tv-others.sh), TV, 2026-11-04
+== bonsai1.7b  o-Bonsai-1.7B-Q1_0.gguf  237 MB  eval-en tokens: 5756 (bytes 22031)
+| qwen3 1.7B Q1_0                | 231.13 MiB |     1.72 B | CPU        |       3 |            tg64 |          6.81 ± 0.02 |
+| qwen3 1.7B Q1_0                | 231.13 MiB |     1.72 B | CPU        |       4 |           pp128 |         28.75 ± 1.17 |
+tv-guard: exit 0, min MemAvailable 927 MB, max RSS 501 MB
+4.27.755.453 I Final estimate: PPL = 21.5872 +/- 1.48958
+== bonsai4b  o-Bonsai-4B-Q1_0.gguf  546 MB  eval-en tokens: 5756 (bytes 22031)
+| qwen3 4B Q1_0                  | 540.09 MiB |     4.02 B | CPU        |       3 |            tg64 |          3.17 ± 0.04 |
+| qwen3 4B Q1_0                  | 540.09 MiB |     4.02 B | CPU        |       4 |           pp128 |         11.40 ± 0.04 |
+tv-guard: exit 0, min MemAvailable 609 MB, max RSS 1073 MB
+9.28.524.298 I Final estimate: PPL = 17.2090 +/- 1.15296
+== ternary1.7b  o-Ternary-Bonsai-1.7B-Q2_0_g64.gguf  467 MB  eval-en tokens: 5756 (bytes 22031)
+| qwen3 1.7B Q2_0                | 461.79 MiB |     1.72 B | CPU        |       3 |            tg64 |          4.33 ± 0.08 |
+| qwen3 1.7B Q2_0                | 461.79 MiB |     1.72 B | CPU        |       4 |           pp128 |          7.59 ± 0.06 |
+tv-guard: exit 0, min MemAvailable 1065 MB, max RSS 544 MB
+12.46.258.236 I Final estimate: PPL = 17.1309 +/- 1.13438
+== bitnet2b  o-bitnet-2b4t-tq2_0-embq4k.gguf  698 MB  eval-en tokens: 5625 (bytes 22031)
+| bitnet ?B TQ2_0 - 2.06 bpw ternary | 690.21 MiB |     2.41 B | CPU        |       3 |            tg64 |          4.60 ± 0.04 |
+| bitnet ?B TQ2_0 - 2.06 bpw ternary | 690.21 MiB |     2.41 B | CPU        |       4 |           pp128 |          8.16 ± 0.07 |
+tv-guard: exit 0, min MemAvailable 1079 MB, max RSS 776 MB
+11.51.270.948 I Final estimate: PPL = 66.4162 +/- 4.88729
+ALL DONE Wed Nov  4 01:44:20 +04 2026
+=== bonsai1.7b op profile (tg32, top 12)
+[opprof] 33 graphs, 4.923 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)
+[opprof] MUL_MAT                q1_0         6501    4690.4   95.3%      1.70
+[opprof] FLASH_ATTN_EXT         f32           924      81.8    1.7%      0.09
+[opprof] GLU                    f32           924      49.7    1.0%      0.46
+[opprof] RMS_NORM               f32          3729      41.5    0.8%      0.65
+[opprof] ROPE                   f32          1848      27.2    0.6%      0.42
+[opprof] ADD                    f32          1848      25.6    0.5%      0.59
+[opprof] SET_ROWS               f32          1848       5.6    0.1%      1.35
+[opprof] GET_ROWS               q1_0           33       1.0    0.0%   1502.96
+[opprof] GET_ROWS               f32            66       0.3    0.0%      1.69
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 919 MB, max RSS 502 MB
+=== bonsai1.7b answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is Canberra. It was chosen over Sydney because Sydney is a major city with a large population and a significant cultural influence, while Canberra offers a more traditional and historic setting, making it a more suitable capital for a country with a strong national identity.
+
+[ Prompt: 26.0 t/s | Generation: 6.5 t/s ]
+> Write a Python function that checks if a number is prime, with a short docstring.
+Sure! Here's a Python function that checks if a number is prime, with a short docstring:
+
+```python
+def is_prime(n):
+    """
+    Check if a number is prime.
+
+    A prime number is a positive integer greater than 1 that has no positive divisors other than 1 and itself.
+
+    Parameters:
+    n (int): The number to check.
+
+    Returns:
+    bool: True if the number is prime, False otherwise.
+
+    Raises:
+    ValueError: If n is not a positive integer.
+    """
+    if n <= 1:
+        return False
+
+[ Prompt: 23.9 t/s | Generation: 6.4 t/s ]
+=== bonsai4b op profile (tg32, top 12)
+[opprof] 33 graphs, 10.268 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)
+[opprof] MUL_MAT                q1_0         8349    9867.6   96.1%      1.89
+[opprof] FLASH_ATTN_EXT         f32          1188     137.8    1.3%      0.14
+[opprof] GLU                    f32          1188      87.1    0.8%      0.53
+[opprof] RMS_NORM               f32          4785      70.2    0.7%      0.70
+[opprof] ADD                    f32          2376      40.6    0.4%      0.60
+[opprof] ROPE                   f32          2376      38.8    0.4%      0.63
+[opprof] GET_ROWS               q1_0           33      18.0    0.2%    100.24
+[opprof] SET_ROWS               f32          2376       7.1    0.1%      1.37
+[opprof] GET_ROWS               f32            66       0.3    0.0%      2.23
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 622 MB, max RSS 1104 MB
+=== bonsai4b answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is Canberra. It was chosen over Sydney because Canberra is located in the central part of the country, providing a neutral and impartial location that is not influenced by the coastal city's political or economic influence, and it was designed to serve as a modern, secure, and independent administrative center.
+
+[ Prompt: 10.2 t/s | Generation: 3.0 t/s ]
+> Write a Python function that checks if a number is prime, with a short docstring.
+```python
+def is_prime(n):
+    """
+    Check if a given number is prime.
+    
+    A prime number is a natural number greater than 1 that has no positive divisors other than 1 and itself.
+    
+    Args:
+        n (int): The number to check for primality.
+    
+    Returns:
+        bool: True if the number is prime, False otherwise.
+    
+    Examples:
+        >>> is_prime(2)
+        True
+        >>> is_prime(4)
+        False
+        >>> is_prime(17)
+        True
+    """
+    if n <
+
+[ Prompt: 9.3 t/s | Generation: 3.0 t/s ]
+=== ternary1.7b op profile (tg32, top 12)
+[opprof] 33 graphs, 7.455 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)
+[opprof] MUL_MAT                q2_0         6501    7233.5   97.0%      2.21
+[opprof] FLASH_ATTN_EXT         f32           924      77.5    1.0%      0.10
+[opprof] GLU                    f32           924      46.8    0.6%      0.48
+[opprof] RMS_NORM               f32          3729      38.7    0.5%      0.69
+[opprof] ROPE                   f32          1848      30.6    0.4%      0.37
+[opprof] ADD                    f32          1848      21.7    0.3%      0.70
+[opprof] SET_ROWS               f32          1848       5.2    0.1%      1.47
+[opprof] GET_ROWS               q2_0           33       0.5    0.0%   6233.90
+[opprof] GET_ROWS               f32            66       0.3    0.0%      1.98
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 1051 MB, max RSS 544 MB
+=== ternary1.7b answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is Canberra, not Sydney. It was chosen over Sydney because Sydney is the largest city and a major economic hub, but Canberra was selected as the capital to provide a more centralized and stable government, with a smaller population and a more focused administrative environment.
+
+[ Prompt: 6.2 t/s | Generation: 4.3 t/s ]
+> Write a Python function that checks if a number is prime, with a short docstring.
+```python
+def is_prime(n):
+    """
+    Check if a number is prime.
+
+    A prime number is a natural number greater than 1 that has no positive divisors other than 1 and itself.
+
+    Parameters:
+    n (int): The number to check.
+
+    Returns:
+    bool: True if the number is prime, False otherwise.
+
+    Raises:
+    ValueError: If n is not a positive integer.
+    """
+    if n <= 1:
+        raise ValueError("n must be a positive integer.")
+    if n <= 3:
+        return True
+    if n
+
+[ Prompt: 6.2 t/s | Generation: 4.1 t/s ]
+=== bitnet2b op profile (tg32, top 12)
+[opprof] 33 graphs, 7.055 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)
+[opprof] MUL_MAT                tq2_0        6930    5576.6   79.0%      3.18
+[opprof] MUL_MAT                q4_K           33    1195.9   17.0%      5.10
+[opprof] RMS_NORM               f32          3993      84.9    1.2%      0.68
+[opprof] FLASH_ATTN_EXT         f32           990      68.4    1.0%      0.15
+[opprof] GLU                    f32           990      61.7    0.9%      0.44
+[opprof] ADD                    f32          1980      30.6    0.4%      0.66
+[opprof] ROPE                   f32          1980      30.4    0.4%      0.42
+[opprof] SET_ROWS               f32          1980       5.5    0.1%      0.93
+[opprof] GET_ROWS               q4_K           33       1.1    0.0%   5542.33
+[opprof] GET_ROWS               f32            66       0.3    0.0%      2.06
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 1058 MB, max RSS 779 MB
+=== bitnet2b answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is Canberra, because it was chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to its being chosen over Sydney due to
+
+[ Prompt: 6.7 t/s | Generation: 4.5 t/s ]
+> Write a Python function that checks if a number is prime, with a short docstring.
+Sure! Here's a Python function that checks if a number is prime:
+
+The function checks if a number is prime.
+
+```python
+def checkPrime(number):
+    return True if number is prime
+    return False if number is prime
+    return True if number is prime
+    return False if number is prime
+    return True if number is prime
+    return False if number is prime
+    return True if number is prime
+    return False if number is prime
+    return True if number is prime
+    return False if number is prime
+    return True if number is prime
+
+[ Prompt: 6.3 t/s | Generation: 4.5 t/s ]

@@ -1,0 +1,2 @@
+q9-iq2xxs en 0.39.624.755 I perplexity: tokenizing the input .. 7.35.802.191 I Final estimate: PPL = 9.8585 +/- 0.53143 7.35.802.192 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab) 
+q9-iq2xxs ml 0.37.452.635 I perplexity: tokenizing the input .. 4.24.659.650 I Final estimate: PPL = 11.3175 +/- 0.59393 4.24.659.651 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab) 

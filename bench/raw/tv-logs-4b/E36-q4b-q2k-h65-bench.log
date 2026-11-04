@@ -1,0 +1,3 @@
+| model                          |       size |     params | backend    | threads | n_batch | n_ubatch |            test |                  t/s |
+tv-guard: killed, MemAvailable 138 MB < 150 MB
+tv-guard: exit 137, min MemAvailable 138 MB, max RSS 1045 MB

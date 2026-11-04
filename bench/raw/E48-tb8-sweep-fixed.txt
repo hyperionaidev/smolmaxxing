@@ -1,0 +1,18 @@
+== tb8-q20-hml resident 850 MiB window 64 MB readers 3
+pp32 |          3.45 ± 0.00 |
+tg8 |          0.31 ± 0.00 |
+stream: read 8790.7 MB, freed 8736.0 MB, trace 122 tensors, 1342 matmuls, 780 not ready on arrival, thread-0 wait 21.89 s
+tv-guard: exit 0, min MemAvailable 238 MB, max RSS 1176 MB
+== tb8-q20-hml resident 850 MiB window 128 MB readers 3
+tv-guard: killed, MemAvailable 179 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 179 MB, max RSS 1136 MB
+== tb8-q20-hml resident 800 MiB window 128 MB readers 3
+pp32 |          3.25 ± 0.00 |
+tg8 |          0.31 ± 0.00 |
+stream: read 9354.8 MB, freed 9312.4 MB, trace 129 tensors, 1419 matmuls, 769 not ready on arrival, thread-0 wait 21.36 s
+tv-guard: exit 0, min MemAvailable 210 MB, max RSS 1055 MB
+== tb8-q20-hml resident 850 MiB window 64 MB readers 4
+pp32 |          3.43 ± 0.00 |
+tg8 |          0.30 ± 0.00 |
+stream: read 8807.4 MB, freed 8736.0 MB, trace 122 tensors, 1342 matmuls, 678 not ready on arrival, thread-0 wait 22.46 s
+tv-guard: exit 0, min MemAvailable 207 MB, max RSS 1171 MB

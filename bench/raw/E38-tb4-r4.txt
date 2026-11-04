@@ -1,0 +1,4 @@
+MemAvailable:    1167628 kB
+| qwen3 4B TQ1_0 - 1.69 bpw ternary | 841.71 MiB |     4.18 B | CPU        |       3 |     128 |      128 |           pp128 |          7.91 ± 0.03 |
+| qwen3 4B TQ1_0 - 1.69 bpw ternary | 841.71 MiB |     4.18 B | CPU        |       3 |     128 |      128 |            tg64 |          3.17 ± 0.27 |
+tv-guard: exit 0, min MemAvailable 275 MB, max RSS 886 MB

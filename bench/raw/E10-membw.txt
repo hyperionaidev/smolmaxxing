@@ -1,0 +1,5 @@
+# E10: DRAM read bandwidth, tools/membw/membw.c (NEON 64-byte loads, 256 MB buffer, best of 6), 2026-11-03
+threads=1  read 6.74 GB/s (best of 6, 256 MB)
+threads=2  read 8.34 GB/s (best of 6, 256 MB)
+threads=3  read 8.33 GB/s (best of 6, 256 MB)
+threads=4  read 8.42 GB/s (best of 6, 256 MB)

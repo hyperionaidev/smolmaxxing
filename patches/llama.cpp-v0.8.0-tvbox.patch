@@ -1,0 +1,2259 @@
+diff --git a/ggml/include/ggml-cpu.h b/ggml/include/ggml-cpu.h
+index dc6453c..22ced90 100644
+--- a/ggml/include/ggml-cpu.h
++++ b/ggml/include/ggml-cpu.h
+@@ -34,6 +34,10 @@ extern "C" {
+         GGML_NUMA_STRATEGY_COUNT
+     };
+ 
++    // tvbox: weight streaming (ggml-cpu/stream-tv.inc): register a file-backed, non-resident weight range
++    GGML_BACKEND_API void    ggml_cpu_stream_register(void * base, size_t len, int fd, int64_t file_off);
++    GGML_BACKEND_API void    ggml_cpu_stream_stats(void);
++
+     GGML_BACKEND_API void    ggml_numa_init(enum ggml_numa_strategy numa); // call once for better performance on NUMA systems
+     GGML_BACKEND_API bool    ggml_is_numa(void); // true if init detected that system has >1 NUMA node
+ 
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index 53d39d2..52f9c8b 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -1742,12 +1742,19 @@ static void ggml_compute_forward_mul_mat_id(
+ 
+ /////////////////////////////////
+ 
++// tvbox: weight streaming hook (ggml-cpu/stream-tv.inc)
++extern int  ggml_cpu_stream_active;
++extern void ggml_cpu_stream_hook(const struct ggml_tensor * t, int ith);
++
+ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
+     GGML_ASSERT(params);
+ 
+     if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
+         return;
+     }
++    if (ggml_cpu_stream_active && (tensor->op == GGML_OP_MUL_MAT || tensor->op == GGML_OP_MUL_MAT_ID)) {
++        ggml_cpu_stream_hook(tensor->src[0], params->ith);
++    }
+ 
+     // extra_buffer op?
+     if (ggml_cpu_extra_compute_forward(params, tensor)) {
+@@ -3108,10 +3115,37 @@ static int ggml_cpu_try_fuse_ops(
+     return 0;
+ }
+ 
++// TV-box experiment: per-op wall-time profile. GGML_OPPROF=1 makes thread 0 time every node
++// (compute + the barrier after it, i.e. the slowest thread) and prints a table at exit.
++static int    g_opprof = -1;
++static double g_opprof_t [GGML_OP_COUNT][GGML_TYPE_COUNT];
++static double g_opprof_b [GGML_OP_COUNT][GGML_TYPE_COUNT];
++static double g_opprof_c [GGML_OP_COUNT][GGML_TYPE_COUNT]; // compute only (excluding the barrier wait)
++static long   g_opprof_n [GGML_OP_COUNT][GGML_TYPE_COUNT];
++static long   g_opprof_graphs;
++static double opprof_now(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec + ts.tv_nsec * 1e-9; }
++static void ggml_opprof_dump(void) {
++    double tot = 0; for (int o = 0; o < GGML_OP_COUNT; o++) for (int t = 0; t < GGML_TYPE_COUNT; t++) tot += g_opprof_t[o][t];
++    fprintf(stderr, "\n[opprof] %ld graphs, %.3f s total\n[opprof] %-22s %-8s %8s %9s %7s %9s %9s %8s\n", g_opprof_graphs, tot, "op", "src0", "calls", "ms", "%", "GB/s(src0)", "compute", "us/call");
++    for (int k = 0; k < 40; k++) {
++        int bo = -1, bt = -1; double bv = 0;
++        for (int o = 0; o < GGML_OP_COUNT; o++) for (int t = 0; t < GGML_TYPE_COUNT; t++) if (g_opprof_t[o][t] > bv) { bv = g_opprof_t[o][t]; bo = o; bt = t; }
++        if (bo < 0) break;
++        fprintf(stderr, "[opprof] %-22s %-8s %8ld %9.1f %6.1f%% %9.2f %8.1fms %8.1f\n", ggml_op_name((enum ggml_op) bo), ggml_type_name((enum ggml_type) bt),
++                g_opprof_n[bo][bt], bv * 1e3, 100 * bv / tot, g_opprof_b[bo][bt] / bv / 1e9, g_opprof_c[bo][bt] * 1e3, bv * 1e6 / g_opprof_n[bo][bt]);
++        g_opprof_t[bo][bt] = 0;
++    }
++}
++
+ static thread_ret_t ggml_graph_compute_thread(void * data) {
+     struct ggml_compute_state * state = (struct ggml_compute_state *) data;
+     struct ggml_threadpool    * tp    = state->threadpool;
+ 
++    if (g_opprof < 0 && state->ith == 0) {
++        g_opprof = getenv("GGML_OPPROF") ? atoi(getenv("GGML_OPPROF")) : 0;
++        if (g_opprof > 0) atexit(ggml_opprof_dump);
++    }
++
+     const struct ggml_cgraph * cgraph = tp->cgraph;
+     const struct ggml_cplan  * cplan  = tp->cplan;
+ 
+@@ -3148,6 +3182,10 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+             continue;
+         }
+ 
++        const int    prof   = state->ith == 0 && g_opprof > 0;
++        const double prof_t0 = prof ? opprof_now() : 0;
++        const int    prof_n  = node_n;
++
+         // TODO: move fused-op detection into ggml_graph_plan so fusion decisions are made once at planning time
+         // Try fused ops, fall back to normal compute
+         const int n_fused = ggml_cpu_try_fuse_ops(cgraph, node_n, &params, cplan);
+@@ -3163,10 +3201,20 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+             tp->ec    = GGML_STATUS_ABORTED;
+         }
+ 
++        const double prof_t1 = prof ? opprof_now() : 0;
+         if (node_n + 1 < cgraph->n_nodes) {
+             ggml_barrier(state->threadpool);
+         }
++        if (prof) {
++            g_opprof_c[cgraph->nodes[prof_n]->op][cgraph->nodes[prof_n]->src[0] ? cgraph->nodes[prof_n]->src[0]->type : cgraph->nodes[prof_n]->type] += prof_t1 - prof_t0;
++            const struct ggml_tensor * pn = cgraph->nodes[prof_n];
++            const int pt = pn->src[0] ? pn->src[0]->type : pn->type;
++            g_opprof_t[pn->op][pt] += opprof_now() - prof_t0;
++            g_opprof_n[pn->op][pt] += 1;
++            if (pn->src[0]) g_opprof_b[pn->op][pt] += ggml_nbytes(pn->src[0]);
++        }
+     }
++    if (state->ith == 0 && g_opprof > 0) g_opprof_graphs++;
+ 
+ #ifdef GGML_USE_OPENMP
+     GGML_PRINT_DEBUG("thread #%d compute-done cplan %p\n", state->ith, (const void *)cplan);
+diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
+index 85e1701..6ec54de 100644
+--- a/ggml/src/ggml-cpu/ops.cpp
++++ b/ggml/src/ggml-cpu/ops.cpp
+@@ -11155,6 +11155,13 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+     const int64_t state_size_per_snap = S_v * S_v * H * n_seqs;
+     float * attn_out_base  = (float *)dst->data;
+     float * state_out_base = (float *)dst->data + attn_score_elems;
++    // tvbox: K == 1 with src[6] set: write the final state straight into that tensor (a view of the recurrent
++    // cache), so the graph needs no separate copy of the 1 MB/layer state. GGML_GDN_STOCK=1 = stock kernel.
++    static const bool gdn_fused = getenv("GGML_GDN_STOCK") == nullptr;
++    if (K == 1 && dst->src[6] != nullptr) {
++        GGML_ASSERT(ggml_is_contiguous(dst->src[6]) && ggml_nelements(dst->src[6]) == state_size_per_snap);
++        state_out_base = (float *) dst->src[6]->data;
++    }
+ 
+     // snapshot slot mapping: slot 0 = most recent state, slot s = s tokens back.
+     // When n_tokens < K only slots 0..n_tokens-1 are written; older slots are caller-owned.
+@@ -11184,10 +11191,13 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+             ? state_work
+             : state_out_base + (iv3 * H + iv1) * S_v * S_v;
+ 
+-        // copy input state into the working buffer and operate in-place
+         // state layout [S_v, S_v, H, n_seqs]: seq iv3 starts at iv3 * state_seq_stride.
+         const float * s_in = state_in_base + iv3 * state_seq_stride + iv1 * S_v * S_v;
+-        memcpy(s_out, s_in, S_v * S_v * sizeof(float));
++        // tvbox: the fused (non-KDA) path reads the first token's state straight from s_in, so the
++        // copy is only needed for KDA, or when there are no tokens
++        if (kda || !gdn_fused || n_tokens == 0) {
++            memcpy(s_out, s_in, S_v * S_v * sizeof(float));
++        }
+ 
+         // attn output pointer for first token of this (head, seq)
+         float * attn_data = attn_out_base + (iv3 * n_tokens * H + iv1) * S_v;
+@@ -11203,6 +11213,45 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+             // state is stored transposed: s_out[j*S_v + i] = S[i][j]
+             // so row j of s_out = column j of S (contiguous access)
+ 
++            if (!kda && gdn_fused) {
++                // tvbox: one pass over the state per token instead of five (scale, k-dot, update, q-dot + the
++                // initial copy). Row j of M only needs its own delta[j]:
++                //   d = dot(row_j, k);  delta_j = (v_j - g*d) * beta;  row_j = g*row_j + delta_j*k;  out_j = dot(row_j, q)
++                // which is the same math as below (g*dot(row, k) == dot(g*row, k)); the row stays in L1 between reads.
++                const float gs = expf(g_d[0]);
++                const float * src_rows = t == 0 ? s_in : s_out;
++                for (int64_t j = 0; j < S_v; ++j) {
++                    const float * r = src_rows + j * S_v;
++                    float       * w = s_out    + j * S_v;
++                    float d = 0.0f;
++                    ggml_vec_dot_f32(S_v, &d, 0, r, 0, k_d, 0, 1);
++                    const float dj = (v_d[j] - gs * d) * beta_val;
++                    float o = 0.0f;
++                    int64_t i = 0;
++#if defined(__ARM_NEON) && defined(__aarch64__)
++                    const float32x4_t vg = vdupq_n_f32(gs), vd = vdupq_n_f32(dj);
++                    float32x4_t a0 = vdupq_n_f32(0), a1 = a0, a2 = a0, a3 = a0;
++                    for (; i + 16 <= S_v; i += 16) {
++                        float32x4_t r0 = vfmaq_f32(vmulq_f32(vld1q_f32(r + i +  0), vg), vld1q_f32(k_d + i +  0), vd);
++                        float32x4_t r1 = vfmaq_f32(vmulq_f32(vld1q_f32(r + i +  4), vg), vld1q_f32(k_d + i +  4), vd);
++                        float32x4_t r2 = vfmaq_f32(vmulq_f32(vld1q_f32(r + i +  8), vg), vld1q_f32(k_d + i +  8), vd);
++                        float32x4_t r3 = vfmaq_f32(vmulq_f32(vld1q_f32(r + i + 12), vg), vld1q_f32(k_d + i + 12), vd);
++                        vst1q_f32(w + i + 0, r0); vst1q_f32(w + i + 4, r1); vst1q_f32(w + i + 8, r2); vst1q_f32(w + i + 12, r3);
++                        a0 = vfmaq_f32(a0, r0, vld1q_f32(q_d + i +  0));
++                        a1 = vfmaq_f32(a1, r1, vld1q_f32(q_d + i +  4));
++                        a2 = vfmaq_f32(a2, r2, vld1q_f32(q_d + i +  8));
++                        a3 = vfmaq_f32(a3, r3, vld1q_f32(q_d + i + 12));
++                    }
++                    o = vaddvq_f32(vaddq_f32(vaddq_f32(a0, a1), vaddq_f32(a2, a3)));
++#endif
++                    for (; i < S_v; ++i) {
++                        const float x = gs * r[i] + dj * k_d[i];
++                        w[i] = x;
++                        o += x * q_d[i];
++                    }
++                    attn_data[j] = o * scale;
++                }
++            } else {
+             if (kda) {
+                 // precompute exp(g) into delta scratch (reused below)
+                 for (int64_t i = 0; i < S_v; ++i) {
+@@ -11234,6 +11283,7 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+                 ggml_vec_dot_f32(S_v, &sum, 0, &s_out[j * S_v], 0, q_d, 0, 1);
+                 attn_data[j] = sum * scale;
+             }
++            } // !gdn_fused
+ 
+             attn_data += S_v * H; // advance to next token
+ 
+diff --git a/ggml/src/ggml-cpu/repack-q1-tv.inc b/ggml/src/ggml-cpu/repack-q1-tv.inc
+new file mode 100644
+index 0000000..a021850
+--- /dev/null
++++ b/ggml/src/ggml-cpu/repack-q1-tv.inc
+@@ -0,0 +1,180 @@
++// tvbox patch: repacked 1-bit Q1_0 (PrismML Bonsai, group 128, w = d * (+1 | -1)) kernel for ARM dotprod
++// without i8mm (Cortex-A55), against Q8_K activations.
++// Upstream's Q1_0 path expands every 8 sign bits through a 256-entry table (a scalar load + vector insert per
++// byte) before each vdot. Here the bits are stored as bit planes: one 16-byte vector holds 8 chunks of
++// 4 rows x 4 weights, and vtstq_u8 against (1 << k) turns plane k straight into a 0 / -1 mask for
++// vdotq_laneq. With T = sum over set bits of (-1) * a, the dot is d * (2 * sum_set a - sum a) = d * (-2T - S),
++// S = the 128-group's activation sum (from bsums). Two NEON ops per 16 multiply-adds (gemv), no table.
++//
++// Compact scales: Bonsai's per-128 scales are all positive and within 0.44-1.0x of their row's largest
++// (measured on 5 tensors of Bonsai-8B), so each is stored as 1 byte, d = dmin_row + q * dstep_row, with the two
++// fp16 row parameters once per row: mean error 0.1 % of the scale, about fp16's own rounding. 17 bytes per 128
++// weights instead of 18 (-5.6 %), which is what makes Bonsai-8B fit in this box's RAM.
++// Layout, per group of 8 rows (q1tv_group_bytes = 32 + K/256 * 272 bytes):
++//   ggml_half dmin[8], dstep[8]                   row j's scale parameters
++//   then K/256 blocks of block_q1_0x8c:
++//     d[g*8 + j]                    = row j's 8-bit scale code of 128-group g (g = 0, 1)
++//     qs[(q*2 + h)*16 + jj*4 + i]   bit k = sign of row h*4 + jj, element 32q + 4k + i   (q = 0..7, k = 0..7)
++struct block_q1_0x8c { uint8_t d[16]; uint8_t qs[256]; };
++static_assert(sizeof(block_q1_0x8c) == 272, "q1_0x8c size");
++
++static inline size_t q1tv_group_bytes(int64_t k) { return 32 + (size_t) (k / QK_K) * sizeof(block_q1_0x8c); }
++
++static int repack_q1_0_to_q1x8_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    GGML_ASSERT(t->type == GGML_TYPE_Q1_0);
++    const int nrow = ggml_nrows(t);
++    const int nb128 = t->ne[0] / 128, nb = t->ne[0] / QK_K;
++    GGML_ASSERT(data_size == (size_t) nrow * nb128 * sizeof(block_q1_0));
++    if (t->ne[1] % 8 != 0 || t->ne[0] % QK_K != 0) {
++        return -1;
++    }
++    const block_q1_0 * src = (const block_q1_0 *) data;
++    uint8_t * dst = (uint8_t *) t->data;
++    for (int r = 0; r < nrow; r += 8) {
++        ggml_half * hdr = (ggml_half *) dst;
++        float mn[8], st[8];
++        for (int j = 0; j < 8; j++) {
++            float lo = INFINITY, hi = -INFINITY;
++            for (int b = 0; b < nb128; b++) {
++                const float d = GGML_CPU_FP16_TO_FP32(src[(size_t) (r + j) * nb128 + b].d);
++                lo = std::min(lo, d); hi = std::max(hi, d);
++            }
++            hdr[j]     = GGML_CPU_FP32_TO_FP16(lo);
++            hdr[8 + j] = GGML_CPU_FP32_TO_FP16((hi - lo) / 255.0f);
++            mn[j] = GGML_CPU_FP16_TO_FP32(hdr[j]);
++            st[j] = GGML_CPU_FP16_TO_FP32(hdr[8 + j]);
++        }
++        block_q1_0x8c * out = (block_q1_0x8c *) (dst + 32);
++        for (int b = 0; b < nb; b++) {
++            block_q1_0x8c o;
++            memset(o.qs, 0, sizeof o.qs);
++            for (int j = 0; j < 8; j++) {
++                for (int g = 0; g < 2; g++) {
++                    const block_q1_0 * in = &src[(size_t) (r + j) * nb128 + b * 2 + g];
++                    const float d = GGML_CPU_FP16_TO_FP32(in->d);
++                    const int q = st[j] > 0 ? (int) lroundf((d - mn[j]) / st[j]) : 0;
++                    o.d[g * 8 + j] = (uint8_t) std::max(0, std::min(255, q));
++                    for (int m = 0; m < 128; m++) {
++                        if (!((in->qs[m / 8] >> (m % 8)) & 1)) {
++                            continue;
++                        }
++                        const int e = g * 128 + m, qq = e / 32, k = (e % 32) / 4, i = e % 4;
++                        o.qs[(qq * 2 + j / 4) * 16 + (j % 4) * 4 + i] |= (uint8_t) (1u << k);
++                    }
++                }
++            }
++            out[b] = o;
++        }
++        dst += q1tv_group_bytes(t->ne[0]);
++    }
++    return 0;
++}
++
++#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD)
++#define Q1TV_M(B, K) vreinterpretq_s8_u8(vtstq_u8((B), vdupq_n_u8(1u << (K))))
++// row scales of 128-group g of block w for rows 0-3 / 4-7: dmin + code * dstep
++#define Q1TV_SCALES(W, G, D0, D1) \
++    const uint16x8_t dq16 = vmovl_u8(vld1_u8((W).d + (G) * 8)); \
++    const float32x4_t D0 = vfmaq_f32(mn0, vcvtq_f32_u32(vmovl_u16(vget_low_u16(dq16))), st0); \
++    const float32x4_t D1 = vfmaq_f32(mn1, vcvtq_f32_u32(vmovl_u16(vget_high_u16(dq16))), st1);
++
++static void ggml_gemv_q1_0_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    GGML_UNUSED(bs); GGML_UNUSED(nr);
++    const int nb = n / QK_K;
++    const block_q8_K * y = (const block_q8_K *) vy;
++    for (int x = 0; x < nc / 8; x++) {
++        const uint8_t * grp = (const uint8_t *) vx + (size_t) x * q1tv_group_bytes(n);
++        const __fp16 * hdr = (const __fp16 *) grp;
++        const float32x4_t mn0 = vcvt_f32_f16(vld1_f16(hdr)), mn1 = vcvt_f32_f16(vld1_f16(hdr + 4));
++        const float32x4_t st0 = vcvt_f32_f16(vld1_f16(hdr + 8)), st1 = vcvt_f32_f16(vld1_f16(hdr + 12));
++        const block_q1_0x8c * w = (const block_q1_0x8c *) (grp + 32);
++        float32x4_t f0 = vdupq_n_f32(0), f1 = vdupq_n_f32(0);
++        for (int b = 0; b < nb; b++) {
++            const int8_t * q8 = y[b].qs;
++            const uint8_t * qs = w[b].qs;
++            const float yd = y[b].d;
++            for (int g = 0; g < 2; g++) {
++                // 4 accumulator chains (even / odd bit planes) to hide the vdot latency
++                int32x4_t c0 = vdupq_n_s32(0), c1 = vdupq_n_s32(0), e0 = vdupq_n_s32(0), e1 = vdupq_n_s32(0);
++                for (int q = 4 * g; q < 4 * g + 4; q++) {
++                    const int8x16_t a0 = vld1q_s8(q8 + 32 * q), a1 = vld1q_s8(q8 + 32 * q + 16);
++                    const uint8x16_t b0 = vld1q_u8(qs + q * 32), b1 = vld1q_u8(qs + q * 32 + 16);
++                    c0 = vdotq_laneq_s32(c0, Q1TV_M(b0, 0), a0, 0); c1 = vdotq_laneq_s32(c1, Q1TV_M(b1, 0), a0, 0);
++                    e0 = vdotq_laneq_s32(e0, Q1TV_M(b0, 1), a0, 1); e1 = vdotq_laneq_s32(e1, Q1TV_M(b1, 1), a0, 1);
++                    c0 = vdotq_laneq_s32(c0, Q1TV_M(b0, 2), a0, 2); c1 = vdotq_laneq_s32(c1, Q1TV_M(b1, 2), a0, 2);
++                    e0 = vdotq_laneq_s32(e0, Q1TV_M(b0, 3), a0, 3); e1 = vdotq_laneq_s32(e1, Q1TV_M(b1, 3), a0, 3);
++                    c0 = vdotq_laneq_s32(c0, Q1TV_M(b0, 4), a1, 0); c1 = vdotq_laneq_s32(c1, Q1TV_M(b1, 4), a1, 0);
++                    e0 = vdotq_laneq_s32(e0, Q1TV_M(b0, 5), a1, 1); e1 = vdotq_laneq_s32(e1, Q1TV_M(b1, 5), a1, 1);
++                    c0 = vdotq_laneq_s32(c0, Q1TV_M(b0, 6), a1, 2); c1 = vdotq_laneq_s32(c1, Q1TV_M(b1, 6), a1, 2);
++                    e0 = vdotq_laneq_s32(e0, Q1TV_M(b0, 7), a1, 3); e1 = vdotq_laneq_s32(e1, Q1TV_M(b1, 7), a1, 3);
++                }
++                c0 = vaddq_s32(c0, e0); c1 = vaddq_s32(c1, e1);
++                const int16x8_t bsv = vld1q_s16(y[b].bsums + 8 * g);
++                const int32x4_t ys = vdupq_n_s32(vaddlvq_s16(bsv));
++                // -2T - S
++                const int32x4_t i0 = vnegq_s32(vaddq_s32(vshlq_n_s32(c0, 1), ys)), i1 = vnegq_s32(vaddq_s32(vshlq_n_s32(c1, 1), ys));
++                Q1TV_SCALES(w[b], g, wd0, wd1)
++                f0 = vfmaq_f32(f0, vmulq_n_f32(wd0, yd), vcvtq_f32_s32(i0));
++                f1 = vfmaq_f32(f1, vmulq_n_f32(wd1, yd), vcvtq_f32_s32(i1));
++            }
++        }
++        vst1q_f32(s + x * 8, f0);
++        vst1q_f32(s + x * 8 + 4, f1);
++    }
++}
++
++// gemm: 4 activation rows in the block_q8_Kx4 layout (elements 4c..4c+3 of the 4 rows = 16 bytes at qs + 16c,
++// row r = lane r; bsums[(sb/4)*16 + r*4 + sb%4]). Each mask vector feeds 4 dot products.
++static void ggml_gemm_q1_0_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    const int nb = n / QK_K;
++    for (int yb = 0; yb < nr / 4; yb++) {
++        const block_q8_Kx4 * a = (const block_q8_Kx4 *) vy + (size_t) yb * nb;
++        for (int x = 0; x < nc / 8; x++) {
++            const uint8_t * grp = (const uint8_t *) vx + (size_t) x * q1tv_group_bytes(n);
++            const __fp16 * hdr = (const __fp16 *) grp;
++            const float32x4_t mn0 = vcvt_f32_f16(vld1_f16(hdr)), mn1 = vcvt_f32_f16(vld1_f16(hdr + 4));
++            const float32x4_t st0 = vcvt_f32_f16(vld1_f16(hdr + 8)), st1 = vcvt_f32_f16(vld1_f16(hdr + 12));
++            const block_q1_0x8c * w = (const block_q1_0x8c *) (grp + 32);
++            float32x4_t f[4][2];
++            for (int r = 0; r < 4; r++) { f[r][0] = vdupq_n_f32(0); f[r][1] = vdupq_n_f32(0); }
++            for (int b = 0; b < nb; b++) {
++                const int8_t * q8 = a[b].qs;
++                const uint8_t * qs = w[b].qs;
++                for (int g = 0; g < 2; g++) {
++                    int32x4_t c[4][2];
++                    for (int r = 0; r < 4; r++) { c[r][0] = vdupq_n_s32(0); c[r][1] = vdupq_n_s32(0); }
++                    for (int q = 4 * g; q < 4 * g + 4; q++) {
++                        const uint8x16_t b0 = vld1q_u8(qs + q * 32), b1 = vld1q_u8(qs + q * 32 + 16);
++#define Q1TV_G(K) { const int8x16_t m0 = Q1TV_M(b0, K), m1 = Q1TV_M(b1, K); const int8x16_t av = vld1q_s8(q8 + 16 * (8 * q + (K))); \
++                        c[0][0] = vdotq_laneq_s32(c[0][0], m0, av, 0); c[0][1] = vdotq_laneq_s32(c[0][1], m1, av, 0); \
++                        c[1][0] = vdotq_laneq_s32(c[1][0], m0, av, 1); c[1][1] = vdotq_laneq_s32(c[1][1], m1, av, 1); \
++                        c[2][0] = vdotq_laneq_s32(c[2][0], m0, av, 2); c[2][1] = vdotq_laneq_s32(c[2][1], m1, av, 2); \
++                        c[3][0] = vdotq_laneq_s32(c[3][0], m0, av, 3); c[3][1] = vdotq_laneq_s32(c[3][1], m1, av, 3); }
++                        Q1TV_G(0) Q1TV_G(1) Q1TV_G(2) Q1TV_G(3) Q1TV_G(4) Q1TV_G(5) Q1TV_G(6) Q1TV_G(7)
++#undef Q1TV_G
++                    }
++                    Q1TV_SCALES(w[b], g, wd0, wd1)
++                    for (int r = 0; r < 4; r++) {
++                        int32_t ysum = 0;
++                        for (int sb = 8 * g; sb < 8 * g + 8; sb++) { ysum += a[b].bsums[(sb / 4) * 16 + r * 4 + sb % 4]; }
++                        const int32x4_t ys = vdupq_n_s32(ysum);
++                        const int32x4_t i0 = vnegq_s32(vaddq_s32(vshlq_n_s32(c[r][0], 1), ys));
++                        const int32x4_t i1 = vnegq_s32(vaddq_s32(vshlq_n_s32(c[r][1], 1), ys));
++                        f[r][0] = vfmaq_f32(f[r][0], vmulq_n_f32(wd0, a[b].d[r]), vcvtq_f32_s32(i0));
++                        f[r][1] = vfmaq_f32(f[r][1], vmulq_n_f32(wd1, a[b].d[r]), vcvtq_f32_s32(i1));
++                    }
++                }
++            }
++            for (int r = 0; r < 4; r++) {
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8,     f[r][0]);
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8 + 4, f[r][1]);
++            }
++        }
++    }
++}
++#undef Q1TV_SCALES
++#undef Q1TV_M
++#else
++static void ggml_gemv_q1_0_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("q1 8x4 needs dotprod"); }
++static void ggml_gemm_q1_0_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("q1 8x4 needs dotprod"); }
++#endif
+diff --git a/ggml/src/ggml-cpu/repack-q2k-tv.inc b/ggml/src/ggml-cpu/repack-q2k-tv.inc
+new file mode 100644
+index 0000000..b50247e
+--- /dev/null
++++ b/ggml/src/ggml-cpu/repack-q2k-tv.inc
+@@ -0,0 +1,192 @@
++// tvbox patch: repacked Q2_K kernels for ARM dotprod without i8mm (Cortex-A55).
++// Upstream only repacks Q2_K for x86 AVX-512 and RISC-V; on ARM it runs the per-row vec_dot, which spends most of
++// its time in horizontal adds (vaddvq) and a scalar scale multiply per 16 weights.
++// Layout (same size as block_q2_Kx8, different order), 8 rows per block:
++//   scales[sb*8 + j] = row j's scales[sb]            (low nibble scale, high nibble min), sb = 0..15
++//   qs[c*32 + j*4 + i] = row j's qs[c*4 + i]         c = 0..15, so one 16-byte load = 4 rows x 4 bytes
++// Byte qs[b] of a row holds elements (b/32)*128 + b%32 + 32*s at bits 2s..2s+1; chunk c = 8h + 4g + lane covers
++// elements h*128 + 32s + 16g + 4*lane .. +3, all in sub-block 8h + 2s + g.
++// Measured by tools/kbench/kbench_q2k.c on the TV: 13-14 G weights/s from DRAM with 3 threads vs 7-8 for vec_dot.
++
++static int repack_q2_K_to_q2_K_8x4_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    GGML_ASSERT(t->type == GGML_TYPE_Q2_K);
++    const int nrow = ggml_nrows(t);
++    const int nblocks = t->ne[0] / QK_K;
++    GGML_ASSERT(data_size == (size_t) nrow * nblocks * sizeof(block_q2_K));
++    if (t->ne[1] % 8 != 0) {
++        return -1;
++    }
++    const block_q2_K * src = (const block_q2_K *) data;
++    block_q2_Kx8 * dst = (block_q2_Kx8 *) t->data;
++    for (int r = 0; r < nrow; r += 8) {
++        for (int b = 0; b < nblocks; b++) {
++            block_q2_Kx8 o;
++            for (int j = 0; j < 8; j++) {
++                const block_q2_K * in = &src[(size_t) (r + j) * nblocks + b];
++                o.d[j]    = in->GGML_COMMON_AGGR_U.GGML_COMMON_AGGR_S.d;
++                o.dmin[j] = in->GGML_COMMON_AGGR_U.GGML_COMMON_AGGR_S.dmin;
++                for (int sb = 0; sb < 16; sb++) {
++                    o.scales[sb * 8 + j] = in->scales[sb];
++                }
++                for (int c = 0; c < 16; c++) {
++                    memcpy(&o.qs[c * 32 + j * 4], &in->qs[c * 4], 4);
++                }
++            }
++            *dst++ = o;
++        }
++    }
++    return 0;
++}
++
++#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD)
++static void ggml_gemv_q2_K_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    GGML_UNUSED(bs); GGML_UNUSED(nr);
++    const int nb = n / QK_K;
++    const block_q8_K * y = (const block_q8_K *) vy;
++    const uint8x16_t m03 = vdupq_n_u8(0x03), m0c = vdupq_n_u8(0x0C), m30 = vdupq_n_u8(0x30);
++    const uint8x8_t m4 = vdup_n_u8(0x0F);
++    for (int x = 0; x < nc / 8; x++) {
++        const block_q2_Kx8 * w = (const block_q2_Kx8 *) vx + (size_t) x * nb;
++        float32x4_t f0 = vdupq_n_f32(0), f1 = vdupq_n_f32(0);
++        for (int b = 0; b < nb; b++) {
++            const int8_t * q8 = y[b].qs;
++            const uint8_t * qs = w[b].qs;
++            const uint8_t * sc = w[b].scales;
++            int32x4_t t0 = vdupq_n_s32(0), t1 = vdupq_n_s32(0);
++            for (int h = 0; h < 2; h++) {
++                for (int g = 0; g < 2; g++) {
++                    const int8x16_t a0 = vld1q_s8(q8 + h * 128 + 16 * g),      a1 = vld1q_s8(q8 + h * 128 + 32 + 16 * g),
++                                    a2 = vld1q_s8(q8 + h * 128 + 64 + 16 * g), a3 = vld1q_s8(q8 + h * 128 + 96 + 16 * g);
++                    int32x4_t c00 = vdupq_n_s32(0), c01 = c00, c10 = c00, c11 = c00, c20 = c00, c21 = c00, c30 = c00, c31 = c00;
++                    const uint8_t * qc = qs + (h * 8 + g * 4) * 32;
++#define Q2TV_LANE(L) { \
++                    const uint8x16_t w0 = vld1q_u8(qc + (L) * 32), w1 = vld1q_u8(qc + (L) * 32 + 16); \
++                    c00 = vdotq_laneq_s32(c00, vreinterpretq_s8_u8(vandq_u8(w0, m03)), a0, L); \
++                    c01 = vdotq_laneq_s32(c01, vreinterpretq_s8_u8(vandq_u8(w1, m03)), a0, L); \
++                    c10 = vdotq_laneq_s32(c10, vreinterpretq_s8_u8(vandq_u8(w0, m0c)), a1, L); \
++                    c11 = vdotq_laneq_s32(c11, vreinterpretq_s8_u8(vandq_u8(w1, m0c)), a1, L); \
++                    c20 = vdotq_laneq_s32(c20, vreinterpretq_s8_u8(vandq_u8(w0, m30)), a2, L); \
++                    c21 = vdotq_laneq_s32(c21, vreinterpretq_s8_u8(vandq_u8(w1, m30)), a2, L); \
++                    c30 = vdotq_laneq_s32(c30, vreinterpretq_s8_u8(vshrq_n_u8(w0, 6)), a3, L); \
++                    c31 = vdotq_laneq_s32(c31, vreinterpretq_s8_u8(vshrq_n_u8(w1, 6)), a3, L); }
++                    Q2TV_LANE(0) Q2TV_LANE(1) Q2TV_LANE(2) Q2TV_LANE(3)
++#undef Q2TV_LANE
++                    const int base = 8 * h + g;   // sub-block of shift S is base + 2S; per-row dots fit in int16
++#define Q2TV_SCALE(S, D0, D1) { \
++                    const int16x8_t sc16 = vreinterpretq_s16_u16(vmovl_u8(vand_u8(vld1_u8(sc + (base + 2 * (S)) * 8), m4))); \
++                    const int16x8_t dd = vcombine_s16(D0, D1); \
++                    t0 = vmlal_s16(t0, vget_low_s16(dd), vget_low_s16(sc16)); t1 = vmlal_high_s16(t1, dd, sc16); }
++                    Q2TV_SCALE(0, vmovn_s32(c00), vmovn_s32(c01))
++                    Q2TV_SCALE(1, vshrn_n_s32(c10, 2), vshrn_n_s32(c11, 2))
++                    Q2TV_SCALE(2, vshrn_n_s32(c20, 4), vshrn_n_s32(c21, 4))
++                    Q2TV_SCALE(3, vmovn_s32(c30), vmovn_s32(c31))
++#undef Q2TV_SCALE
++                }
++            }
++            int32x4_t b0 = vdupq_n_s32(0), b1 = vdupq_n_s32(0);
++            const int16x8_t bs0 = vld1q_s16(y[b].bsums), bs1 = vld1q_s16(y[b].bsums + 8);
++#define Q2TV_MINS(P, BS, L0, L1) { \
++            const uint8x16_t mn = vshrq_n_u8(vld1q_u8(sc + (P) * 16), 4); \
++            const int16x8_t m0 = vreinterpretq_s16_u16(vmovl_u8(vget_low_u8(mn))), m1 = vreinterpretq_s16_u16(vmovl_high_u8(mn)); \
++            b0 = vmlal_laneq_s16(b0, vget_low_s16(m0), BS, L0); b1 = vmlal_high_laneq_s16(b1, m0, BS, L0); \
++            b0 = vmlal_laneq_s16(b0, vget_low_s16(m1), BS, L1); b1 = vmlal_high_laneq_s16(b1, m1, BS, L1); }
++            Q2TV_MINS(0, bs0, 0, 1) Q2TV_MINS(1, bs0, 2, 3) Q2TV_MINS(2, bs0, 4, 5) Q2TV_MINS(3, bs0, 6, 7)
++            Q2TV_MINS(4, bs1, 0, 1) Q2TV_MINS(5, bs1, 2, 3) Q2TV_MINS(6, bs1, 4, 5) Q2TV_MINS(7, bs1, 6, 7)
++#undef Q2TV_MINS
++            const float32x4_t yd = vdupq_n_f32(y[b].d);
++            const float32x4_t d0 = vmulq_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d)), yd);
++            const float32x4_t d1 = vmulq_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + 4)), yd);
++            const float32x4_t n0 = vmulq_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].dmin)), yd);
++            const float32x4_t n1 = vmulq_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].dmin + 4)), yd);
++            f0 = vfmaq_f32(f0, d0, vcvtq_f32_s32(t0)); f1 = vfmaq_f32(f1, d1, vcvtq_f32_s32(t1));
++            f0 = vfmsq_f32(f0, n0, vcvtq_f32_s32(b0)); f1 = vfmsq_f32(f1, n1, vcvtq_f32_s32(b1));
++        }
++        vst1q_f32(s + x * 8, f0);
++        vst1q_f32(s + x * 8 + 4, f1);
++    }
++}
++
++// 4 activation rows (block_q8_Kx4, 4-byte interleave from ggml_quantize_mat_q8_K_4x4): each decoded weight vector
++// feeds 4 dot products (one per row, vdotq_laneq picks the row's 4 bytes).
++static void ggml_gemm_q2_K_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    const int nb = n / QK_K;
++    const uint8x16_t m03 = vdupq_n_u8(0x03), m0c = vdupq_n_u8(0x0C), m30 = vdupq_n_u8(0x30);
++    const uint8x8_t m4 = vdup_n_u8(0x0F);
++    for (int yb = 0; yb < nr / 4; yb++) {
++        const block_q8_Kx4 * a = (const block_q8_Kx4 *) vy + (size_t) yb * nb;
++        for (int x = 0; x < nc / 8; x++) {
++            const block_q2_Kx8 * w = (const block_q2_Kx8 *) vx + (size_t) x * nb;
++            float32x4_t f[4][2];
++            for (int r = 0; r < 4; r++) { f[r][0] = vdupq_n_f32(0); f[r][1] = vdupq_n_f32(0); }
++            for (int b = 0; b < nb; b++) {
++                const int8_t * q8 = a[b].qs;
++                const uint8_t * qs = w[b].qs;
++                const uint8_t * sc = w[b].scales;
++                int32x4_t t[4][2];
++                for (int r = 0; r < 4; r++) { t[r][0] = vdupq_n_s32(0); t[r][1] = vdupq_n_s32(0); }
++                for (int h = 0; h < 2; h++) {
++                    for (int g = 0; g < 2; g++) {
++                        const uint8_t * qc = qs + (h * 8 + g * 4) * 32;
++#define Q2TV_GEMM_S(S, DEC0, DEC1, NARROW) { \
++                        int32x4_t c[4][2]; \
++                        for (int r = 0; r < 4; r++) { c[r][0] = vdupq_n_s32(0); c[r][1] = vdupq_n_s32(0); } \
++                        for (int L = 0; L < 4; L++) { \
++                            const uint8x16_t w0 = vld1q_u8(qc + L * 32), w1 = vld1q_u8(qc + L * 32 + 16); \
++                            const int8x16_t d0 = vreinterpretq_s8_u8(DEC0), d1 = vreinterpretq_s8_u8(DEC1); \
++                            const int8x16_t av = vld1q_s8(q8 + (h * 128 + 32 * (S) + 16 * g + 4 * L) * 4); \
++                            c[0][0] = vdotq_laneq_s32(c[0][0], d0, av, 0); c[0][1] = vdotq_laneq_s32(c[0][1], d1, av, 0); \
++                            c[1][0] = vdotq_laneq_s32(c[1][0], d0, av, 1); c[1][1] = vdotq_laneq_s32(c[1][1], d1, av, 1); \
++                            c[2][0] = vdotq_laneq_s32(c[2][0], d0, av, 2); c[2][1] = vdotq_laneq_s32(c[2][1], d1, av, 2); \
++                            c[3][0] = vdotq_laneq_s32(c[3][0], d0, av, 3); c[3][1] = vdotq_laneq_s32(c[3][1], d1, av, 3); \
++                        } \
++                        const int16x8_t sc16 = vreinterpretq_s16_u16(vmovl_u8(vand_u8(vld1_u8(sc + (8 * h + g + 2 * (S)) * 8), m4))); \
++                        for (int r = 0; r < 4; r++) { \
++                            const int16x8_t dd = vcombine_s16(NARROW(c[r][0]), NARROW(c[r][1])); \
++                            t[r][0] = vmlal_s16(t[r][0], vget_low_s16(dd), vget_low_s16(sc16)); \
++                            t[r][1] = vmlal_high_s16(t[r][1], dd, sc16); \
++                        } }
++#define Q2TV_N0(v) vmovn_s32(v)
++#define Q2TV_N2(v) vshrn_n_s32(v, 2)
++#define Q2TV_N4(v) vshrn_n_s32(v, 4)
++                        Q2TV_GEMM_S(0, vandq_u8(w0, m03), vandq_u8(w1, m03), Q2TV_N0)
++                        Q2TV_GEMM_S(1, vandq_u8(w0, m0c), vandq_u8(w1, m0c), Q2TV_N2)
++                        Q2TV_GEMM_S(2, vandq_u8(w0, m30), vandq_u8(w1, m30), Q2TV_N4)
++                        Q2TV_GEMM_S(3, vshrq_n_u8(w0, 6), vshrq_n_u8(w1, 6), Q2TV_N0)
++#undef Q2TV_GEMM_S
++#undef Q2TV_N0
++#undef Q2TV_N2
++#undef Q2TV_N4
++                    }
++                }
++                // mins: bsums of row r, sub-block sb live at bsums[(sb/4)*16 + r*4 + sb%4]
++                int32x4_t bi[4][2];
++                for (int r = 0; r < 4; r++) { bi[r][0] = vdupq_n_s32(0); bi[r][1] = vdupq_n_s32(0); }
++                for (int sb = 0; sb < 16; sb++) {
++                    const int16x8_t mn = vreinterpretq_s16_u16(vmovl_u8(vshr_n_u8(vld1_u8(sc + sb * 8), 4)));
++                    for (int r = 0; r < 4; r++) {
++                        const int16_t bsv = a[b].bsums[(sb / 4) * 16 + r * 4 + sb % 4];
++                        bi[r][0] = vmlal_n_s16(bi[r][0], vget_low_s16(mn), bsv);
++                        bi[r][1] = vmlal_n_s16(bi[r][1], vget_high_s16(mn), bsv);
++                    }
++                }
++                const float32x4_t wd0 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d)),    wd1 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + 4));
++                const float32x4_t wm0 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].dmin)), wm1 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].dmin + 4));
++                for (int r = 0; r < 4; r++) {
++                    const float ad = a[b].d[r];
++                    f[r][0] = vfmaq_f32(f[r][0], vmulq_n_f32(wd0, ad), vcvtq_f32_s32(t[r][0]));
++                    f[r][1] = vfmaq_f32(f[r][1], vmulq_n_f32(wd1, ad), vcvtq_f32_s32(t[r][1]));
++                    f[r][0] = vfmsq_f32(f[r][0], vmulq_n_f32(wm0, ad), vcvtq_f32_s32(bi[r][0]));
++                    f[r][1] = vfmsq_f32(f[r][1], vmulq_n_f32(wm1, ad), vcvtq_f32_s32(bi[r][1]));
++                }
++            }
++            for (int r = 0; r < 4; r++) {
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8,     f[r][0]);
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8 + 4, f[r][1]);
++            }
++        }
++    }
++}
++#else
++static void ggml_gemv_q2_K_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("q2_K 8x4 needs dotprod"); }
++static void ggml_gemm_q2_K_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("q2_K 8x4 needs dotprod"); }
++#endif
+diff --git a/ggml/src/ggml-cpu/repack-tq-tv.inc b/ggml/src/ggml-cpu/repack-tq-tv.inc
+new file mode 100644
+index 0000000..ab5dc8d
+--- /dev/null
++++ b/ggml/src/ggml-cpu/repack-tq-tv.inc
+@@ -0,0 +1,446 @@
++// tvbox patch: repacked ternary TQ1_0 / TQ2_0 kernels for ARM dotprod without i8mm (Cortex-A55).
++// Upstream has no repacked kernel for the TQ types; the per-row vec_dot reloads the activation for every
++// 16 weights. Here 8 rows are interleaved 4 bytes at a time, so one decoded 16-byte vector feeds a
++// vdotq_laneq for 4 rows (gemv) or 4 rows x 4 activation rows (gemm). Same sizes as 8 plain blocks.
++// Measured by tools/kbench/kbench_tq.c on the TV (DRAM-sized matrix, 3 threads): TQ1_0 9.5 -> 14.4,
++// TQ2_0 11.9 -> 19.1 G weights/s.
++//   TQ1_0: qs[c*32 + j*4 + i] = row j's byte 4c+i of (qs[48] | qh[4]), c = 0..12
++//          chunk c < 8: trit k -> elements 32k + 4c + i;  8 <= c < 12: 160 + 16k + 4(c-8) + i;  c = 12: 240 + 4k + i
++//   TQ2_0: qs[c*32 + j*4 + i] = row j's qs[4c+i], c = 8h + 4g + lane: crumb s -> elements h*128 + 32s + 16g + 4*lane + i
++
++struct block_tq1_0x8 { ggml_half d[8]; uint8_t qs[416]; };
++struct block_tq2_0x8 { ggml_half d[8]; uint8_t qs[512]; };
++static_assert(sizeof(block_tq1_0x8) == 8 * sizeof(block_tq1_0), "tq1_0x8 size");
++static_assert(sizeof(block_tq2_0x8) == 8 * sizeof(block_tq2_0), "tq2_0x8 size");
++
++template <typename BIN, typename BOUT, int NCH>
++static int repack_tq_8x4_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    const int nrow = ggml_nrows(t);
++    const int nblocks = t->ne[0] / QK_K;
++    GGML_ASSERT(data_size == (size_t) nrow * nblocks * sizeof(BIN));
++    if (t->ne[1] % 8 != 0) {
++        return -1;
++    }
++    const BIN * src = (const BIN *) data;
++    BOUT * dst = (BOUT *) t->data;
++    for (int r = 0; r < nrow; r += 8) {
++        for (int b = 0; b < nblocks; b++) {
++            BOUT o;
++            for (int j = 0; j < 8; j++) {
++                const BIN * in = &src[(size_t) (r + j) * nblocks + b];
++                o.d[j] = in->d;
++                const uint8_t * bytes = (const uint8_t *) in;   // qs (| qh) are the leading bytes of the block
++                for (int c = 0; c < NCH; c++) {
++                    memcpy(&o.qs[c * 32 + j * 4], bytes + c * 4, 4);
++                }
++            }
++            *dst++ = o;
++        }
++    }
++    return 0;
++}
++static_assert(offsetof(block_tq1_0, qh) == 48 && offsetof(block_tq1_0, d) == 52, "tq1_0 layout");
++static_assert(offsetof(block_tq2_0, d) == 64, "tq2_0 layout");
++
++#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD)
++// trit of a pre-multiplied byte: (x * 3) >> 8, as in ggml's tq1_0 vec_dot
++#define TQTV_T3(v) vreinterpretq_s8_u8(vshrq_n_u8(vhaddq_u8((v), vshrq_n_u8((v), 1)), 6))
++
++static inline int32_t tqtv_row_sum(const block_q8_K * y) {
++    return vaddlvq_s16(vaddq_s16(vld1q_s16(y->bsums), vld1q_s16(y->bsums + 8)));
++}
++
++static void ggml_gemv_tq1_0_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    GGML_UNUSED(bs); GGML_UNUSED(nr);
++    const int nb = n / QK_K;
++    const block_q8_K * y = (const block_q8_K *) vy;
++    for (int x = 0; x < nc / 8; x++) {
++        const block_tq1_0x8 * w = (const block_tq1_0x8 *) vx + (size_t) x * nb;
++        float32x4_t f0 = vdupq_n_f32(0), f1 = vdupq_n_f32(0);
++        for (int b = 0; b < nb; b++) {
++            const int8_t * q8 = y[b].qs;
++            const uint8_t * qs = w[b].qs;
++            int32x4_t a0 = vdupq_n_s32(0), a1 = a0, e0 = a0, e1 = a0;
++#define TQ1TV_CH(QC, A, L) { const uint8x16_t u0 = vld1q_u8(QC), u1 = vld1q_u8((QC) + 16); \
++            a0 = vdotq_laneq_s32(a0, TQTV_T3(u0), A[0], L); a1 = vdotq_laneq_s32(a1, TQTV_T3(u1), A[0], L); \
++            uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(3)), v1 = vmulq_u8(u1, vdupq_n_u8(3)); \
++            e0 = vdotq_laneq_s32(e0, TQTV_T3(v0), A[1], L); e1 = vdotq_laneq_s32(e1, TQTV_T3(v1), A[1], L); \
++            v0 = vmulq_u8(u0, vdupq_n_u8(9)); v1 = vmulq_u8(u1, vdupq_n_u8(9)); \
++            a0 = vdotq_laneq_s32(a0, TQTV_T3(v0), A[2], L); a1 = vdotq_laneq_s32(a1, TQTV_T3(v1), A[2], L); \
++            v0 = vmulq_u8(u0, vdupq_n_u8(27)); v1 = vmulq_u8(u1, vdupq_n_u8(27)); \
++            e0 = vdotq_laneq_s32(e0, TQTV_T3(v0), A[3], L); e1 = vdotq_laneq_s32(e1, TQTV_T3(v1), A[3], L); \
++            v0 = vmulq_u8(u0, vdupq_n_u8(81)); v1 = vmulq_u8(u1, vdupq_n_u8(81)); \
++            a0 = vdotq_laneq_s32(a0, TQTV_T3(v0), A[4], L); a1 = vdotq_laneq_s32(a1, TQTV_T3(v1), A[4], L); }
++            for (int g = 0; g < 2; g++) {
++                int8x16_t A[5];
++                for (int k = 0; k < 5; k++) { A[k] = vld1q_s8(q8 + 32 * k + 16 * g); }
++                const uint8_t * qc = qs + g * 4 * 32;
++                TQ1TV_CH(qc, A, 0) TQ1TV_CH(qc + 32, A, 1) TQ1TV_CH(qc + 64, A, 2) TQ1TV_CH(qc + 96, A, 3)
++            }
++            {
++                int8x16_t A[5];
++                for (int k = 0; k < 5; k++) { A[k] = vld1q_s8(q8 + 160 + 16 * k); }
++                const uint8_t * qc = qs + 8 * 32;
++                TQ1TV_CH(qc, A, 0) TQ1TV_CH(qc + 32, A, 1) TQ1TV_CH(qc + 64, A, 2) TQ1TV_CH(qc + 96, A, 3)
++            }
++#undef TQ1TV_CH
++            {
++                const int8x16_t A = vld1q_s8(q8 + 240);
++                const uint8x16_t u0 = vld1q_u8(qs + 12 * 32), u1 = vld1q_u8(qs + 12 * 32 + 16);
++                a0 = vdotq_laneq_s32(a0, TQTV_T3(u0), A, 0); a1 = vdotq_laneq_s32(a1, TQTV_T3(u1), A, 0);
++                uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(3)), v1 = vmulq_u8(u1, vdupq_n_u8(3));
++                e0 = vdotq_laneq_s32(e0, TQTV_T3(v0), A, 1); e1 = vdotq_laneq_s32(e1, TQTV_T3(v1), A, 1);
++                v0 = vmulq_u8(u0, vdupq_n_u8(9)); v1 = vmulq_u8(u1, vdupq_n_u8(9));
++                a0 = vdotq_laneq_s32(a0, TQTV_T3(v0), A, 2); a1 = vdotq_laneq_s32(a1, TQTV_T3(v1), A, 2);
++                v0 = vmulq_u8(u0, vdupq_n_u8(27)); v1 = vmulq_u8(u1, vdupq_n_u8(27));
++                e0 = vdotq_laneq_s32(e0, TQTV_T3(v0), A, 3); e1 = vdotq_laneq_s32(e1, TQTV_T3(v1), A, 3);
++            }
++            const int32x4_t ys = vdupq_n_s32(tqtv_row_sum(&y[b]));
++            const float32x4_t yd = vdupq_n_f32(y[b].d);
++            f0 = vfmaq_f32(f0, vmulq_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d)),     yd), vcvtq_f32_s32(vsubq_s32(vaddq_s32(a0, e0), ys)));
++            f1 = vfmaq_f32(f1, vmulq_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + 4)), yd), vcvtq_f32_s32(vsubq_s32(vaddq_s32(a1, e1), ys)));
++        }
++        vst1q_f32(s + x * 8, f0);
++        vst1q_f32(s + x * 8 + 4, f1);
++    }
++}
++
++static void ggml_gemv_tq2_0_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    GGML_UNUSED(bs); GGML_UNUSED(nr);
++    const int nb = n / QK_K;
++    const block_q8_K * y = (const block_q8_K *) vy;
++    const uint8x16_t m03 = vdupq_n_u8(0x03), m0c = vdupq_n_u8(0x0C), m30 = vdupq_n_u8(0x30);
++    for (int x = 0; x < nc / 8; x++) {
++        const block_tq2_0x8 * w = (const block_tq2_0x8 *) vx + (size_t) x * nb;
++        float32x4_t f0 = vdupq_n_f32(0), f1 = vdupq_n_f32(0);
++        for (int b = 0; b < nb; b++) {
++            const int8_t * q8 = y[b].qs;
++            const uint8_t * qs = w[b].qs;
++            int32x4_t c00 = vdupq_n_s32(0), c01 = c00, c10 = c00, c11 = c00, c20 = c00, c21 = c00, c30 = c00, c31 = c00;
++            for (int h = 0; h < 2; h++) {
++                for (int g = 0; g < 2; g++) {
++                    const int8x16_t a0 = vld1q_s8(q8 + h * 128 + 16 * g),      a1 = vld1q_s8(q8 + h * 128 + 32 + 16 * g),
++                                    a2 = vld1q_s8(q8 + h * 128 + 64 + 16 * g), a3 = vld1q_s8(q8 + h * 128 + 96 + 16 * g);
++                    const uint8_t * qc = qs + (h * 8 + g * 4) * 32;
++#define TQ2TV_L(L) { const uint8x16_t w0 = vld1q_u8(qc + (L) * 32), w1 = vld1q_u8(qc + (L) * 32 + 16); \
++                    c00 = vdotq_laneq_s32(c00, vreinterpretq_s8_u8(vandq_u8(w0, m03)), a0, L); c01 = vdotq_laneq_s32(c01, vreinterpretq_s8_u8(vandq_u8(w1, m03)), a0, L); \
++                    c10 = vdotq_laneq_s32(c10, vreinterpretq_s8_u8(vandq_u8(w0, m0c)), a1, L); c11 = vdotq_laneq_s32(c11, vreinterpretq_s8_u8(vandq_u8(w1, m0c)), a1, L); \
++                    c20 = vdotq_laneq_s32(c20, vreinterpretq_s8_u8(vandq_u8(w0, m30)), a2, L); c21 = vdotq_laneq_s32(c21, vreinterpretq_s8_u8(vandq_u8(w1, m30)), a2, L); \
++                    c30 = vdotq_laneq_s32(c30, vreinterpretq_s8_u8(vshrq_n_u8(w0, 6)), a3, L); c31 = vdotq_laneq_s32(c31, vreinterpretq_s8_u8(vshrq_n_u8(w1, 6)), a3, L); }
++                    TQ2TV_L(0) TQ2TV_L(1) TQ2TV_L(2) TQ2TV_L(3)
++#undef TQ2TV_L
++                }
++            }
++            // crumb s was masked in place (value * 4^s): c1/c2 are exact multiples of 4 / 16
++            const int32x4_t ys = vdupq_n_s32(tqtv_row_sum(&y[b]));
++            const int32x4_t t0 = vsubq_s32(vaddq_s32(vaddq_s32(c00, c30), vaddq_s32(vshrq_n_s32(c10, 2), vshrq_n_s32(c20, 4))), ys);
++            const int32x4_t t1 = vsubq_s32(vaddq_s32(vaddq_s32(c01, c31), vaddq_s32(vshrq_n_s32(c11, 2), vshrq_n_s32(c21, 4))), ys);
++            const float32x4_t yd = vdupq_n_f32(y[b].d);
++            f0 = vfmaq_f32(f0, vmulq_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d)),     yd), vcvtq_f32_s32(t0));
++            f1 = vfmaq_f32(f1, vmulq_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + 4)), yd), vcvtq_f32_s32(t1));
++        }
++        vst1q_f32(s + x * 8, f0);
++        vst1q_f32(s + x * 8 + 4, f1);
++    }
++}
++
++// gemm: 4 activation rows in the block_q8_Kx4 layout (4-byte interleave): element group e (4 elements) of the
++// 4 rows is the 16 bytes at qs + e*4, row r = lane r. Row sums from bsums[(sb/4)*16 + r*4 + sb%4].
++#define TQTV_GEMM_DOT(D0, D1, E) { const int8x16_t av = vld1q_s8(q8 + (E) * 4); \
++    c[0][0] = vdotq_laneq_s32(c[0][0], D0, av, 0); c[0][1] = vdotq_laneq_s32(c[0][1], D1, av, 0); \
++    c[1][0] = vdotq_laneq_s32(c[1][0], D0, av, 1); c[1][1] = vdotq_laneq_s32(c[1][1], D1, av, 1); \
++    c[2][0] = vdotq_laneq_s32(c[2][0], D0, av, 2); c[2][1] = vdotq_laneq_s32(c[2][1], D1, av, 2); \
++    c[3][0] = vdotq_laneq_s32(c[3][0], D0, av, 3); c[3][1] = vdotq_laneq_s32(c[3][1], D1, av, 3); }
++
++static inline void tqtv_gemm_finish(float32x4_t f[4][2], int32x4_t c[4][2], const block_q8_Kx4 * a, const ggml_half * wd) {
++    const float32x4_t d0 = vcvt_f32_f16(vld1_f16((const __fp16 *) wd)), d1 = vcvt_f32_f16(vld1_f16((const __fp16 *) wd + 4));
++    for (int r = 0; r < 4; r++) {
++        int32_t ysum = 0;
++        for (int sb = 0; sb < 16; sb++) { ysum += a->bsums[(sb / 4) * 16 + r * 4 + sb % 4]; }
++        const int32x4_t ys = vdupq_n_s32(ysum);
++        f[r][0] = vfmaq_f32(f[r][0], vmulq_n_f32(d0, a->d[r]), vcvtq_f32_s32(vsubq_s32(c[r][0], ys)));
++        f[r][1] = vfmaq_f32(f[r][1], vmulq_n_f32(d1, a->d[r]), vcvtq_f32_s32(vsubq_s32(c[r][1], ys)));
++    }
++}
++
++static void ggml_gemm_tq1_0_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    const int nb = n / QK_K;
++    static const uint8_t mul[5] = { 1, 3, 9, 27, 81 };
++    for (int yb = 0; yb < nr / 4; yb++) {
++        const block_q8_Kx4 * a = (const block_q8_Kx4 *) vy + (size_t) yb * nb;
++        for (int x = 0; x < nc / 8; x++) {
++            const block_tq1_0x8 * w = (const block_tq1_0x8 *) vx + (size_t) x * nb;
++            float32x4_t f[4][2];
++            for (int r = 0; r < 4; r++) { f[r][0] = vdupq_n_f32(0); f[r][1] = vdupq_n_f32(0); }
++            for (int b = 0; b < nb; b++) {
++                const int8_t * q8 = a[b].qs;
++                const uint8_t * qs = w[b].qs;
++                int32x4_t c[4][2];
++                for (int r = 0; r < 4; r++) { c[r][0] = vdupq_n_s32(0); c[r][1] = vdupq_n_s32(0); }
++                for (int ch = 0; ch < 13; ch++) {
++                    const uint8x16_t u0 = vld1q_u8(qs + ch * 32), u1 = vld1q_u8(qs + ch * 32 + 16);
++                    const int ntrit = ch < 12 ? 5 : 4;
++                    for (int k = 0; k < ntrit; k++) {
++                        const uint8x16_t v0 = k ? vmulq_u8(u0, vdupq_n_u8(mul[k])) : u0;
++                        const uint8x16_t v1 = k ? vmulq_u8(u1, vdupq_n_u8(mul[k])) : u1;
++                        const int e = ch < 8 ? 32 * k + 4 * ch : ch < 12 ? 160 + 16 * k + 4 * (ch - 8) : 240 + 4 * k;
++                        const int8x16_t d0 = TQTV_T3(v0), d1 = TQTV_T3(v1);
++                        TQTV_GEMM_DOT(d0, d1, e)
++                    }
++                }
++                tqtv_gemm_finish(f, c, &a[b], w[b].d);
++            }
++            for (int r = 0; r < 4; r++) {
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8,     f[r][0]);
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8 + 4, f[r][1]);
++            }
++        }
++    }
++}
++
++static void ggml_gemm_tq2_0_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    const int nb = n / QK_K;
++    const uint8x16_t m3 = vdupq_n_u8(3);
++    for (int yb = 0; yb < nr / 4; yb++) {
++        const block_q8_Kx4 * a = (const block_q8_Kx4 *) vy + (size_t) yb * nb;
++        for (int x = 0; x < nc / 8; x++) {
++            const block_tq2_0x8 * w = (const block_tq2_0x8 *) vx + (size_t) x * nb;
++            float32x4_t f[4][2];
++            for (int r = 0; r < 4; r++) { f[r][0] = vdupq_n_f32(0); f[r][1] = vdupq_n_f32(0); }
++            for (int b = 0; b < nb; b++) {
++                const int8_t * q8 = a[b].qs;
++                const uint8_t * qs = w[b].qs;
++                int32x4_t c[4][2];
++                for (int r = 0; r < 4; r++) { c[r][0] = vdupq_n_s32(0); c[r][1] = vdupq_n_s32(0); }
++                for (int ch = 0; ch < 16; ch++) {
++                    const uint8x16_t u0 = vld1q_u8(qs + ch * 32), u1 = vld1q_u8(qs + ch * 32 + 16);
++                    const int h = ch / 8, g = (ch / 4) % 2, lane = ch % 4;
++                    { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(u0, m3)), d1 = vreinterpretq_s8_u8(vandq_u8(u1, m3));
++                      TQTV_GEMM_DOT(d0, d1, h * 128 + 16 * g + 4 * lane) }
++                    { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u0, 2), m3)), d1 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u1, 2), m3));
++                      TQTV_GEMM_DOT(d0, d1, h * 128 + 32 + 16 * g + 4 * lane) }
++                    { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u0, 4), m3)), d1 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u1, 4), m3));
++                      TQTV_GEMM_DOT(d0, d1, h * 128 + 64 + 16 * g + 4 * lane) }
++                    { const int8x16_t d0 = vreinterpretq_s8_u8(vshrq_n_u8(u0, 6)), d1 = vreinterpretq_s8_u8(vshrq_n_u8(u1, 6));
++                      TQTV_GEMM_DOT(d0, d1, h * 128 + 96 + 16 * g + 4 * lane) }
++                }
++                tqtv_gemm_finish(f, c, &a[b], w[b].d);
++            }
++            for (int r = 0; r < 4; r++) {
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8,     f[r][0]);
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8 + 4, f[r][1]);
++            }
++        }
++    }
++}
++#undef TQTV_GEMM_DOT
++#undef TQTV_T3
++#else
++static void ggml_gemv_tq1_0_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("tq 8x4 needs dotprod"); }
++static void ggml_gemv_tq2_0_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("tq 8x4 needs dotprod"); }
++static void ggml_gemm_tq1_0_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("tq 8x4 needs dotprod"); }
++static void ggml_gemm_tq2_0_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("tq 8x4 needs dotprod"); }
++#endif
++
++// ---- Q2_0 (group 64) holding ternary weights (PrismML Ternary-Bonsai) -> TQ1_0-style base-3 packing that keeps
++// the 4 per-64 scales: 480 bytes per 8 rows x 256 instead of 576 (1.875 bits/weight, lossless for ternary data).
++// Same 13-chunk trit layout as block_tq1_0x8; d[g*8 + j] = scale of row j's 64-group g. Each (chunk, trit) pair
++// lies inside one 64-group: chunks 0-7: trits 0,1 -> g0, 2,3 -> g1, 4 -> g2; chunks 8-11: 0,1 -> g2, 2-4 -> g3;
++// chunk 12 (4 trits) -> g3. The tensor is allocated at 5/6 of its file size (see the buffer type's get_alloc_size)
++// and row offsets inside it are scaled the same way (repack_rows_bytes).
++struct block_tq1g64x8 { ggml_half d[32]; uint8_t qs[416]; };
++static_assert(sizeof(block_tq1g64x8) * 6 == 8 * 4 * sizeof(block_q2_0) * 5, "tq1g64x8 size");
++
++static int repack_q2_0_to_tq1g64_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    GGML_ASSERT(t->type == GGML_TYPE_Q2_0);
++    const int nrow = ggml_nrows(t);
++    const int nb64 = t->ne[0] / 64, nb = t->ne[0] / QK_K;
++    GGML_ASSERT(data_size == (size_t) nrow * nb64 * sizeof(block_q2_0));
++    if (t->ne[1] % 8 != 0 || t->ne[0] % QK_K != 0) {
++        return -1;
++    }
++    const block_q2_0 * src = (const block_q2_0 *) data;
++    block_tq1g64x8 * dst = (block_tq1g64x8 *) t->data;
++    for (int r = 0; r < nrow; r += 8) {
++        for (int b = 0; b < nb; b++) {
++            block_tq1g64x8 o;
++            for (int j = 0; j < 8; j++) {
++                uint8_t tr[QK_K];   // trit + 1 in {0, 1, 2}
++                for (int g = 0; g < 4; g++) {
++                    const block_q2_0 * in = &src[(size_t) (r + j) * nb64 + b * 4 + g];
++                    o.d[g * 8 + j] = in->d;
++                    for (int e = 0; e < 64; e++) {
++                        const uint8_t q = (in->qs[e / 4] >> (2 * (e % 4))) & 3;   // value q - 1
++                        if (q == 3) {
++                            GGML_ABORT("Q2_0 tensor %s is not ternary (value +2 found); run with GGML_Q2_0_TERNARY=0", t->name);
++                        }
++                        tr[g * 64 + e] = q;
++                    }
++                }
++                uint8_t bytes[52];   // packed exactly like quantize_row_tq1_0_ref
++                for (int m = 0; m < 32; m++) {
++                    unsigned q = 0;
++                    for (int k = 0; k < 5; k++) { q = q * 3 + tr[m + 32 * k]; }
++                    bytes[m] = (uint8_t) ((q * 256 + 242) / 243);
++                }
++                for (int m = 0; m < 16; m++) {
++                    unsigned q = 0;
++                    for (int k = 0; k < 5; k++) { q = q * 3 + tr[160 + m + 16 * k]; }
++                    bytes[32 + m] = (uint8_t) ((q * 256 + 242) / 243);
++                }
++                for (int m = 0; m < 4; m++) {
++                    unsigned q = 0;
++                    for (int k = 0; k < 4; k++) { q = q * 3 + tr[240 + m + 4 * k]; }
++                    q *= 3;
++                    bytes[48 + m] = (uint8_t) ((q * 256 + 242) / 243);
++                }
++                for (int c = 0; c < 13; c++) {
++                    memcpy(&o.qs[c * 32 + j * 4], bytes + c * 4, 4);
++                }
++            }
++            *dst++ = o;
++        }
++    }
++    return 0;
++}
++
++#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD)
++#define TQTV_T3(v) vreinterpretq_s8_u8(vshrq_n_u8(vhaddq_u8((v), vshrq_n_u8((v), 1)), 6))
++
++static void ggml_gemv_q2_0_tq1g64_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    GGML_UNUSED(bs); GGML_UNUSED(nr);
++    const int nb = n / QK_K;
++    const block_q8_K * y = (const block_q8_K *) vy;
++    for (int x = 0; x < nc / 8; x++) {
++        const block_tq1g64x8 * w = (const block_tq1g64x8 *) vx + (size_t) x * nb;
++        float32x4_t f0 = vdupq_n_f32(0), f1 = vdupq_n_f32(0);
++        for (int b = 0; b < nb; b++) {
++            const int8_t * q8 = y[b].qs;
++            const uint8_t * qs = w[b].qs;
++            int32x4_t g00 = vdupq_n_s32(0), g01 = g00, g10 = g00, g11 = g00, g20 = g00, g21 = g00, g30 = g00, g31 = g00;
++            // one (chunk, trit) pair: decode + dot into the accumulators of its 64-group
++#define Q20TV_P(V0, V1, ACC0, ACC1, A, L) ACC0 = vdotq_laneq_s32(ACC0, TQTV_T3(V0), A, L); ACC1 = vdotq_laneq_s32(ACC1, TQTV_T3(V1), A, L);
++#define Q20TV_R1(QC, L) { const uint8x16_t u0 = vld1q_u8(QC), u1 = vld1q_u8((QC) + 16); \
++            Q20TV_P(u0, u1, g00, g01, A[0], L) \
++            { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(3)),  v1 = vmulq_u8(u1, vdupq_n_u8(3));  Q20TV_P(v0, v1, g00, g01, A[1], L) } \
++            { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(9)),  v1 = vmulq_u8(u1, vdupq_n_u8(9));  Q20TV_P(v0, v1, g10, g11, A[2], L) } \
++            { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(27)), v1 = vmulq_u8(u1, vdupq_n_u8(27)); Q20TV_P(v0, v1, g10, g11, A[3], L) } \
++            { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(81)), v1 = vmulq_u8(u1, vdupq_n_u8(81)); Q20TV_P(v0, v1, g20, g21, A[4], L) } }
++#define Q20TV_R2(QC, L) { const uint8x16_t u0 = vld1q_u8(QC), u1 = vld1q_u8((QC) + 16); \
++            Q20TV_P(u0, u1, g20, g21, A[0], L) \
++            { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(3)),  v1 = vmulq_u8(u1, vdupq_n_u8(3));  Q20TV_P(v0, v1, g20, g21, A[1], L) } \
++            { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(9)),  v1 = vmulq_u8(u1, vdupq_n_u8(9));  Q20TV_P(v0, v1, g30, g31, A[2], L) } \
++            { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(27)), v1 = vmulq_u8(u1, vdupq_n_u8(27)); Q20TV_P(v0, v1, g30, g31, A[3], L) } \
++            { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(81)), v1 = vmulq_u8(u1, vdupq_n_u8(81)); Q20TV_P(v0, v1, g30, g31, A[4], L) } }
++            for (int h = 0; h < 2; h++) {
++                int8x16_t A[5];
++                for (int k = 0; k < 5; k++) { A[k] = vld1q_s8(q8 + 32 * k + 16 * h); }
++                const uint8_t * qc = qs + h * 4 * 32;
++                Q20TV_R1(qc, 0) Q20TV_R1(qc + 32, 1) Q20TV_R1(qc + 64, 2) Q20TV_R1(qc + 96, 3)
++            }
++            {
++                int8x16_t A[5];
++                for (int k = 0; k < 5; k++) { A[k] = vld1q_s8(q8 + 160 + 16 * k); }
++                const uint8_t * qc = qs + 8 * 32;
++                Q20TV_R2(qc, 0) Q20TV_R2(qc + 32, 1) Q20TV_R2(qc + 64, 2) Q20TV_R2(qc + 96, 3)
++            }
++            {
++                const int8x16_t A = vld1q_s8(q8 + 240);
++                const uint8x16_t u0 = vld1q_u8(qs + 12 * 32), u1 = vld1q_u8(qs + 12 * 32 + 16);
++                Q20TV_P(u0, u1, g30, g31, A, 0)
++                { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(3)),  v1 = vmulq_u8(u1, vdupq_n_u8(3));  Q20TV_P(v0, v1, g30, g31, A, 1) }
++                { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(9)),  v1 = vmulq_u8(u1, vdupq_n_u8(9));  Q20TV_P(v0, v1, g30, g31, A, 2) }
++                { const uint8x16_t v0 = vmulq_u8(u0, vdupq_n_u8(27)), v1 = vmulq_u8(u1, vdupq_n_u8(27)); Q20TV_P(v0, v1, g30, g31, A, 3) }
++            }
++#undef Q20TV_R1
++#undef Q20TV_R2
++#undef Q20TV_P
++            // per group: d_g * (sum t*a - sum a) with the group's activation sum from bsums[4g .. 4g+3]
++            int32_t ysum[4];
++            for (int g = 0; g < 4; g++) {
++                ysum[g] = y[b].bsums[4 * g] + y[b].bsums[4 * g + 1] + y[b].bsums[4 * g + 2] + y[b].bsums[4 * g + 3];
++            }
++            const float yd = y[b].d;
++#define Q20TV_G(G, A0, A1) { \
++            const float32x4_t d0 = vmulq_n_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (G) * 8)), yd); \
++            const float32x4_t d1 = vmulq_n_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (G) * 8 + 4)), yd); \
++            const int32x4_t ys = vdupq_n_s32(ysum[G]); \
++            f0 = vfmaq_f32(f0, d0, vcvtq_f32_s32(vsubq_s32(A0, ys))); f1 = vfmaq_f32(f1, d1, vcvtq_f32_s32(vsubq_s32(A1, ys))); }
++            Q20TV_G(0, g00, g01) Q20TV_G(1, g10, g11) Q20TV_G(2, g20, g21) Q20TV_G(3, g30, g31)
++#undef Q20TV_G
++        }
++        vst1q_f32(s + x * 8, f0);
++        vst1q_f32(s + x * 8 + 4, f1);
++    }
++}
++
++// gemm: one 64-group at a time (its 16 (chunk, trit) pairs written out), 4 activation rows per decoded vector.
++static void ggml_gemm_q2_0_tq1g64_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    const int nb = n / QK_K;
++    for (int yb = 0; yb < nr / 4; yb++) {
++        const block_q8_Kx4 * a = (const block_q8_Kx4 *) vy + (size_t) yb * nb;
++        for (int x = 0; x < nc / 8; x++) {
++            const block_tq1g64x8 * w = (const block_tq1g64x8 *) vx + (size_t) x * nb;
++            float32x4_t f[4][2];
++            for (int r = 0; r < 4; r++) { f[r][0] = vdupq_n_f32(0); f[r][1] = vdupq_n_f32(0); }
++            for (int b = 0; b < nb; b++) {
++                const int8_t * q8 = a[b].qs;
++                const uint8_t * qs = w[b].qs;
++                int32x4_t c[4][2];
++#define Q20G_ZERO() for (int r = 0; r < 4; r++) { c[r][0] = vdupq_n_s32(0); c[r][1] = vdupq_n_s32(0); }
++#define Q20G_DOT(V0, V1, E) { const int8x16_t d0 = TQTV_T3(V0), d1 = TQTV_T3(V1); const int8x16_t av = vld1q_s8(q8 + (E) * 4); \
++                c[0][0] = vdotq_laneq_s32(c[0][0], d0, av, 0); c[0][1] = vdotq_laneq_s32(c[0][1], d1, av, 0); \
++                c[1][0] = vdotq_laneq_s32(c[1][0], d0, av, 1); c[1][1] = vdotq_laneq_s32(c[1][1], d1, av, 1); \
++                c[2][0] = vdotq_laneq_s32(c[2][0], d0, av, 2); c[2][1] = vdotq_laneq_s32(c[2][1], d1, av, 2); \
++                c[3][0] = vdotq_laneq_s32(c[3][0], d0, av, 3); c[3][1] = vdotq_laneq_s32(c[3][1], d1, av, 3); }
++#define Q20G_MUL(U, M) vmulq_u8(U, vdupq_n_u8(M))
++#define Q20G_LOAD(CH) const uint8x16_t u0 = vld1q_u8(qs + (CH) * 32), u1 = vld1q_u8(qs + (CH) * 32 + 16);
++#define Q20G_FINISH(G) { \
++                const float32x4_t wd0 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (G) * 8)); \
++                const float32x4_t wd1 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (G) * 8 + 4)); \
++                for (int r = 0; r < 4; r++) { \
++                    const int16_t * bsr = a[b].bsums + (G) * 16 + r * 4; \
++                    const int32x4_t ys = vdupq_n_s32(bsr[0] + bsr[1] + bsr[2] + bsr[3]); \
++                    f[r][0] = vfmaq_f32(f[r][0], vmulq_n_f32(wd0, a[b].d[r]), vcvtq_f32_s32(vsubq_s32(c[r][0], ys))); \
++                    f[r][1] = vfmaq_f32(f[r][1], vmulq_n_f32(wd1, a[b].d[r]), vcvtq_f32_s32(vsubq_s32(c[r][1], ys))); \
++                } }
++                // g0: chunks 0-7, trits 0, 1
++                Q20G_ZERO()
++                for (int ch = 0; ch < 8; ch++) { Q20G_LOAD(ch) Q20G_DOT(u0, u1, 4 * ch) Q20G_DOT(Q20G_MUL(u0, 3), Q20G_MUL(u1, 3), 32 + 4 * ch) }
++                Q20G_FINISH(0)
++                // g1: chunks 0-7, trits 2, 3
++                Q20G_ZERO()
++                for (int ch = 0; ch < 8; ch++) { Q20G_LOAD(ch) Q20G_DOT(Q20G_MUL(u0, 9), Q20G_MUL(u1, 9), 64 + 4 * ch) Q20G_DOT(Q20G_MUL(u0, 27), Q20G_MUL(u1, 27), 96 + 4 * ch) }
++                Q20G_FINISH(1)
++                // g2: chunks 0-7 trit 4; chunks 8-11 trits 0, 1
++                Q20G_ZERO()
++                for (int ch = 0; ch < 8; ch++) { Q20G_LOAD(ch) Q20G_DOT(Q20G_MUL(u0, 81), Q20G_MUL(u1, 81), 128 + 4 * ch) }
++                for (int ch = 8; ch < 12; ch++) { Q20G_LOAD(ch) Q20G_DOT(u0, u1, 160 + 4 * (ch - 8)) Q20G_DOT(Q20G_MUL(u0, 3), Q20G_MUL(u1, 3), 176 + 4 * (ch - 8)) }
++                Q20G_FINISH(2)
++                // g3: chunks 8-11 trits 2-4; chunk 12 (qh) trits 0-3
++                Q20G_ZERO()
++                for (int ch = 8; ch < 12; ch++) { Q20G_LOAD(ch)
++                    Q20G_DOT(Q20G_MUL(u0, 9), Q20G_MUL(u1, 9), 192 + 4 * (ch - 8))
++                    Q20G_DOT(Q20G_MUL(u0, 27), Q20G_MUL(u1, 27), 208 + 4 * (ch - 8))
++                    Q20G_DOT(Q20G_MUL(u0, 81), Q20G_MUL(u1, 81), 224 + 4 * (ch - 8)) }
++                { Q20G_LOAD(12) Q20G_DOT(u0, u1, 240) Q20G_DOT(Q20G_MUL(u0, 3), Q20G_MUL(u1, 3), 244)
++                  Q20G_DOT(Q20G_MUL(u0, 9), Q20G_MUL(u1, 9), 248) Q20G_DOT(Q20G_MUL(u0, 27), Q20G_MUL(u1, 27), 252) }
++                Q20G_FINISH(3)
++#undef Q20G_ZERO
++#undef Q20G_DOT
++#undef Q20G_MUL
++#undef Q20G_LOAD
++#undef Q20G_FINISH
++            }
++            for (int r = 0; r < 4; r++) {
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8,     f[r][0]);
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8 + 4, f[r][1]);
++            }
++        }
++    }
++}
++#undef TQTV_T3
++#else
++static void ggml_gemv_q2_0_tq1g64_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
++static void ggml_gemm_q2_0_tq1g64_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
++#endif
+diff --git a/ggml/src/ggml-cpu/repack.cpp b/ggml/src/ggml-cpu/repack.cpp
+index 9282ca2..b5606d0 100644
+--- a/ggml/src/ggml-cpu/repack.cpp
++++ b/ggml/src/ggml-cpu/repack.cpp
+@@ -4262,6 +4262,36 @@ template <> int repack<block_q4_K, 8, 8>(struct ggml_tensor * t, const void * da
+     return repack_q4_K_to_q4_K_8_bl(t, 8, data, data_size);
+ }
+ 
++#include "repack-q2k-tv.inc"
++#include "repack-tq-tv.inc"
++#include "repack-q1-tv.inc"
++
++// tvbox: GGML_Q1_TV=0 restores upstream's Q1_0 4x4 repack (the compact layout changes row offsets and sizes)
++static bool q1tv_enabled() {
++    static const bool on = getenv("GGML_Q1_TV") == nullptr || atoi(getenv("GGML_Q1_TV")) != 0;
++    return on;
++}
++
++template <> int repack<block_q1_0, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_q1_0_to_q1x8_tv(t, data, data_size);
++}
++
++template <> int repack<block_tq1_0, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_tq_8x4_tv<block_tq1_0, block_tq1_0x8, 13>(t, data, data_size);
++}
++
++template <> int repack<block_q2_0, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_q2_0_to_tq1g64_tv(t, data, data_size);
++}
++
++template <> int repack<block_tq2_0, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_tq_8x4_tv<block_tq2_0, block_tq2_0x8, 16>(t, data, data_size);
++}
++
++template <> int repack<block_q2_K, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_q2_K_to_q2_K_8x4_tv(t, data, data_size);
++}
++
+ template <> int repack<block_q4_K, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
+     return repack_q4_K_to_q4_K_8_bl(t, 4, data, data_size);
+ }
+@@ -4372,6 +4402,26 @@ void gemv<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int          n,
+     ggml_gemv_q2_K_8x8_q8_K(n, s, bs, vx, vy, nr, nc);
+ }
+ 
++template <> void gemv<block_q1_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemv_q1_0_8x4_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemv<block_q2_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemv_q2_0_tq1g64_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemv<block_tq1_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemv_tq1_0_8x4_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemv<block_tq2_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemv_tq2_0_8x4_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemv<block_q2_K, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemv_q2_K_8x4_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
+ template <> void gemv<block_q4_K, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
+     ggml_gemv_q4_K_8x4_q8_K(n, s, bs, vx, vy, nr, nc);
+ }
+@@ -4477,6 +4527,26 @@ template <> void gemm<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t
+     ggml_gemm_q2_K_8x8_q8_K(n, s, bs, vx, vy, nr, nc);
+ }
+ 
++template <> void gemm<block_q1_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemm_q1_0_8x4_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemm<block_q2_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemm_q2_0_tq1g64_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemm<block_tq1_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemm_tq1_0_8x4_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemm<block_tq2_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemm_tq2_0_8x4_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemm<block_q2_K, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemm_q2_K_8x4_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
+ template <> void gemm<block_q4_K, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
+     ggml_gemm_q4_K_8x4_q8_K(n, s, bs, vx, vy, nr, nc);
+ }
+@@ -4552,6 +4622,24 @@ class tensor_traits_base : public ggml::cpu::tensor_traits {
+     virtual int repack(struct ggml_tensor * t, const void * data, size_t data_size) = 0;
+ };
+ 
++// tvbox: speculative decoding verifies 2-3 tokens at a time. Stock code runs the 1-row gemv once per token, decoding
++// every weight block 2-3 times; padding them to one 4-row gemm tile decodes each block once (the gemm costs ~1.5
++// gemv on the A55). GGML_REPACK_PAD4=0 restores the stock path.
++static bool repack_pad4_applies(const struct ggml_tensor * op) {
++    static const bool on = !(getenv("GGML_REPACK_PAD4") && atoi(getenv("GGML_REPACK_PAD4")) == 0);
++    const struct ggml_tensor * src1 = op->src[1];
++    return on && src1 && src1->type == GGML_TYPE_F32 && (src1->ne[1] == 2 || src1->ne[1] == 3) && src1->ne[2] == 1 && src1->ne[3] == 1 &&
++           ggml_is_contiguous(src1);
++}
++
++// tvbox: byte offset of row `rows` inside a repacked tensor (the Q2_0 -> base-3 layout is 5/6 of the source size)
++template <typename BLOC_TYPE> static inline size_t repack_rows_bytes(int64_t rows, size_t nb01) { return (size_t) rows * nb01; }
++template <> inline size_t repack_rows_bytes<block_q2_0>(int64_t rows, size_t nb01) { return (size_t) rows * nb01 / 6 * 5; }
++// compact Q1_0 (repack-q1-tv.inc): groups of 8 rows of 32 + K/256 * 272 bytes; K = nb01 / 18 * 128
++template <> inline size_t repack_rows_bytes<block_q1_0>(int64_t rows, size_t nb01) {
++    return q1tv_enabled() ? (size_t) (rows / 8) * q1tv_group_bytes((int64_t) (nb01 / sizeof(block_q1_0)) * QK1_0) : (size_t) rows * nb01;
++}
++
+ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PARAM_TYPE> class tensor_traits : public tensor_traits_base {
+ 
+     bool work_size(int /* n_threads */, const struct ggml_tensor * op, size_t & size) override {
+@@ -4560,6 +4648,11 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+             case GGML_OP_MUL_MAT:
+                 {
+                     size = ggml_row_size(PARAM_TYPE, ggml_nelements(op->src[1]));
++                    if (repack_pad4_applies(op)) {
++                        // tvbox: 2-3 activation rows padded to one 4-row gemm tile: q8 tile + float input + float output
++                        const int64_t ne10 = op->src[1]->ne[0], ne0 = op->ne[0];
++                        size = GGML_PAD(ggml_row_size(PARAM_TYPE, 4 * ne10), 64) + 4 * ne10 * sizeof(float) + 4 * ne0 * sizeof(float) + 64;
++                    }
+                     return true;
+                 }
+             case GGML_OP_MUL_MAT_ID:
+@@ -4625,7 +4718,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+         const int64_t i1 = i11;
+         const int64_t i2 = i12;
+ 
+-        const char * src0_ptr = (const char *) src0->data + i02 * nb02;
++        const char * src0_ptr = (const char *) src0->data + repack_rows_bytes<BLOC_TYPE>(i02 * ne01, nb01);
+         const char * src1_ptr = (const char *) params->wdata + (i11 + i12 * ne11) * src1_col_stride;
+         char *       dst_ptr  = ((char *) dst->data + (i1 * nb1 + i2 * nb2));
+ 
+@@ -4637,16 +4730,53 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+         // If there are more than three rows in src1, use gemm; otherwise, use gemv.
+         if (nrows > 3) {
+             gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(ne00, (float *) (dst_ptr) + src0_start, nb1 / nb0,
+-                                                             src0_ptr + src0_start * nb01, src1_ptr,
++                                                             src0_ptr + repack_rows_bytes<BLOC_TYPE>(src0_start, nb01), src1_ptr,
+                                                              nrows - (nrows % 4), ncols);
+         }
+         for (int iter = nrows - (nrows % 4); iter < nrows; iter++) {
+             gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(ne00, (float *) (dst_ptr + (iter * nb1)) + src0_start,
+-                                                             ne01, src0_ptr + src0_start * nb01,
++                                                             ne01, src0_ptr + repack_rows_bytes<BLOC_TYPE>(src0_start, nb01),
+                                                              src1_ptr + (src1_col_stride * iter), 1 /* nrows */, ncols);
+         }
+     }
+ 
++    void forward_mul_mat_pad4(ggml_compute_params * params, ggml_tensor * op) {
++        const ggml_tensor * src0 = op->src[0];
++        const ggml_tensor * src1 = op->src[1];
++        ggml_tensor *       dst  = op;
++        GGML_TENSOR_BINARY_OP_LOCALS
++        const int ith = params->ith;
++        const int nth = params->nth;
++        const int64_t nrows = ne11;  // 2 or 3
++
++        char *  wq   = static_cast<char *>(params->wdata);
++        float * xin  = (float *) (wq + GGML_PAD(ggml_row_size(PARAM_TYPE, 4 * ne10), 64));
++        float * yout = xin + 4 * ne10;
++        GGML_ASSERT((char *) (yout + 4 * ne0) <= (char *) params->wdata + params->wsize);
++
++        if (ith == 0) {
++            for (int64_t r = 0; r < 4; r++) {
++                const int64_t rs = r < nrows ? r : nrows - 1;  // pad with copies of the last row
++                memcpy(xin + r * ne10, (const char *) src1->data + rs * nb11, ne10 * sizeof(float));
++            }
++            ggml_quantize_mat_t<INTER_SIZE, PARAM_TYPE>(xin, (void *) wq, 4, ne10);
++        }
++        ggml_barrier(params->threadpool);
++
++        // split the output columns (src0 rows) between threads in NB_COLS-aligned chunks
++        const int64_t nr0 = ne01;
++        const int64_t nchunk = MAX(1, MIN((int64_t) nth * 4, nr0 / NB_COLS));
++        const int64_t dr = ((nr0 + nchunk - 1) / nchunk + NB_COLS - 1) / NB_COLS * NB_COLS;
++        for (int64_t c = ith; c < nchunk; c += nth) {
++            const int64_t c0 = c * dr, c1 = MIN(c0 + dr, nr0);
++            if (c0 >= c1) continue;
++            gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(ne00, yout + c0, ne0, (const char *) src0->data + repack_rows_bytes<BLOC_TYPE>(c0, nb01), wq, 4, c1 - c0);
++            for (int64_t r = 0; r < nrows; r++) {
++                memcpy((char *) dst->data + r * nb1 + c0 * sizeof(float), yout + r * ne0 + c0, (c1 - c0) * sizeof(float));
++            }
++        }
++    }
++
+     void forward_mul_mat(ggml_compute_params * params, ggml_tensor * op) {
+         const ggml_tensor * src0 = op->src[0];
+         const ggml_tensor * src1 = op->src[1];
+@@ -4687,6 +4817,11 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+ 
+         const ggml_from_float_t from_float = ggml_get_type_traits_cpu(PARAM_TYPE)->from_float;
+ 
++        if (repack_pad4_applies(op)) {
++            forward_mul_mat_pad4(params, op);
++            return;
++        }
++
+         // INFO: Quantization is done in planes to avoid extra complexity in chunking.
+         // Flattening dimensions not multiple of INTER_SIZE would require extra handling depending on how
+         // the planes are broadcast.
+@@ -4912,7 +5047,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+ 
+                 gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
+                     ne00, (float *) ((char *) dst->data + (i1 * nb1 + i2 * nb2)) + src0_cur_start, ne01,
+-                    src0_cur + src0_cur_start * nb01, src1_col, 1, src0_cur_end - src0_cur_start);
++                    src0_cur + repack_rows_bytes<BLOC_TYPE>(src0_cur_start, nb01), src1_col, 1, src0_cur_end - src0_cur_start);
+             }
+         }
+ #undef MMID_MATRIX_ROW
+@@ -4931,6 +5066,7 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+     // instance for Q1_0
+     static const ggml::cpu::repack::tensor_traits<block_q1_0, 4, 4, GGML_TYPE_Q8_0> q1_0_4x4_q8_0;
+     static const ggml::cpu::repack::tensor_traits<block_q1_0, 8, 4, GGML_TYPE_Q8_0> q1_0_4x8_q8_0;
++    static const ggml::cpu::repack::tensor_traits<block_q1_0, 4, 8, GGML_TYPE_Q8_K> q1_0_8x4_q8_K_tv;
+ 
+     // instance for Q4
+     static const ggml::cpu::repack::tensor_traits<block_q4_0, 4, 4, GGML_TYPE_Q8_0> q4_0_4x4_q8_0;
+@@ -4951,6 +5087,10 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+ 
+     // instance for Q2
+     static const ggml::cpu::repack::tensor_traits<block_q2_K, 8, 8, GGML_TYPE_Q8_K> q2_K_8x8_q8_K;
++    static const ggml::cpu::repack::tensor_traits<block_q2_K, 4, 8, GGML_TYPE_Q8_K> q2_K_8x4_q8_K_tv;
++    static const ggml::cpu::repack::tensor_traits<block_tq1_0, 4, 8, GGML_TYPE_Q8_K> tq1_0_8x4_q8_K_tv;
++    static const ggml::cpu::repack::tensor_traits<block_q2_0, 4, 8, GGML_TYPE_Q8_K> q2_0_tq1g64_q8_K_tv;
++    static const ggml::cpu::repack::tensor_traits<block_tq2_0, 4, 8, GGML_TYPE_Q8_K> tq2_0_8x4_q8_K_tv;
+ 
+     // instance for IQ4
+     static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 4, 4, GGML_TYPE_Q8_0> iq4_nl_4x4_q8_0;
+@@ -5035,7 +5175,25 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+             }
+             #endif
+         }
++    } else if (cur->type == GGML_TYPE_Q2_0) {
++        // tvbox: ternary Q2_0 (Ternary-Bonsai) -> base-3 packing with the per-64 scales, 5/6 of the RAM
++        // (GGML_Q2_0_TERNARY=0 keeps upstream's per-row Q2_0 vec_dot on the mmapped file)
++        static const bool q20_tv = getenv("GGML_Q2_0_TERNARY") == nullptr || atoi(getenv("GGML_Q2_0_TERNARY")) != 0;
++        if (q20_tv && ggml_cpu_has_neon() && ggml_cpu_has_dotprod() && cur->ne[1] % 8 == 0 && cur->ne[0] % QK_K == 0) {
++            return &q2_0_tq1g64_q8_K_tv;
++        }
++    } else if (cur->type == GGML_TYPE_TQ1_0 || cur->type == GGML_TYPE_TQ2_0) {
++        // tvbox: ARM dotprod repack of the ternary types (GGML_TQ_TV=0 falls back to the per-row vec_dot)
++        static const bool tq_tv = getenv("GGML_TQ_TV") == nullptr || atoi(getenv("GGML_TQ_TV")) != 0;
++        if (tq_tv && ggml_cpu_has_neon() && ggml_cpu_has_dotprod() && cur->ne[1] % 8 == 0) {
++            return cur->type == GGML_TYPE_TQ1_0 ? (const ggml::cpu::tensor_traits *) &tq1_0_8x4_q8_K_tv : &tq2_0_8x4_q8_K_tv;
++        }
+     } else if (cur->type == GGML_TYPE_Q2_K) {
++        // tvbox: ARM dotprod repack (GGML_Q2K_TV=0 falls back to the per-row vec_dot)
++        static const bool q2k_tv = getenv("GGML_Q2K_TV") == nullptr || atoi(getenv("GGML_Q2K_TV")) != 0;
++        if (q2k_tv && ggml_cpu_has_neon() && ggml_cpu_has_dotprod() && !ggml_cpu_has_matmul_int8() && cur->ne[1] % 8 == 0) {
++            return &q2_K_8x4_q8_K_tv;
++        }
+         if (ggml_cpu_has_avx512()) {
+             if (cur->ne[1] % 8 == 0) {
+                 return &q2_K_8x8_q8_K;
+@@ -5130,6 +5288,14 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+             #endif
+         }
+     } else if (cur->type == GGML_TYPE_Q1_0) {
++        // tvbox: bit-plane 8-row repack with 8-bit scales vs Q8_K for ARM dotprod (GGML_Q1_TV=0 = upstream 4x4 vs Q8_0).
++        // With it on, a Q1_0 tensor it can't take stays unrepacked (its row offsets would not match upstream's).
++        if (ggml::cpu::repack::q1tv_enabled() && ggml_cpu_has_neon() && ggml_cpu_has_dotprod() && !ggml_cpu_has_matmul_int8()) {
++            if (cur->ne[1] % 8 == 0 && cur->ne[0] % QK_K == 0) {
++                return &q1_0_8x4_q8_K_tv;
++            }
++            return nullptr;
++        }
+         if (ggml_cpu_has_neon() && ggml_cpu_has_matmul_int8()) {
+             if (cur->ne[1] % 4 == 0) {
+                 return &q1_0_4x8_q8_0;
+@@ -5145,6 +5311,94 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+     return nullptr;
+ }
+ 
++#include "stream-tv.inc"
++
++// tvbox: file-backed repack cache. GGML_REPACK_CACHE=<prefix> puts the repacked weights in a MAP_SHARED file
++// <prefix>.<bytes> instead of anonymous RAM. The first run repacks into it (each tensor is written back and its
++// pages released as it goes) and marks it complete (<prefix>.<bytes>.ok) when the buffer is freed; later runs map
++// it read-only and skip the repack. The weights are then page cache, not anonymous memory: the kernel can drop
++// and re-read pages under pressure instead of the process being killed, and the model loads in seconds.
++// GGML_REPACK_STREAM_MB=<n> additionally treats the last <n> MB of the cache as a stream zone (see
++// ggml_repack_stream_*): those tensors are prefetched ahead of use and dropped after use, so they never push
++// the resident part out of the page cache.
++#if defined(__linux__)
++#include <sys/mman.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <map>
++#include <string>
++struct repack_cache_info { size_t size; std::string path; bool loaded; };
++static std::map<void *, repack_cache_info> & repack_caches() { static std::map<void *, repack_cache_info> m; return m; }
++static bool repack_cache_loaded(ggml_backend_buffer_t b) {
++    auto & m = repack_caches(); auto it = m.find(b->context);
++    return it != m.end() && it->second.loaded;
++}
++static bool repack_cache_building(ggml_backend_buffer_t b) {
++    auto & m = repack_caches(); auto it = m.find(b->context);
++    return it != m.end() && !it->second.loaded;
++}
++static void repack_cache_free(ggml_backend_buffer_t b) {
++    auto & m = repack_caches(); auto it = m.find(b->context);
++    if (it == m.end()) { return; }
++    if (!it->second.loaded) {
++        msync(b->context, it->second.size, MS_SYNC);
++        FILE * f = fopen((it->second.path + ".ok").c_str(), "w");
++        if (f) { fprintf(f, "%zu\n", it->second.size); fclose(f); }
++        GGML_LOG_INFO("%s: repack cache %s complete\n", __func__, it->second.path.c_str());
++    }
++    ggml_cpu_stream_stats();
++    munmap(b->context, it->second.size);
++    m.erase(it);
++}
++static ggml_backend_buffer_t repack_cache_alloc(size_t size) {
++    const char * cp = getenv("GGML_REPACK_CACHE");
++    if (!cp || !*cp || size == 0) { return nullptr; }
++    const std::string path = std::string(cp) + "." + std::to_string(size), ok = path + ".ok";
++    struct stat st;
++    const bool have = stat(ok.c_str(), &st) == 0 && stat(path.c_str(), &st) == 0 && (size_t) st.st_size == size;
++    if (!have) { unlink(ok.c_str()); }
++    const int fd = open(path.c_str(), have ? O_RDONLY : (O_RDWR | O_CREAT | O_TRUNC), 0644);
++    if (fd < 0) { GGML_LOG_ERROR("%s: cannot open %s\n", __func__, path.c_str()); return nullptr; }
++    if (!have && ftruncate(fd, (off_t) size) != 0) { close(fd); GGML_LOG_ERROR("%s: ftruncate %s failed\n", __func__, path.c_str()); return nullptr; }
++    void * p = mmap(nullptr, size, have ? PROT_READ : (PROT_READ | PROT_WRITE), MAP_SHARED, fd, 0);
++    close(fd);
++    if (p == MAP_FAILED) { GGML_LOG_ERROR("%s: mmap %s failed\n", __func__, path.c_str()); return nullptr; }
++    // GGML_REPACK_RESIDENT_MB=<n> (cache already built): copy the first n MB into anonymous RAM and stream the rest
++    const char * rm = getenv("GGML_REPACK_RESIDENT_MB");
++    if (have && rm) {
++        size_t res = std::min(size, (size_t) atoll(rm) << 20) & ~(size_t) 4095;
++        if (res > 0) {
++            void * q = mmap(p, res, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
++            GGML_ASSERT(q == p);
++            const int rfd = open(path.c_str(), O_RDONLY);
++            size_t done = 0;
++            while (done < res) {
++                const ssize_t r = pread(rfd, (char *) p + done, std::min(res - done, (size_t) 8 << 20), (off_t) done);
++                if (r <= 0) { break; }
++                posix_fadvise(rfd, (off_t) done, r, POSIX_FADV_DONTNEED);
++                done += (size_t) r;
++            }
++            GGML_ASSERT(done == res);
++            GGML_LOG_INFO("%s: %.1f MB resident in RAM, %.1f MB streamed from %s\n", __func__, res / 1e6, (size - res) / 1e6, path.c_str());
++            if (res < size) {
++                ggml_cpu_stream_register((char *) p + res, size - res, rfd, (int64_t) res);
++            }
++            close(rfd);
++        }
++    }
++    ggml_backend_buffer_t buffer = ggml_backend_cpu_buffer_from_ptr(p, size);
++    buffer->iface.free_buffer = repack_cache_free;
++    repack_caches()[p] = { size, path, have };
++    GGML_LOG_INFO("%s: repack cache %s (%.1f MB) %s\n", __func__, path.c_str(), size / 1e6, have ? "mapped, repack skipped" : "building");
++    return buffer;
++}
++#else
++static bool repack_cache_loaded(ggml_backend_buffer_t) { return false; }
++static bool repack_cache_building(ggml_backend_buffer_t) { return false; }
++static ggml_backend_buffer_t repack_cache_alloc(size_t) { return nullptr; }
++#endif
++
+ static enum ggml_status ggml_backend_cpu_repack_buffer_init_tensor(ggml_backend_buffer_t buffer, struct ggml_tensor * tensor) {
+     tensor->extra = (void *) const_cast<ggml::cpu::tensor_traits *>(ggml_repack_get_optimal_repack_type(tensor));
+ 
+@@ -5157,10 +5411,22 @@ static void ggml_backend_cpu_repack_buffer_set_tensor(ggml_backend_buffer_t buff
+     GGML_ASSERT(offset == 0);
+     GGML_ASSERT(size == ggml_nbytes(tensor));
+ 
++    if (repack_cache_loaded(buffer)) {
++        return;   // tvbox: already in the mapped cache file
++    }
+     auto tensor_traits = (ggml::cpu::repack::tensor_traits_base *) tensor->extra;
+     auto OK            = tensor_traits->repack(tensor, data, size);
+ 
+     GGML_ASSERT(OK == 0);
++#if defined(__linux__)
++    if (repack_cache_building(buffer)) {   // write this tensor back now and release its pages
++        const size_t pg = 4096;
++        char * a = (char *) ((uintptr_t) tensor->data & ~(uintptr_t) (pg - 1));
++        const size_t len = (char *) tensor->data + ggml_backend_buft_get_alloc_size(buffer->buft, tensor) - a;
++        msync(a, len, MS_SYNC);
++        madvise(a, len, MADV_DONTNEED);
++    }
++#endif
+     GGML_UNUSED(buffer);
+ }
+ 
+@@ -5171,7 +5437,10 @@ static const char * ggml_backend_cpu_repack_buffer_type_get_name(ggml_backend_bu
+ }
+ 
+ static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
+-    ggml_backend_buffer_t buffer = ggml_backend_buft_alloc_buffer(ggml_backend_cpu_buffer_type(), size);
++    ggml_backend_buffer_t buffer = repack_cache_alloc(size);
++    if (buffer == nullptr) {
++        buffer = ggml_backend_buft_alloc_buffer(ggml_backend_cpu_buffer_type(), size);
++    }
+ 
+     if (buffer == nullptr) {
+         return nullptr;
+@@ -5185,6 +5454,19 @@ static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(gg
+     return buffer;
+ }
+ 
++static size_t ggml_backend_cpu_repack_buffer_type_get_alloc_size(ggml_backend_buffer_type_t buft, const struct ggml_tensor * tensor) {
++    GGML_UNUSED(buft);
++    // tvbox: the ternary Q2_0 layout needs only 5/6 of the file bytes
++    if (tensor->type == GGML_TYPE_Q2_0 && ggml_repack_get_optimal_repack_type(tensor) != nullptr) {
++        return ggml_nbytes(tensor) / 6 * 5;
++    }
++    // tvbox: compact Q1_0 (8-bit scales): 17 bytes per 128 weights + 4 bytes per row
++    if (tensor->type == GGML_TYPE_Q1_0 && ggml::cpu::repack::q1tv_enabled() && ggml_repack_get_optimal_repack_type(tensor) != nullptr) {
++        return (size_t) (ggml_nrows(tensor) / 8) * ggml::cpu::repack::q1tv_group_bytes(tensor->ne[0]);
++    }
++    return ggml_nbytes(tensor);
++}
++
+ static size_t ggml_backend_cpu_repack_buffer_type_get_alignment(ggml_backend_buffer_type_t buft) {
+     return TENSOR_ALIGNMENT;
+ 
+@@ -5248,7 +5530,7 @@ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
+                            /* .alloc_buffer_n       = */ nullptr,
+                            /* .get_alignment        = */ ggml_backend_cpu_repack_buffer_type_get_alignment,
+                            /* .get_max_size         = */ nullptr,  // defaults to SIZE_MAX
+-                           /* .get_alloc_size       = */ nullptr,  // defaults to ggml_nbytes
++                           /* .get_alloc_size       = */ ggml_backend_cpu_repack_buffer_type_get_alloc_size,
+                            /* .get_alloc_size_n     = */ NULL,
+                            /* .is_host              = */ nullptr,
+                            },
+diff --git a/ggml/src/ggml-cpu/stream-tv.inc b/ggml/src/ggml-cpu/stream-tv.inc
+new file mode 100644
+index 0000000..3471c83
+--- /dev/null
++++ b/ggml/src/ggml-cpu/stream-tv.inc
+@@ -0,0 +1,274 @@
++// tvbox: weight streaming engine for models bigger than RAM (included in repack.cpp).
++//
++// A "zone" is a range of weight memory that is backed by a file but not kept resident: the part of the model
++// that doesn't fit. Left to the kernel (plain mmap), a cyclic scan larger than the page cache is the LRU's
++// worst case (it evicts exactly the pages needed next, so everything is re-read each token) and the compute
++// threads stall in 4 KB page faults. Measured eMMC: ~150 MB/s that way vs 278 MB/s for parallel 8 MB O_DIRECT
++// reads (tools/kbench/flashbench.c). So here:
++//   * the zone's address range is remapped to anonymous memory, empty;
++//   * the first pass records the order in which matmuls use zone tensors (the trace);
++//   * GGML_STREAM_READERS threads (default 3) read zone tensors with O_DIRECT, in 8 MB chunks, straight into
++//     their own addresses, in trace order starting at the tensor in use, up to GGML_STREAM_WINDOW_MB ahead;
++//   * every compute thread waits until the weight of its MUL_MAT is completely loaded (so correctness never
++//     depends on the prediction: an unexpected tensor is just loaded on demand);
++//   * when the next zone matmul starts, the previous zone tensor is finished (graph nodes are separated by a
++//     barrier) and its pages are freed (MADV_DONTNEED): RAM use stays at about the window.
++// Zones are registered by the repack cache (GGML_REPACK_RESIDENT_MB) and by llama's model mmap
++// (LLAMA_STREAM_RESIDENT_MB). Pages shared with a neighbouring tensor at a tensor's edges are loaded with it
++// and never freed, so their content is always valid.
++#if defined(__linux__)
++#include <sys/mman.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <sched.h>
++#include <time.h>
++#include <atomic>
++#include <condition_variable>
++#include <mutex>
++#include <string>
++#include <thread>
++#include <unordered_map>
++#include <vector>
++
++namespace {
++constexpr uintptr_t ST_PG = 4096;
++constexpr size_t    ST_CHUNK = (size_t) 8 << 20;
++struct stream_zone { char * base; size_t len; int fd; int bfd; int64_t foff; char * ov_beg; char * ov_end; bool direct; };
++struct stream_ent {
++    char * p; size_t len; int z;
++    char * rd_beg; char * rd_end;          // page-aligned read range, clipped to the zone's anonymous overlay
++    int nchunks;
++    int claimed = 0, done = 0;             // chunks handed to readers / finished (guarded by mu)
++    std::atomic<bool> loaded{false};
++};
++struct stream_state {
++    std::vector<stream_zone> zones;
++    std::vector<stream_ent *> trace;
++    std::unordered_map<char *, int> index;   // tensor data pointer -> trace entry
++    bool trace_done = false;
++    int cur = -1, prev = -1;
++    size_t window = (size_t) 96 << 20;
++    int readers = 3;
++    std::mutex mu;
++    std::condition_variable cv_work, cv_ready;
++    bool started = false;
++    std::atomic<int64_t> rd_bytes{0}, drop_bytes{0}, wait_ns{0}, sync_loads{0}, hooks{0};
++};
++static stream_state & st_get() { static stream_state s; return s; }
++static int64_t st_now() { timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (int64_t) t.tv_sec * 1000000000 + t.tv_nsec; }
++
++// next chunk to read: entries in trace order from the one in use, within the window (caller holds mu)
++static bool st_pick(stream_state & s, stream_ent *& e, int & c) {
++    const int n = (int) s.trace.size();
++    if (n == 0 || s.cur < 0) { return false; }
++    const int span = s.trace_done ? n : 1;
++    size_t ahead = 0;
++    for (int k = 0; k < span; k++) {
++        stream_ent * x = s.trace[(s.cur + k) % n];
++        if (k > 0 && ahead + x->len > s.window) { break; }
++        ahead += x->len;
++        if (!x->loaded.load(std::memory_order_relaxed) && x->claimed < x->nchunks) {
++            e = x; c = x->claimed++; return true;
++        }
++    }
++    return false;
++}
++
++static void st_reader() {
++    stream_state & s = st_get();
++    for (;;) {
++        stream_ent * e = nullptr; int c = 0;
++        {
++            std::unique_lock<std::mutex> lk(s.mu);
++            s.cv_work.wait(lk, [&] { return st_pick(s, e, c); });
++        }
++        const stream_zone & zn = s.zones[e->z];
++        char * a = e->rd_beg + (size_t) c * ST_CHUNK;
++        size_t left = std::min((size_t) (e->rd_end - a), ST_CHUNK);
++        int64_t off = zn.foff + (a - zn.base);
++        static thread_local std::vector<char> scratch;
++        if (!zn.direct && scratch.empty()) { scratch.resize(ST_CHUNK); }
++        while (left) {
++            // direct: O_DIRECT straight into the tensor's (anonymous) pages; cache: a buffered read into scratch
++            // fills the page cache that backs the file mapping
++            const ssize_t r = zn.direct ? pread(zn.fd, a, left, off) : pread(zn.bfd, scratch.data(), left, off);
++            if (r <= 0) { break; }   // short read at end of file: the rest is past the data
++            a += r; off += r; left -= (size_t) r; s.rd_bytes += r;
++        }
++        {
++            std::lock_guard<std::mutex> lk(s.mu);
++            if (++e->done == e->nchunks) { e->loaded.store(true, std::memory_order_release); s.cv_ready.notify_all(); }
++        }
++        s.cv_work.notify_all();
++    }
++}
++
++static int st_find_zone(stream_state & s, char *& p, size_t & len) {
++    for (size_t i = 0; i < s.zones.size(); i++) {
++        const stream_zone & zn = s.zones[i];
++        if (p + len > zn.base && p < zn.base + zn.len) {
++            if (p < zn.base) { len -= zn.base - p; p = zn.base; }   // tensor straddles the resident/zone edge
++            if (p + len > zn.base + zn.len) { len = zn.base + zn.len - p; }
++            return (int) i;
++        }
++    }
++    return -1;
++}
++
++static stream_ent * st_entry(stream_state & s, char * p, size_t len, int z) {   // caller holds mu
++    auto it = s.index.find(p);
++    if (it != s.index.end()) { return s.trace[it->second]; }
++    const stream_zone & zn = s.zones[z];
++    stream_ent * e = new stream_ent();
++    e->p = p; e->len = len; e->z = z;
++    // O_DIRECT reads cover only the pages wholly inside this tensor. Its first / last partial pages are shared
++    // with the neighbouring tensors: two O_DIRECT reads into one page at the same time were seen to corrupt it
++    // (GGML_STREAM_VERIFY), so edge pages are read once here, with a plain pread, and never freed.
++    char * ia = std::max((char *) (((uintptr_t) p + ST_PG - 1) & ~(ST_PG - 1)), zn.ov_beg);
++    char * ib = std::min((char *) (((uintptr_t) p + len) & ~(ST_PG - 1)), zn.ov_end);
++    if (ib < ia) { ib = ia; }
++    char * ea = std::max((char *) ((uintptr_t) p & ~(ST_PG - 1)), zn.ov_beg);
++    char * eb = std::min((char *) (((uintptr_t) p + len + ST_PG - 1) & ~(ST_PG - 1)), zn.ov_end);
++    auto edge = [&](char * a, char * b) {
++        if (b > a && pread(zn.bfd, a, b - a, zn.foff + (a - zn.base)) != (ssize_t) (b - a)) { GGML_LOG_ERROR("stream: edge read failed\n"); }
++    };
++    if (!zn.direct) {   // file-backed mapping: every page is valid at any time, the reads only warm the cache
++        ia = ea; ib = eb;
++    } else if (ib > ia) { edge(ea, ia); edge(ib, eb); } else { edge(ea, eb); }
++    e->rd_beg = ia; e->rd_end = ib;
++    e->nchunks = (int) ((e->rd_end - e->rd_beg + ST_CHUNK - 1) / ST_CHUNK);
++    if (e->nchunks == 0) { e->loaded = true; }
++    s.index[p] = (int) s.trace.size();
++    s.trace.push_back(e);
++    static const bool dbg = getenv("GGML_STREAM_DEBUG") != nullptr;
++    if (dbg) {
++        GGML_LOG_INFO("stream entry %zu: %p +%zu (zone %d) read [%p, %p) %d chunks\n", s.trace.size() - 1, (void *) p, len, z,
++                      (void *) e->rd_beg, (void *) e->rd_end, e->nchunks);
++    }
++    return e;
++}
++
++static void st_drop(stream_state & s, stream_ent * e) {   // caller holds mu; only whole pages inside the tensor
++    char * a = (char *) (((uintptr_t) e->p + ST_PG - 1) & ~(ST_PG - 1));
++    char * b = (char *) (((uintptr_t) e->p + e->len) & ~(ST_PG - 1));
++    a = std::max(a, s.zones[e->z].ov_beg); b = std::min(b, s.zones[e->z].ov_end);
++    if (b <= a || e->claimed != e->done) { return; }   // never free pages a reader is still writing
++    madvise(a, b - a, MADV_DONTNEED);
++    if (!s.zones[e->z].direct) { posix_fadvise(s.zones[e->z].bfd, s.zones[e->z].foff + (a - s.zones[e->z].base), b - a, POSIX_FADV_DONTNEED); }
++    s.drop_bytes += b - a;
++    e->loaded = false; e->claimed = e->done = 0;
++}
++}  // namespace
++
++extern "C" int ggml_cpu_stream_active = 0;
++extern "C" void ggml_cpu_stream_stats(void);
++
++extern "C" void ggml_cpu_stream_register(void * base, size_t len, int fd, int64_t file_off) {
++    stream_state & s = st_get();
++    std::lock_guard<std::mutex> lk(s.mu);
++    // O_DIRECT descriptor of the same file (bypasses the page cache)
++    const int dfd = open(("/proc/self/fd/" + std::to_string(fd)).c_str(), O_RDONLY | O_DIRECT);
++    char * b = (char *) base;
++    char * ov_beg = (char *) (((uintptr_t) b + ST_PG - 1) & ~(ST_PG - 1));
++    char * ov_end = (char *) (((uintptr_t) b + len) & ~(ST_PG - 1));
++    if (dfd < 0 || ov_end <= ov_beg) { GGML_LOG_ERROR("%s: cannot stream %.1f MB zone\n", __func__, len / 1e6); return; }
++    // GGML_STREAM_MODE=cache keeps the zone file-backed (page cache) instead of anonymous + O_DIRECT: better when the
++    // zone is small enough for the page cache to hold the prefetch window without pushing out anything else
++    const char * mode = getenv("GGML_STREAM_MODE");
++    const bool direct = !(mode && strcmp(mode, "cache") == 0);
++    if (direct) {
++        void * q = mmap(ov_beg, ov_end - ov_beg, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
++        GGML_ASSERT(q == ov_beg);
++    }
++    const int bfd = open(("/proc/self/fd/" + std::to_string(fd)).c_str(), O_RDONLY);
++    s.zones.push_back({ b, len, dfd, bfd, file_off, ov_beg, ov_end, direct });
++    if (const char * w = getenv("GGML_STREAM_WINDOW_MB")) { s.window = (size_t) atoll(w) << 20; }
++    if (const char * r = getenv("GGML_STREAM_READERS"))   { s.readers = std::max(1, atoi(r)); }
++    if (!s.started) {
++        s.started = true;
++        for (int i = 0; i < s.readers; i++) { std::thread(st_reader).detach(); }
++        if (getenv("GGML_STREAM_STATS")) { atexit([] { ggml_cpu_stream_stats(); }); }
++    }
++    ggml_cpu_stream_active = 1;
++    GGML_LOG_INFO("%s: stream zone %.1f MB (file offset %lld), window %zu MB, %d %s readers\n", __func__, len / 1e6,
++                  (long long) file_off, s.window >> 20, s.readers, direct ? "O_DIRECT" : "page-cache");
++}
++
++// every compute thread calls this when a MUL_MAT starts (t = its weight); thread 0 also does the bookkeeping.
++// Returns once the weight is completely in memory.
++extern "C" void ggml_cpu_stream_hook(const struct ggml_tensor * t, int ith) {
++    stream_state & s = st_get();
++    char * p = (char *) t->data;
++    size_t len = t->buffer ? ggml_backend_buffer_get_alloc_size(t->buffer, t) : ggml_nbytes(t);
++    const int z = st_find_zone(s, p, len);
++    if (getenv("GGML_STREAM_DEBUG") && ith == 0 && strncmp(t->name, "output", 6) == 0) {
++        static int nout = 0;
++        if (nout++ < 3) {
++            GGML_LOG_INFO("stream: %s at %p +%zu, zone %d, zones[0] = [%p, +%zu), first bytes %02x %02x %02x %02x\n", t->name, t->data, len, z,
++                          s.zones.empty() ? nullptr : (void *) s.zones[0].base, s.zones.empty() ? 0 : s.zones[0].len,
++                          ((unsigned char *) t->data)[0], ((unsigned char *) t->data)[1], ((unsigned char *) t->data)[64], ((unsigned char *) t->data)[1000]);
++        }
++    }
++    if (z < 0) { return; }
++    static const bool dbg = getenv("GGML_STREAM_DEBUG") != nullptr;
++    if (dbg && ith == 0 && s.hooks < 400) { GGML_LOG_INFO("stream hook %s %p +%zu\n", t->name, (void *) p, len); }
++    if (ith == 0) {
++        const int64_t t0 = st_now();
++        {
++            std::unique_lock<std::mutex> lk(s.mu);
++            stream_ent * e = st_entry(s, p, len, z);
++            const int j = s.index[p];
++            if (!s.trace_done && s.trace.size() > 1 && j == 0 && s.cur != 0) {
++                s.trace_done = true;
++                GGML_LOG_INFO("%s: trace of %zu zone tensors recorded\n", __func__, s.trace.size());
++            }
++            if (s.prev >= 0 && s.prev != j) { st_drop(s, s.trace[s.prev]); }
++            s.prev = j; s.cur = j; s.hooks++;
++            if (!e->loaded.load(std::memory_order_acquire)) { s.sync_loads++; }
++            s.cv_work.notify_all();
++            s.cv_ready.wait(lk, [&] { return e->loaded.load(std::memory_order_acquire); });
++            static const bool verify = getenv("GGML_STREAM_VERIFY") != nullptr;
++            if (verify) {   // debug: compare the tensor with the file
++                const stream_zone & zn = s.zones[e->z];
++                static int vfd = -1;
++                if (vfd < 0) { vfd = open(("/proc/self/fd/" + std::to_string(zn.fd)).c_str(), O_RDONLY); }
++                std::vector<char> ref(len);
++                const ssize_t r = pread(vfd, ref.data(), len, zn.foff + (p - zn.base));
++                size_t bad = 0, first = 0;
++                for (size_t i = 0; i < len && r == (ssize_t) len; i++) { if (ref[i] != p[i]) { if (!bad) { first = i; } bad++; } }
++                if (bad) {
++                    GGML_LOG_ERROR("stream VERIFY %s: %zu of %zu bytes differ, first at +%zu (page +%zu), entry %d, loaded by %d chunks\n",
++                                   t->name, bad, len, first, (size_t) ((uintptr_t) (p + first) & ~(ST_PG - 1)) - (size_t) ((uintptr_t) p & ~(ST_PG - 1)), j, e->nchunks);
++                }
++            }
++        }
++        s.wait_ns += st_now() - t0;
++        return;
++    }
++    // other threads: wait until thread 0 has made this tensor current and it is loaded
++    for (;;) {
++        {
++            std::unique_lock<std::mutex> lk(s.mu);
++            auto it = s.index.find(p);
++            if (it != s.index.end() && s.cur == it->second) {
++                stream_ent * x = s.trace[it->second];
++                s.cv_ready.wait(lk, [&] { return x->loaded.load(std::memory_order_acquire); });
++                return;
++            }
++        }
++        sched_yield();
++    }
++}
++
++extern "C" void ggml_cpu_stream_stats(void) {
++    stream_state & s = st_get();
++    if (!s.started) { return; }
++    GGML_LOG_INFO("stream: read %.1f MB, freed %.1f MB, trace %zu tensors, %lld matmuls, %lld not ready on arrival, thread-0 wait %.2f s\n",
++                  s.rd_bytes / 1e6, s.drop_bytes / 1e6, s.trace.size(), (long long) s.hooks.load(), (long long) s.sync_loads.load(), s.wait_ns / 1e9);
++}
++#else
++extern "C" int ggml_cpu_stream_active = 0;
++extern "C" void ggml_cpu_stream_register(void *, size_t, int, int64_t) {}
++extern "C" void ggml_cpu_stream_hook(const struct ggml_tensor *, int) {}
++extern "C" void ggml_cpu_stream_stats(void) {}
++#endif
+diff --git a/ggml/src/ggml-vulkan/ggml-vulkan.cpp b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+index c094368..b6c80db 100644
+--- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
++++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
+@@ -2878,6 +2878,11 @@ void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
+         rm_stdq = 2;
+         rm_stdq_int = 2;
+     }
++    // tvbox: tuning overrides for GPUs without a preset here (Mali): rows computed per mat-vec workgroup
++    if (const char * e = getenv("GGML_VK_RM_STDQ"))     { rm_stdq     = (uint32_t) atoi(e); }
++    if (const char * e = getenv("GGML_VK_RM_KQ"))       { rm_kq       = (uint32_t) atoi(e); }
++    if (const char * e = getenv("GGML_VK_RM_STDQ_INT")) { rm_stdq_int = (uint32_t) atoi(e); }
++    if (const char * e = getenv("GGML_VK_RM_KQ_INT"))   { rm_kq_int   = (uint32_t) atoi(e); }
+     // RDNA3/4: above four columns, static 4 rows for all types bench faster than the default
+     const bool is_rdna3_or_4 = device->vendor_id == VK_VENDOR_ID_AMD && (device->architecture == AMD_RDNA3 || device->architecture == AMD_RDNA4);
+     auto const &rm_int_n = [&](uint32_t rows, uint32_t i) { return (is_rdna3_or_4 && i >= 4) ? 4u : rows; };
+@@ -3704,6 +3709,10 @@ void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
+                 lanes_per_column = std::min(S_V, gdn_subgroup_size);
+             }
+ 
++            // tvbox: GGML_VK_GDN_LANES overrides lanes per state column (Mali sg16 defaults to 2 -> 64 floats of
++            // state per lane in registers)
++            if (const char * e = getenv("GGML_VK_GDN_LANES")) { lanes_per_column = std::min<uint32_t>((uint32_t) atoi(e), std::min(S_V, gdn_subgroup_size)); }
++
+             // gated_delta_net.comp relies on S_V % COLS_PER_WG == 0 and
+             // S_V % LANES_PER_COLUMN == 0 to avoid bounds checks.
+             while (lanes_per_column > 1u) {
+@@ -5643,10 +5652,15 @@ static vk_pipeline ggml_vk_get_dequantize_mul_mat_vec(ggml_backend_vk_context *
+         }
+     }
+ 
++    // tvbox: GGML_VK_DMMV_WG=0 (one subgroup per workgroup) / 1 (4 subgroups) forces the mat-vec workgroup size
++    static const int dmmv_wg_env = getenv("GGML_VK_DMMV_WG") ? atoi(getenv("GGML_VK_DMMV_WG")) : -1;
++    if (dmmv_wg_env == 0) { dmmv_wg = DMMV_WG_SIZE_SUBGROUP; } else if (dmmv_wg_env == 1) { dmmv_wg = DMMV_WG_SIZE_LARGE; }
++
+     if (b_type == GGML_TYPE_Q8_1) {
+         if (ctx->device->vendor_id == VK_VENDOR_ID_INTEL) {
+             dmmv_wg = DMMV_WG_SIZE_SUBGROUP;
+         }
++        if (dmmv_wg_env == 1) { dmmv_wg = DMMV_WG_SIZE_LARGE; }
+         return ctx->device->pipeline_dequant_mul_mat_vec_q8_1_f32[dmmv_wg][a_type][num_cols-1];
+     }
+ 
+diff --git a/src/llama-arch.cpp b/src/llama-arch.cpp
+index 497e426..d2973bf 100644
+--- a/src/llama-arch.cpp
++++ b/src/llama-arch.cpp
+@@ -500,6 +500,7 @@ static const std::map<llm_tensor, const char *> LLM_TENSOR_NAMES = {
+     { LLM_TENSOR_OUTPUT_NORM,                            "output_norm" },
+     { LLM_TENSOR_OUTPUT_NORM_LFM2,                       "token_embd_norm" }, // fix for wrong tensor name
+     { LLM_TENSOR_OUTPUT,                                 "output" },
++    { LLM_TENSOR_OUTPUT_IDS,                             "output_ids" },
+     { LLM_TENSOR_ROPE_FREQS,                             "rope_freqs" },
+     { LLM_TENSOR_HRM_Z_L_INIT,                           "hrm.z_l_init" },
+     { LLM_TENSOR_ATTN_NORM,                              "blk.%d.attn_norm" },
+@@ -841,6 +842,7 @@ static const std::map<llm_tensor, llm_tensor_info> LLM_TENSOR_INFOS = {
+     {LLM_TENSOR_HRM_Z_L_INIT,               {LLM_TENSOR_LAYER_REPEATING, GGML_OP_ADD}},
+     {LLM_TENSOR_TOKEN_EMBD_NORM,            {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL}},  // do the norms on the first layer (not the input layer)
+     {LLM_TENSOR_OUTPUT,                     {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL_MAT}},
++    {LLM_TENSOR_OUTPUT_IDS,                 {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_SET_ROWS}},
+     {LLM_TENSOR_CLS,                        {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL_MAT}},
+     {LLM_TENSOR_CLS_OUT,                    {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL_MAT}},
+     {LLM_TENSOR_CLS_NORM,                   {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL}},
+diff --git a/src/llama-arch.h b/src/llama-arch.h
+index eca6d18..8873717 100644
+--- a/src/llama-arch.h
++++ b/src/llama-arch.h
+@@ -506,6 +506,7 @@ enum llm_tensor {
+     LLM_TENSOR_DENSE_2_OUT,
+     LLM_TENSOR_DENSE_3_OUT,
+     LLM_TENSOR_OUTPUT,
++    LLM_TENSOR_OUTPUT_IDS,   // pruned LM head: vocab ids of the rows kept in output.weight
+     LLM_TENSOR_OUTPUT_NORM,
+     LLM_TENSOR_OUTPUT_NORM_LFM2, // fix for wrong tensor name
+     LLM_TENSOR_ROPE_FREQS,
+diff --git a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
+index a963f24..797dfd3 100644
+--- a/src/llama-model-loader.cpp
++++ b/src/llama-model-loader.cpp
+@@ -1,4 +1,10 @@
+ #include "llama-model-loader.h"
++#include "ggml-cpu.h"
++#if defined(__linux__)
++#include <fcntl.h>
++#include <sys/mman.h>
++#include <unistd.h>
++#endif
+ 
+ #include "ggml-alloc.h"
+ #include "ggml.h"
+@@ -15,6 +21,12 @@
+ #include <regex>
+ #include <unordered_set>
+ 
++#if defined(__linux__)
++#include <fcntl.h>
++#include <sys/mman.h>
++#include <unistd.h>
++#endif
++
+ static const size_t kiB = 1024;
+ static const size_t MiB = 1024*kiB;
+ static const size_t GiB = 1024*MiB;
+@@ -1559,6 +1571,11 @@ const void * llama_model_loader::load_data_range(const llama_tensor_weight & w,
+     return data;
+ }
+ 
++#if defined(__linux__)
++struct stream_bound_t { ggml_tensor * t; uint16_t idx; size_t offs; };
++static std::vector<stream_bound_t> & stream_bound() { static std::vector<stream_bound_t> v; return v; }
++#endif
++
+ bool llama_model_loader::load_all_data(
+         struct ggml_context * ctx,
+         std::vector<ggml_backend_buffer_t> & bufs,
+@@ -1730,6 +1747,9 @@ bool llama_model_loader::load_all_data(
+             GGML_ASSERT(buf_mmap || cur->data); // either we have a buffer to allocate the tensor in, or it is already allocated
+             if (buf_mmap && cur->data == nullptr) {
+                 ggml_backend_tensor_alloc(buf_mmap, cur, data);
++#if defined(__linux__)
++                stream_bound().push_back({ cur, weight->idx, weight->offs });   // TV-box: candidates for LLAMA_STREAM_RESIDENT_MB
++#endif
+ 
+                 // locking a lazy tensor would fault all of it in, which is what lazy avoids
+                 if (lmlocks && !lazy.has(cur)) {
+@@ -1742,6 +1762,24 @@ bool llama_model_loader::load_all_data(
+                 mmap_used.second = std::max(mmap_used.second, weight->offs + n_size);
+             } else {
+                 ggml_backend_tensor_set(cur, data, 0, n_size);
++#if defined(__linux__)
++                // TV-box experiment: the tensor now lives in its own (e.g. repacked) buffer, so its source pages in
++                // the mapping are dead weight: drop them from this process (MADV_DONTNEED) and from the page cache
++                // (POSIX_FADV_DONTNEED), instead of leaving ~1 GB of mapped, "active" file pages that make the
++                // kernel evict other apps' code first. Only whole pages inside the tensor are touched.
++                // LLAMA_KEEP_MAPPED_COPIES=1 restores stock behaviour.
++                static const bool keep = getenv("LLAMA_KEEP_MAPPED_COPIES") != nullptr;
++                if (!keep) {
++                    const size_t pg  = (size_t) sysconf(_SC_PAGESIZE);
++                    const size_t beg = (weight->offs + pg - 1) / pg * pg;
++                    const size_t end = (weight->offs + n_size) / pg * pg;
++                    if (end > beg) {
++                        uint8_t * base = (uint8_t *) mappings.at(weight->idx)->addr();
++                        madvise(base + beg, end - beg, MADV_DONTNEED);
++                        posix_fadvise(files.at(weight->idx)->file_id(), (off_t) beg, (off_t) (end - beg), POSIX_FADV_DONTNEED);
++                    }
++                }
++#endif
+             }
+         } else {
+             const auto & file = files.at(weight->idx);
+@@ -1859,6 +1897,86 @@ bool llama_model_loader::load_all_data(
+                     mapping->unmap_fragment(mmap_used.second, mapping->size());
+                 }
+             }
++#if defined(__linux__)
++            // TV-box experiment: LLAMA_STREAM_RESIDENT_MB=<n> for models bigger than RAM. Weights still in the
++            // mapping (i.e. not repacked): the output head first, then the others in file order, are copied into
++            // anonymous RAM up to n MB; the remaining matmul weights become stream zones (ggml-cpu/stream-tv.inc:
++            // trace-ordered prefetch + drop-behind) instead of being left to the kernel's LRU. token_embd stays
++            // plain mapped (only the rows looked up are touched).
++            if (const char * rs = getenv("LLAMA_STREAM_RESIDENT_MB")) {
++                size_t budget = (size_t) atoll(rs) << 20;
++                const size_t pg = (size_t) sysconf(_SC_PAGESIZE);
++                for (uint32_t idx = 0; idx < mappings.size(); idx++) {
++                    char * base = (char *) mappings.at(idx)->addr();
++                    // every tensor still on this mapping; only quantized 2-D weights (the MUL_MAT operands the stream
++                    // hook loads) are candidates. Zones must not cover anything else (norms, conv kernels, token_embd):
++                    // zone pages start empty and only MUL_MAT weights are ever loaded into them.
++                    struct ent { size_t off, n; std::string name; bool res, cand; };
++                    std::vector<ent> ts;
++                    for (const auto & w : stream_bound()) {
++                        if (w.idx != idx || w.t->data != base + w.offs) { continue; }   // not (or no longer) on this mapping
++                        const std::string name = ggml_get_name(w.t);
++                        const bool cand = name.find("token_embd") == std::string::npos && ggml_n_dims(w.t) >= 2 && ggml_is_quantized(w.t->type);
++                        ts.push_back({ w.offs, ggml_nbytes(w.t), name, false, cand });
++                    }
++                    std::sort(ts.begin(), ts.end(), [](const ent & a, const ent & b) { return a.off < b.off; });
++                    // pinned first: LLAMA_STREAM_PIN = comma-separated name prefixes (default "output."; e.g. add the
++                    // MTP block "blk.32." for speculative decoding), then everything else in file order
++                    std::vector<std::string> pins;
++                    {
++                        const char * pe = getenv("LLAMA_STREAM_PIN");
++                        std::string ps = pe ? pe : "output.";
++                        size_t a = 0;
++                        while (a <= ps.size()) {
++                            const size_t b = ps.find(',', a);
++                            const std::string x = ps.substr(a, b == std::string::npos ? std::string::npos : b - a);
++                            if (!x.empty()) { pins.push_back(x); }
++                            if (b == std::string::npos) { break; }
++                            a = b + 1;
++                        }
++                    }
++                    size_t used = 0;
++                    for (int pass = 0; pass < 2; pass++) {
++                        for (auto & t : ts) {
++                            bool pin = false;
++                            for (const auto & x : pins) { if (t.name.rfind(x, 0) == 0) { pin = true; } }
++                            if (!t.cand || t.res || (pass == 0) != pin || used + t.n > budget) { continue; }
++                            t.res = true; used += t.n;
++                        }
++                    }
++                    const int rfd = open(("/proc/self/fd/" + std::to_string(files.at(idx)->file_id())).c_str(), O_RDONLY);
++                    size_t zbeg = 0, zend = 0, res_bytes = 0, zone_bytes = 0;
++                    auto flush_zone = [&]() {
++                        if (zend > zbeg) { ggml_cpu_stream_register(base + zbeg, zend - zbeg, rfd, (int64_t) zbeg); zone_bytes += zend - zbeg; }
++                        zbeg = zend = 0;
++                    };
++                    for (const auto & t : ts) {
++                        if (!t.cand) { flush_zone(); continue; }   // stays a plain mapped tensor
++                        if (t.res) {
++                            flush_zone();
++                            const size_t a = t.off / pg * pg, e = (t.off + t.n + pg - 1) / pg * pg;
++                            void * q = mmap(base + a, e - a, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
++                            GGML_ASSERT(q == base + a);
++                            size_t done = 0;
++                            while (done < e - a) {
++                                const ssize_t r = pread(rfd, base + a + done, std::min(e - a - done, (size_t) 8 << 20), (off_t) (a + done));
++                                if (r <= 0) { break; }
++                                done += (size_t) r;
++                            }
++                            posix_fadvise(rfd, (off_t) a, (off_t) (e - a), POSIX_FADV_DONTNEED);
++                            res_bytes += t.n;
++                        } else {
++                            if (zend == 0) { zbeg = t.off; }
++                            zend = t.off + t.n;
++                        }
++                    }
++                    flush_zone();
++                    LLAMA_LOG_INFO("%s: streaming: %.1f MB of weights resident in RAM, %.1f MB in stream zones\n", __func__, res_bytes / 1e6, zone_bytes / 1e6);
++                    if (rfd >= 0) { close(rfd); }   // the stream engine keeps its own dup
++                }
++            }
++            stream_bound().clear();
++#endif
+         }
+         if (progress_callback) {
+             // Even though the model is done loading, we still honor
+diff --git a/src/llama-model.h b/src/llama-model.h
+index 222238e..0ba958c 100644
+--- a/src/llama-model.h
++++ b/src/llama-model.h
+@@ -747,6 +747,7 @@ struct llama_model {
+     struct ggml_tensor * output_res_score = nullptr; // kimi-k3: final cross-layer residual mix
+     struct ggml_tensor * output_norm_b   = nullptr;
+     struct ggml_tensor * output          = nullptr;
++    struct ggml_tensor * output_ids      = nullptr; // pruned LM head: I32 [n_keep] vocab ids of output rows
+     struct ggml_tensor * output_b        = nullptr;
+     struct ggml_tensor * output_norm_enc = nullptr;
+ 
+diff --git a/src/models/delta-net-base.cpp b/src/models/delta-net-base.cpp
+index 2e15777..79febd5 100644
+--- a/src/models/delta-net-base.cpp
++++ b/src/models/delta-net-base.cpp
+@@ -549,10 +549,21 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
+         cb(output, "attn_output", il);
+         cb(new_state, "new_state", il);
+ 
+-        ggml_build_forward_expand(gf,
+-                ggml_cpy(ctx0, new_state,
+-                    ggml_view_2d(ctx0, ssm_states_all, hparams.n_embd_s(), n_seqs, ssm_states_all->nb[1],
+-                        kv_head * hparams.n_embd_s() * ggml_element_size(ssm_states_all))));
++        ggml_tensor * state_dst = ggml_view_2d(ctx0, ssm_states_all, hparams.n_embd_s(), n_seqs, ssm_states_all->nb[1],
++                kv_head * hparams.n_embd_s() * ggml_element_size(ssm_states_all));
++
++        // tvbox: when the fused GDN op produced the state, let it write the state straight into the cache
++        // (src[6] = destination view, CPU backend) instead of a separate 1 MB/layer copy.
++        // LLAMA_GDN_COPY=1 keeps the stock copy.
++        static const bool gdn_direct = getenv("LLAMA_GDN_COPY") == nullptr;
++        ggml_tensor * gdn = new_state->view_src;
++        if (gdn_direct && gdn && gdn->op == GGML_OP_GATED_DELTA_NET && gdn->op_params[0] == 1 &&
++            ggml_is_contiguous(state_dst) && ssm_states_all->type == GGML_TYPE_F32) {
++            gdn->src[6] = state_dst;
++            ggml_build_forward_expand(gf, gdn);
++        } else {
++            ggml_build_forward_expand(gf, ggml_cpy(ctx0, new_state, state_dst));
++        }
+ 
+         return output;
+     }
+diff --git a/src/models/qwen3.cpp b/src/models/qwen3.cpp
+index c01f838..978fc06 100644
+--- a/src/models/qwen3.cpp
++++ b/src/models/qwen3.cpp
+@@ -1,5 +1,21 @@
+ #include "models.h"
+ 
++#include <cmath>
++
++// pruned LM head (TV-box experiment, same as qwen35.cpp): output holds only the n_keep rows listed in output_ids.
++// Scatter the [n_keep, n_out] logits into [n_vocab, n_out], with -inf for dropped tokens.
++static ggml_tensor * qwen3_scatter_pruned_logits(ggml_context * ctx0, ggml_tensor * cur, const llama_model & model) {
++    if (!model.output_ids) {
++        return cur;
++    }
++    const int64_t n_vocab_full = model.tok_embd->ne[1];
++    ggml_tensor * lt   = ggml_cont(ctx0, ggml_transpose(ctx0, cur));                         // [n_out, n_keep]
++    ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, lt->ne[0], n_vocab_full);   // [n_out, n_vocab]
++    full = ggml_fill_inplace(ctx0, full, -INFINITY);
++    full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++    return ggml_cont(ctx0, ggml_transpose(ctx0, full));                                      // [n_vocab, n_out]
++}
++
+ void llama_model_qwen3::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
+ 
+@@ -12,14 +28,25 @@ void llama_model_qwen3::load_arch_hparams(llama_model_loader & ml) {
+     }
+ }
+ 
+-void llama_model_qwen3::load_arch_tensors(llama_model_loader &) {
++void llama_model_qwen3::load_arch_tensors(llama_model_loader & ml) {
+     LLAMA_LOAD_LOCALS;
+ 
+-    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, 0);
++    // tvbox: with a pruned head, token_embd is only read row-by-row (GET_ROWS), so it can be a lazy,
++    // randomly-accessed mapping (-lzm on): no read-ahead of neighbouring rows on every page fault
++    const bool tv_pruned_head = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str()) != nullptr;
++    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, tv_pruned_head ? TENSOR_READ_LAZY : 0);
+ 
+     // output
+     output_norm = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd}, 0);
+-    output      = create_tensor(tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, TENSOR_NOT_REQUIRED);
++    if (const ggml_tensor * ids_meta = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str())) {
++        // pruned LM head (TV-box experiment)
++        const int64_t n_keep = ids_meta->ne[0];
++        output_ids = create_tensor(tn(LLM_TENSOR_OUTPUT_IDS, "weight"), {n_keep}, 0);
++        output     = create_tensor(tn(LLM_TENSOR_OUTPUT,     "weight"), {n_embd, n_keep}, 0);
++        LLAMA_LOG_INFO("%s: pruned LM head: %lld of %lld vocab rows\n", __func__, (long long) n_keep, (long long) n_vocab);
++    } else {
++        output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), {n_embd, n_vocab}, TENSOR_NOT_REQUIRED);
++    }
+     // if output is NULL, init from the input tok embed
+     if (output == NULL) {
+         output = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, TENSOR_DUPLICATED);
+@@ -59,6 +86,7 @@ llama_model_qwen3::graph::graph(const llama_model & model, const llm_graph_param
+ 
+     // lm_head
+     cur = build_lora_mm(model.output, cur, model.output_s);
++    cur = qwen3_scatter_pruned_logits(ctx0, cur, model);
+ 
+     cb(cur, "result_output", -1);
+     res->t_logits = cur;
+diff --git a/src/models/qwen35.cpp b/src/models/qwen35.cpp
+index 8a4e434..19c5018 100644
+--- a/src/models/qwen35.cpp
++++ b/src/models/qwen35.cpp
+@@ -1,6 +1,20 @@
+ #include "models.h"
+ #include "llama-memory-recurrent.h"
+ 
++// pruned LM head (TV-box experiment): output holds only the n_keep rows listed in output_ids.
++// Scatter the [n_keep, n_out] logits into [n_vocab, n_out], with -inf for dropped tokens.
++static ggml_tensor * qwen35_scatter_pruned_logits(ggml_context * ctx0, ggml_tensor * cur, const llama_model & model) {
++    if (!model.output_ids) {
++        return cur;
++    }
++    const int64_t n_vocab_full = model.tok_embd->ne[1];
++    ggml_tensor * lt   = ggml_cont(ctx0, ggml_transpose(ctx0, cur));                         // [n_out, n_keep]
++    ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, lt->ne[0], n_vocab_full);   // [n_out, n_vocab]
++    full = ggml_fill_inplace(ctx0, full, -INFINITY);
++    full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++    return ggml_cont(ctx0, ggml_transpose(ctx0, full));                                      // [n_vocab, n_out]
++}
++
+ void llama_model_qwen35::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS,       hparams.f_norm_rms_eps);
+     ml.get_key_or_arr(LLM_KV_ROPE_DIMENSION_SECTIONS,    hparams.rope_sections, 4, true);
+@@ -37,11 +51,23 @@ void llama_model_qwen35::load_arch_tensors(llama_model_loader & ml) {
+     const int trunk_flags = nf.trunk;
+     const int mtp_flags   = nf.mtp;
+ 
+-    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), { n_embd, n_vocab }, 0);
++    // tvbox: with a pruned head, token_embd is only read row-by-row (GET_ROWS), so it can be a lazy,
++    // randomly-accessed mapping (-lzm on): no read-ahead of neighbouring rows on every page fault
++    const bool tv_pruned_head = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str()) != nullptr;
++    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), { n_embd, n_vocab }, tv_pruned_head ? TENSOR_READ_LAZY : 0);
+ 
+     // output
+     output_norm = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), { n_embd }, 0);
+-    output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), { n_embd, n_vocab }, TENSOR_NOT_REQUIRED);
++    // pruned LM head (TV-box experiment): output.weight holds only the n_keep rows whose vocab ids
++    // are listed in output_ids.weight; the graph scatters them back into full-vocab logits
++    if (const ggml_tensor * ids_meta = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str())) {
++        const int64_t n_keep = ids_meta->ne[0];
++        output_ids = create_tensor(tn(LLM_TENSOR_OUTPUT_IDS, "weight"), { n_keep }, 0);
++        output     = create_tensor(tn(LLM_TENSOR_OUTPUT,     "weight"), { n_embd, n_keep }, 0);
++        LLAMA_LOG_INFO("%s: pruned LM head: %lld of %lld vocab rows\n", __func__, (long long) n_keep, (long long) n_vocab);
++    } else {
++        output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), { n_embd, n_vocab }, TENSOR_NOT_REQUIRED);
++    }
+ 
+     // optional projection of the embeddings output
+     cls_out   = create_tensor(tn(LLM_TENSOR_CLS_OUT, "weight"), { n_embd, hparams.n_embd_out() }, TENSOR_NOT_REQUIRED);
+@@ -232,6 +258,8 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
+     // LM head
+     cur = build_lora_mm(model.output, cur, model.output_s);
+ 
++    cur = qwen35_scatter_pruned_logits(ctx0, cur, model);
++
+     cb(cur, "result_output", -1);
+     res->t_logits = cur;
+ }
+@@ -657,6 +685,9 @@ llama_model_qwen35::graph_mtp::graph_mtp(const llama_model & model, const llm_gr
+     ggml_tensor * head_s = layer.nextn.shared_head_head ? layer.nextn.shared_head_head_s : model.output_s;
+     GGML_ASSERT(head_w && "QWEN35 MTP: missing LM head (nextn.shared_head_head or model.output)");
+     cur = build_lora_mm(head_w, cur, head_s);
++    if (head_w == model.output) {
++        cur = qwen35_scatter_pruned_logits(ctx0, cur, model);
++    }
+     cb(cur, "result_output", -1);
+ 
+     res->t_logits = cur;
+diff --git a/tools/llama-bench/llama-bench.cpp b/tools/llama-bench/llama-bench.cpp
+index 96ae487..a0149d0 100644
+--- a/tools/llama-bench/llama-bench.cpp
++++ b/tools/llama-bench/llama-bench.cpp
+@@ -2216,7 +2216,11 @@ static bool test_gen(llama_context * ctx, int n_gen, int n_threads) {
+             return false;
+         }
+         llama_synchronize(ctx);
+-        token = std::rand() % n_vocab;
++        // TV-box experiment: LLAMA_BENCH_COMMON_TOKENS=N draws generation tokens from ids [256, 256+N) (frequent
++        // BPE tokens) instead of the whole vocab. Random ids over a 248K vocab hit a cold, memory-mapped embedding
++        // row from flash on almost every token, which real text doesn't.
++        static const int n_common = getenv("LLAMA_BENCH_COMMON_TOKENS") ? atoi(getenv("LLAMA_BENCH_COMMON_TOKENS")) : 0;
++        token = n_common > 0 ? 256 + std::rand() % n_common : std::rand() % n_vocab;
+     }
+     return true;
+ }
+diff --git a/tools/perplexity/perplexity.cpp b/tools/perplexity/perplexity.cpp
+index 601361a..aaef5c3 100644
+--- a/tools/perplexity/perplexity.cpp
++++ b/tools/perplexity/perplexity.cpp
+@@ -106,13 +106,19 @@ static double log_softmax(int n_vocab, const float * logits, uint16_t * log_prob
+     return max_logit + log_sum_exp - logits[tok];
+ }
+ 
+-static void process_logits(
++// TV-box experiment: with a pruned LM head, tokens outside the kept set have logit -inf. Those positions
++// are skipped (counted as misses) so PPL is measured over the covered positions, renormalized within the
++// kept set, which is exactly the distribution the pruned model samples from.
++static int64_t g_pruned_misses = 0;
++
++static int process_logits(
+     int n_vocab, const float * logits, const int * tokens, int n_token, std::vector<std::thread> & workers,
+     double & nll, double & nll2, float * logit_history, float * prob_history
+ ) {
+     std::mutex mutex;
+     int counter = 0;
+-    auto compute = [&mutex, &counter, &nll, &nll2, logit_history, prob_history, n_vocab, logits, tokens, n_token] () {
++    int misses  = 0;
++    auto compute = [&mutex, &counter, &misses, &nll, &nll2, logit_history, prob_history, n_vocab, logits, tokens, n_token] () {
+         double local_nll  = 0;
+         double local_nll2 = 0;
+         while (true) {
+@@ -125,6 +131,13 @@ static void process_logits(
+             lock.unlock();
+             const results_log_softmax results = log_softmax(n_vocab, logits + size_t(i)*n_vocab, tokens[i+1]);
+             const double v = -results.log_softmax;
++            if (!std::isfinite(v)) {
++                std::lock_guard<std::mutex> g(mutex);
++                misses++;
++                logit_history[i] = results.logit;
++                prob_history[i]  = 0.0f;
++                continue;
++            }
+             local_nll += v;
+             local_nll2 += v*v;
+ 
+@@ -139,6 +152,8 @@ static void process_logits(
+     for (auto & w : workers) {
+         w.join();
+     }
++    g_pruned_misses += misses;
++    return misses;
+ }
+ 
+ static void process_logits(std::ostream& out, int n_vocab, const float * logits, const int * tokens, int n_token,
+@@ -608,18 +623,19 @@ static results_perplexity perplexity(llama_context * ctx, const common_params &
+             const float * all_logits = num_batches > 1 ? logits.data() : llama_get_logits_ith(ctx, seq*n_ctx + first);
+ 
+             llama_token * tokens_data = tokens.data() + start + seq*n_ctx + first;
++            int skipped = 0;
+             if (!params.logits_file.empty()) {
+                 process_logits(logits_stream, n_vocab, all_logits,
+                         tokens_data, n_ctx - 1 - first,
+                         workers, log_probs, nll, nll2);
+             } else {
+-                process_logits(n_vocab, all_logits,
++                skipped = process_logits(n_vocab, all_logits,
+                         tokens_data, n_ctx - 1 - first,
+                         workers, nll, nll2,
+                         logit_history.data() + start + seq*n_ctx + first,
+                         prob_history.data()  + start + seq*n_ctx + first);
+             }
+-            count += n_ctx - first - 1;
++            count += n_ctx - first - 1 - skipped;
+ 
+             // perplexity is e^(average negative log-likelihood)
+             if (params.ppl_output_type == 0) {
+@@ -645,6 +661,8 @@ static results_perplexity perplexity(llama_context * ctx, const common_params &
+     if (nll2 > 0) {
+         nll2 = sqrt(nll2/(count-1));
+         LOG_INF("Final estimate: PPL = %.4lf +/- %.5lf\n", ppl, nll2*ppl);
++        LOG_INF("pruned-head misses: %lld of %lld scored tokens (%.3f%%) skipped (target outside kept vocab)\n",
++                (long long) g_pruned_misses, (long long) (count + g_pruned_misses), 100.0 * g_pruned_misses / (count + g_pruned_misses));
+     } else {
+         LOG_ERR("Unexpected negative standard deviation of log(prob)\n");
+     }

@@ -1,0 +1,13 @@
+0.01.074.693 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.07.750.223 I cmn          init: llama threadpool init, n_threads = 3
+0.08.328.844 I 
+0.08.328.979 I system_info: n_threads = 3 (n_threads_batch = 3) / 4 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | REPACK = 1 | 
+0.08.328.990 I perplexity: tokenizing the input ..
+0.08.363.698 I perplexity: tokenization took 34.693 ms
+0.08.363.726 I perplexity: calculating perplexity over 40 chunks, n_ctx=128, batch_size=128, n_seq=1
+0.25.860.806 I perplexity: 17.50 seconds per pass - ETA 11.65 minutes
+[1]9.3223,[2]6.3524,[3]8.9517,[4]8.4953,[5]8.0843,[6]8.9757,[7]9.2363,[8]10.0648,[9]10.5920,[10]11.0883,[11]10.4961,[12]10.7173,[13]11.0492,[14]12.7828,[15]13.8939,[16]14.5660,[17]15.4069,[18]16.7660,[19]16.9975,[20]17.7074,[21]18.4177,[22]18.6083,[23]18.7771,[24]19.2237,[25]19.3871,[26]19.9265,[27]20.2284,[28]19.8955,[29]19.1842,[30]18.3824,[31]17.9412,[32]16.6536,[33]16.1606,[34]15.6642,[35]15.0736,[36]14.5801,[37]14.4381,[38]14.3516,[39]13.7943,[40]13.3940,
+13.26.378.256 I Final estimate: PPL = 13.3940 +/- 0.86202
+13.26.378.573 I pruned-head misses: 24 of 2520 scored tokens (0.952%) skipped (target outside kept vocab)
+
+tv-guard: exit 0, min MemAvailable 181 MB, max RSS 1006 MB

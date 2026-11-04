@@ -1,0 +1,36 @@
+# E23: 1-bit part of the sweep (tools/tv-lowbit.sh). IQ1_S missing here: its first copy was truncated in transit (see E23 note); re-run queued.
+
+== iq1m (IQ1_M) 722 MB
+| qwen35 2B IQ1_M - 1.75 bpw     | 711.29 MiB |     2.01 B | CPU        |       3 |            tg64 |          3.32 ± 0.02 |
+| qwen35 2B IQ1_M - 1.75 bpw     | 711.29 MiB |     2.01 B | CPU        |       4 |           pp128 |          5.30 ± 0.03 |
+[15]40.9945
+16.57.603.493 I Final estimate: PPL = 35.3587 +/- 2.32489
+== iq1s (IQ1_S) 564 MB
+== q10 (Q1_0) 538 MB
+| qwen35 2B Q1_0                 | 527.83 MiB |     2.01 B | CPU        |       3 |            tg64 |          7.40 ± 0.12 |
+| qwen35 2B Q1_0                 | 527.83 MiB |     2.01 B | CPU        |       4 |           pp128 |         23.99 ± 0.28 |
+llama_model_quantize_impl: quant size  =   527.83 MiB (2.20 BPW)
+[15]48963.2231
+4.08.196.871 I Final estimate: PPL = 75678.5473 +/- 7931.48821
+ALL DONE Wed Nov  4 00:29:58 +04 2026
+=== iq1m answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+**Answer in two sentences**
+
+**Answer**
+
+**Answer**
+
+**Answer**
+
+**Answer**
+
+**Answer**
+=== iq1s answers
+=== q10 answers
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+
+> Write a Python function that checks if a number is prime, with a short docstring.
+
+
+[exited with code 0]

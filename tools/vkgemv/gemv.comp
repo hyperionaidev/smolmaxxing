@@ -1,0 +1,33 @@
+#version 450
+// Minimal 4-bit x 8-bit mat-vec for Mali: Q4_0-style blocks of 32 weights (16 bytes of nibbles + one f32 scale),
+// activations quantized to int8 in blocks of 32 (+ f32 scale). One subgroup (16 lanes) per row; lanes walk
+// consecutive blocks (coalesced 16-byte loads); int8 dot products via GL_EXT_integer_dot_product.
+#extension GL_EXT_integer_dot_product : require
+#extension GL_EXT_control_flow_attributes : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+layout(constant_id = 0) const uint ROWS = 4;
+layout(local_size_x = 16, local_size_y_id = 0) in;
+layout(std430, binding = 0) readonly buffer W  { uvec4 qs[]; };
+layout(std430, binding = 1) readonly buffer WS { float ws[]; };
+layout(std430, binding = 2) readonly buffer X  { ivec4 xq[]; };
+layout(std430, binding = 3) readonly buffer XS { float xs[]; };
+layout(std430, binding = 4) writeonly buffer Y { float y[]; };
+layout(push_constant) uniform P { uint nb; uint nrows; } p;
+void main() {
+    const uint row = gl_WorkGroupID.x * ROWS + gl_LocalInvocationID.y;
+    if (row >= p.nrows) return;
+    const uint lane = gl_LocalInvocationID.x;
+    float acc = 0.0;
+    for (uint b = lane; b < p.nb; b += 16) {
+        const uvec4 q = qs[row * p.nb + b];
+        const ivec4 x0 = xq[2 * b], x1 = xq[2 * b + 1];
+        int s = 0;
+        [[unroll]] for (int i = 0; i < 4; i++) {
+            s = dotPacked4x8AccSatEXT(int(q[i] & 0x0F0F0F0Fu), x0[i], s);
+            s = dotPacked4x8AccSatEXT(int((q[i] >> 4) & 0x0F0F0F0Fu), x1[i], s);
+        }
+        acc += float(s) * ws[row * p.nb + b] * xs[b];
+    }
+    acc = subgroupAdd(acc);
+    if (lane == 0) y[row] = acc;
+}

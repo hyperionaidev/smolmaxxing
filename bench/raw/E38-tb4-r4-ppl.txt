@@ -1,0 +1,3 @@
+13.26.378.256 I Final estimate: PPL = 13.3940 +/- 0.86202
+13.26.378.573 I pruned-head misses: 24 of 2520 scored tokens (0.952%) skipped (target outside kept vocab)
+tv-guard: exit 0, min MemAvailable 181 MB, max RSS 1006 MB

@@ -1,0 +1,11 @@
+== tb8 resident 920 MiB window 128
+repack_cache_alloc: 964.7 MB resident in RAM, 722.4 MB streamed from /data/local/tmp/llm/cache/tb8.1687042560
+|        3 |      32 |       32 |            pp32 |          3.03 ± 0.00 |
+tv-guard: killed, MemAvailable 176 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 176 MB, max RSS 1134 MB
+== tb8 resident 920 MiB window 256
+repack_cache_alloc: 964.7 MB resident in RAM, 722.4 MB streamed from /data/local/tmp/llm/cache/tb8.1687042560
+|        3 |      32 |       32 |            pp32 |          1.97 ± 0.00 |
+|        3 |      32 |       32 |             tg8 |          0.21 ± 0.00 |
+stream: prefetched 6399.7 MB, dropped 7929.1 MB, trace 112 tensors, passes 10, cached at use 22.4% of 7216.2 MB
+tv-guard: exit 0, min MemAvailable 182 MB, max RSS 1152 MB

@@ -1,0 +1,37 @@
+recut H45: a50eadc538152144 (python: a50eadc5381521445682)
+== F-full-en
+tv-guard: killed, MemAvailable 69 MB < 130 MB
+tv-guard: exit 137, min MemAvailable 69 MB, max RSS 1088 MB
+== F-full-ml
+tv-guard: killed, MemAvailable 75 MB < 130 MB
+tv-guard: exit 137, min MemAvailable 75 MB, max RSS 1169 MB
+== F-h65-en
+5.57.784.357 I Final estimate: PPL = 9.9570 +/- 0.56006
+5.57.784.428 I pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab)
+tv-guard: exit 0, min MemAvailable 217 MB, max RSS 1033 MB
+== F-h65-ml
+5.50.685.955 I Final estimate: PPL = 9.0996 +/- 0.50849
+5.50.686.036 I pruned-head misses: 317 of 2520 scored tokens (12.579%) skipped (target outside kept vocab)
+tv-guard: exit 0, min MemAvailable 204 MB, max RSS 1056 MB
+== M2-h65 speed
+| qwen35 2B Q4_K - Medium        |   1.11 GiB |     2.08 B | CPU        |       3 |            tg64 |          5.82 ± 0.13 |
+| qwen35 2B Q4_K - Medium        |   1.11 GiB |     2.08 B | CPU        |       4 |           pp128 |         16.07 ± 0.14 |
+== F-m2h65-en
+6.06.715.385 I Final estimate: PPL = 9.8590 +/- 0.55273
+6.06.715.459 I pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab)
+tv-guard: exit 0, min MemAvailable 178 MB, max RSS 1142 MB
+== F-m2h65-ml
+6.11.433.280 I Final estimate: PPL = 9.0680 +/- 0.50721
+6.11.433.357 I pruned-head misses: 317 of 2520 scored tokens (12.579%) skipped (target outside kept vocab)
+tv-guard: exit 0, min MemAvailable 190 MB, max RSS 1141 MB
+ALL DONE Wed Nov  4 02:54:29 +04 2026
+tv-guard: exit 0, min MemAvailable 383 MB, max RSS 1151 MB
+tv-guard: exit 0, min MemAvailable 375 MB, max RSS 1212 MB
+== E28 w-q4k-h65.gguf Wed Nov  4 02:55:17 +04 2026
+15.56.179.029 I Final estimate: PPL = 10.4777 +/- 0.59544
+15.56.179.036 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab)
+tv-guard: exit 0, min MemAvailable 984 MB, max RSS 1016 MB
+ls: w-q4k-full.gguf: No such file or directory
+MemAvailable:    1194156 kB
+
+[exited with code 0]
