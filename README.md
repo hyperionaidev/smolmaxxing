@@ -6,6 +6,10 @@ The headline: **Qwen3.5-2B at 6.55 tok/s in real chat**, a **1-bit 8B model at 1
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
+## Where this is going
+
+The TV box is the first device, not the last. **Support for more devices is coming soon**: other TV boxes, phones, single-board computers, routers and whatever else has a CPU and a little RAM. The goal is to **unlock the capabilities already sitting in every device around us**, by measuring each one honestly and squeezing out what its memory, flash and cores can really do.
+
 ## Results
 
 Quality is English perplexity on a fixed 22 KB text, converted to **bits per byte** so models with different tokenizers compare fairly (lower is better). Speed is generation on the TV, measured either through llama-server with real chat requests ("chat") or with llama-bench ("bench").
@@ -131,6 +135,10 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 - **Batching is free when you are flash-bound.** Prompts and speculative verification cost about one weight pass, whatever their size.
 - **Measure, then verify.** Two streaming bugs gave plausible speeds and wrong numbers; only comparing tensors with the file, and perplexity with a Mac reference, caught them.
 - **Guard the box.** After two early kernel panics, every heavy run goes through a wrapper that kills it below 180 MB of free memory.
+
+## License
+
+[MIT](LICENSE). The llama.cpp patch is a derivative of [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT). Model weights keep their own licenses, and the evaluation texts are Wikipedia excerpts (CC BY-SA 4.0).
 
 ## Credits
 
