@@ -1,0 +1,24 @@
+MTP n_max=0: w-q4k-h65.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 7.45 tok/s (token-weighted), prompt 17.2 tok/s, draft acceptance None
+VmRSS:	 1053236 kB
+MTP n_max=0: w-q4k-h65p8.gguf, patched25, t=3, LLAMA_STATE_F16=1: generation 7.05 tok/s (token-weighted), prompt 17.8 tok/s, draft acceptance None
+VmRSS:	  892024 kB
+MTP n_max=0: w-q4k-h65.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 7.42 tok/s (token-weighted), prompt 16.7 tok/s, draft acceptance None
+VmRSS:	 1000648 kB
+MTP n_max=0: w-q4k-h65p8.gguf, patched25, t=3, LLAMA_STATE_F16=1: generation 7.67 tok/s (token-weighted), prompt 17.9 tok/s, draft acceptance None
+VmRSS:	 1025132 kB
+MTP n_max=0: w-q4k-h65p8.gguf, patched25, t=3, LLAMA_STATE_F16=1: generation 7.7 tok/s (token-weighted), prompt 17.6 tok/s, draft acceptance None
+VmRSS:	 1015560 kB
+MTP n_max=0: w-q4k-h65.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 7.36 tok/s (token-weighted), prompt 17.3 tok/s, draft acceptance None
+VmRSS:	 1018144 kB
+MTP n_max=0: w-q4k-h65p8.gguf, patched25, t=3, LLAMA_STATE_F16=1: generation 7.74 tok/s (token-weighted), prompt 17.8 tok/s, draft acceptance None
+VmRSS:	 1115880 kB
+MTP n_max=0: w-q4k-h65.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 7.41 tok/s (token-weighted), prompt 17.7 tok/s, draft acceptance None
+VmRSS:	 1020524 kB
+MTP n_max=0: w-q4k-h65p8.gguf, patched25, t=3, LLAMA_STATE_F16=1: generation 7.7 tok/s (token-weighted), prompt 17.6 tok/s, draft acceptance None
+VmRSS:	 1015560 kB
+MTP n_max=0: w-q4k-h65.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 7.36 tok/s (token-weighted), prompt 17.3 tok/s, draft acceptance None
+VmRSS:	 1018144 kB
+MTP n_max=0: w-q4k-h65p8.gguf, patched25, t=3, LLAMA_STATE_F16=1: generation 7.74 tok/s (token-weighted), prompt 17.8 tok/s, draft acceptance None
+VmRSS:	 1115880 kB
+MTP n_max=0: w-q4k-h65.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 7.41 tok/s (token-weighted), prompt 17.7 tok/s, draft acceptance None
+VmRSS:	 1020524 kB

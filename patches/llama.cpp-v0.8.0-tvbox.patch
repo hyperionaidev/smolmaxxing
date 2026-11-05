@@ -179,7 +179,7 @@ index 53d39d2..e46af0c 100644
  #ifdef GGML_USE_OPENMP
      GGML_PRINT_DEBUG("thread #%d compute-done cplan %p\n", state->ith, (const void *)cplan);
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.cpp b/ggml/src/ggml-cpu/ggml-cpu.cpp
-index 81ff5d7..71c82c6 100644
+index 81ff5d7..a743078 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.cpp
 +++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
 @@ -167,10 +167,16 @@ static enum ggml_status ggml_backend_cpu_graph_plan_compute(ggml_backend_t backe
@@ -214,6 +214,17 @@ index 81ff5d7..71c82c6 100644
  }
  
  static const struct ggml_backend_i ggml_backend_cpu_i = {
+@@ -431,7 +443,9 @@ static bool ggml_backend_cpu_device_supports_op(ggml_backend_dev_t dev, const st
+ 
+     // check extra buffer types
+     // note: only the first sources are checked for extra buffer types to reduce overhead, increase if necessary
+-    for (int i = 0; i < 4; i++) {
++    // tvbox: a custom op reads its sources as raw memory and knows their layout (the embedding-from-head op
++    // rebuilds rows of a repacked head itself), so the extra buffer type need not support it
++    for (int i = 0; i < 4 && op->op != GGML_OP_CUSTOM; i++) {
+         if (op->src[i] && op->src[i]->buffer &&
+             ggml_backend_cpu_is_extra_buffer_type(op->src[i]->buffer->buft)) {
+             auto * buf_extra = (ggml::cpu::extra_buffer_type *) op->src[i]->buffer->buft->context;
 diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
 index 85e1701..ee53bae 100644
 --- a/ggml/src/ggml-cpu/ops.cpp
@@ -2213,10 +2224,19 @@ index 33ad784..b330678 100644
          LLAMA_LOG_ERROR("%s: failed to compute graph, compute status: %d\n", __func__, status);
          ret = status;
 diff --git a/src/llama-graph.cpp b/src/llama-graph.cpp
-index cffd083..6ea64be 100644
+index cffd083..37a8bef 100644
 --- a/src/llama-graph.cpp
 +++ b/src/llama-graph.cpp
-@@ -1639,10 +1639,53 @@ ggml_tensor * llm_graph_context::build_hadamard_input(
+@@ -24,6 +24,8 @@
+ #include <sstream>
+ #include <string>
+ #include <unordered_set>
++#include <mutex>
++#include <unordered_map>
+ 
+ // dedup helpers
+ 
+@@ -1639,10 +1641,53 @@ ggml_tensor * llm_graph_context::build_hadamard_input(
      return x;
  }
  
@@ -2270,6 +2290,185 @@ index cffd083..6ea64be 100644
      // a Hadamard-folded weight reads the transformed input; a LoRA delta lives in the primal basis and reads `cur`
      ggml_tensor * cur_mm = build_hadamard_input(w, cur);
      ggml_tensor * res = ggml_mul_mat(ctx0, w, cur_mm);
+@@ -2643,7 +2688,144 @@ ggml_tensor * llm_graph_context::build_moe_cache_slots(
+ }
+ 
+ // input embeddings with optional lora
+-ggml_tensor * llm_graph_context::build_inp_embd(ggml_tensor * tok_embd, float tok_scale) const {
++// tvbox: embedding rows from the resident pruned LM head. With a tied embedding the head's rows are byte copies of
++// the token_embd rows listed in output_ids, so a token inside the head can be read from RAM instead of faulting its
++// row in from flash through the lazily mapped token_embd. The head is either plain (CPU / mmap buffer: rows are
++// contiguous) or a Q4_K head repacked by the CPU backend into 8-row interleaved blocks (block_q4_Kx8, row count a
++// multiple of 8): then a row is rebuilt as plain Q4_K blocks (inverse of make_block_q4_Kx8; the interleave, 4 or 8
++// bytes, depends on the CPU and is found by the check). Checked once per head: 8 rows rebuilt and compared byte for
++// byte with token_embd; an untied head (9B) or rows quantized differently fall back to the stock GET_ROWS.
++// LLAMA_EMBD_FROM_HEAD=0 = off.
++struct tv_head_embd_map {
++    bool ok = false;
++    int  il = 0;              // 0 = plain rows, 4 / 8 = Q4_Kx8 repack with that interleave
++    std::vector<int32_t> inv; // vocab id -> head row, -1 = not in head
++};
++
++// rebuild plain Q4_K row r (n_blk blocks of 144 bytes: d, dmin, scales[12], qs[128]) from a block_q4_Kx8 tensor
++// (per 8-row group and 256 columns: d[8], dmin[8], scales[96], qs[1024] = 1152 bytes)
++static void tv_q4kx8_row(const uint8_t * base, int64_t r, int64_t n_blk, int il, uint8_t * out) {
++    const int64_t g = r / 8;
++    const int     j = (int) (r % 8);
++    for (int64_t b = 0; b < n_blk; b++) {
++        const uint8_t * x = base + (g * n_blk + b) * 1152;
++        uint8_t * o = out + b * 144;
++        memcpy(o + 0, x + 2 * j, 2);       // d
++        memcpy(o + 2, x + 16 + 2 * j, 2);  // dmin
++        const uint8_t * sc = x + 32;
++        uint8_t sv[8], mv[8];
++        for (int sb = 0; sb < 8; sb++) {
++            const uint8_t * q = sc + (sb < 4 ? sb * 12 : 48 + (sb - 4) * 12);
++            if (j < 4) {
++                sv[sb] = q[j] & 63;
++                mv[sb] = q[4 + j] & 63;
++            } else {
++                sv[sb] = (q[8 + j - 4] & 15) | ((q[j - 4] >> 6) << 4);
++                mv[sb] = (q[8 + j - 4] >> 4) | ((q[4 + j - 4] >> 6) << 4);
++            }
++        }
++        uint8_t * os = o + 4;
++        for (int k = 0; k < 4; k++) {
++            os[k]     = sv[k] | ((sv[k + 4] >> 4) << 6);
++            os[k + 4] = mv[k] | ((mv[k + 4] >> 4) << 6);
++            os[k + 8] = (sv[k + 4] & 15) | ((mv[k + 4] & 15) << 4);
++        }
++        const uint8_t * xq = x + 128;
++        for (int off = 0; off < 128; off += il) {
++            memcpy(o + 16 + off, xq + ((off / il) * 8 + j) * il, il);
++        }
++    }
++}
++
++static const tv_head_embd_map * tv_head_embd_get(const ggml_tensor * embd, const ggml_tensor * head, const ggml_tensor * ids) {
++    static std::mutex mu;
++    static std::unordered_map<const ggml_tensor *, tv_head_embd_map> cache;
++    std::lock_guard<std::mutex> lock(mu);
++    auto it = cache.find(ids);
++    if (it != cache.end()) {
++        return it->second.ok ? &it->second : nullptr;
++    }
++    if (!embd->data || !head->data || !ids->data || ids->type != GGML_TYPE_I32 ||
++        !head->buffer || !ids->buffer || !ggml_backend_buffer_is_host(ids->buffer) ||
++        !embd->buffer || !ggml_backend_buffer_is_host(embd->buffer) || head->ne[0] != embd->ne[0] ||
++        ggml_get_type_traits(head->type)->to_float == nullptr || ggml_get_type_traits(embd->type)->to_float == nullptr) {
++        return nullptr; // not cached: weights may not be loaded yet (memory-fit pass)
++    }
++    tv_head_embd_map & m = cache[ids];
++    const char * bname = ggml_backend_buft_name(ggml_backend_buffer_get_type(head->buffer));
++    const bool plain  = strcmp(bname, "CPU") == 0 || strcmp(bname, "CPU_Mapped") == 0;
++    const bool rep4k  = strcmp(bname, "CPU_REPACK") == 0 && head->type == GGML_TYPE_Q4_K && head->ne[1] % 8 == 0 &&
++                        head->ne[0] % 256 == 0 && head->ne[0] <= 64 * 256;
++    if (head->type != embd->type || (!plain && !rep4k)) {
++        LLAMA_LOG_INFO("%s: embedding from head: off (head %s in %s)\n", __func__, ggml_type_name(head->type), bname);
++        return nullptr;
++    }
++    const int64_t n_keep = ids->ne[0];
++    const int32_t * iv = (const int32_t *) ids->data;
++    const size_t rs = ggml_row_size(head->type, head->ne[0]);
++    std::vector<uint8_t> tmp(rs);
++    bool ok = false;
++    for (int il : plain ? std::vector<int>{0} : std::vector<int>{4, 8}) {
++        ok = true;
++        for (int64_t k = 0; k < 8 && ok; k++) {
++            const int64_t r = k * (n_keep - 1) / 7;
++            if (iv[r] < 0 || iv[r] >= embd->ne[1]) {
++                ok = false;
++                break;
++            }
++            const uint8_t * hr = (const uint8_t *) head->data + r * head->nb[1];
++            if (il) {
++                tv_q4kx8_row((const uint8_t *) head->data, r, head->ne[0] / 256, il, tmp.data());
++                hr = tmp.data();
++            }
++            ok = memcmp(hr, (const char *) embd->data + (int64_t) iv[r] * embd->nb[1], rs) == 0;
++        }
++        if (ok) {
++            m.il = il;
++            break;
++        }
++    }
++    if (!ok) {
++        LLAMA_LOG_INFO("%s: embedding from head: off (head rows differ from token_embd rows, %s)\n", __func__, bname);
++        return nullptr;
++    }
++    m.inv.assign(embd->ne[1], -1);
++    for (int64_t r = 0; r < n_keep; r++) {
++        if (iv[r] >= 0 && iv[r] < embd->ne[1]) {
++            m.inv[iv[r]] = (int32_t) r;
++        }
++    }
++    m.ok = true;
++    LLAMA_LOG_INFO("%s: embedding from head: on (%lld of %lld rows resident, %s%s)\n", __func__, (long long) n_keep,
++                   (long long) embd->ne[1], bname, m.il ? (m.il == 4 ? ", 8x4 repack" : ", 8x8 repack") : "");
++    return &m;
++}
++
++static void tv_head_embd_rows(ggml_tensor * dst, int ith, int nth, void * userdata) {
++    const auto * m = (const tv_head_embd_map *) userdata;
++    const ggml_tensor * embd = dst->src[0];
++    const ggml_tensor * head = dst->src[1];
++    const ggml_tensor * toks = dst->src[2];
++    const auto to_float = ggml_get_type_traits(embd->type)->to_float;
++    uint8_t tmp[64 * 144];
++    const int64_t n = toks->ne[0];
++    for (int64_t i = ith; i < n; i += nth) {
++        const int32_t t = ((const int32_t *) toks->data)[i];
++        const int32_t r = (t >= 0 && (size_t) t < m->inv.size()) ? m->inv[t] : -1;
++        const char * src;
++        if (r < 0) {
++            src = (const char *) embd->data + (int64_t) t * embd->nb[1];
++        } else if (m->il) {
++            tv_q4kx8_row((const uint8_t *) head->data, r, head->ne[0] / 256, m->il, tmp);
++            src = (const char *) tmp;
++        } else {
++            src = (const char *) head->data + (int64_t) r * head->nb[1];
++        }
++        to_float(src, (float *) ((char *) dst->data + i * dst->nb[1]), dst->ne[0]);
++    }
++}
++
++ggml_tensor * llm_graph_context::build_inp_embd(ggml_tensor * tok_embd, float tok_scale, ggml_tensor * head, ggml_tensor * head_ids) const {
+     const int64_t n_embd_inp = hparams.n_embd_inp();
+     const int64_t n_embd     = hparams.n_embd;
+ 
+@@ -2687,7 +2869,15 @@ ggml_tensor * llm_graph_context::build_inp_embd(ggml_tensor * tok_embd, float to
+     // we use ggml_build_forward_order to make the GET_ROWS ops stick at the beginning of the compute graph
+     // this way the embeddings remain in the host buffer, and the GET_ROWS run before any other computations
+     {
+-        embd0 = ggml_get_rows(ctx0, tok_embd, inp->tokens);
++        static const bool from_head = getenv("LLAMA_EMBD_FROM_HEAD") == nullptr || atoi(getenv("LLAMA_EMBD_FROM_HEAD")) != 0;
++        const tv_head_embd_map * hm = (from_head && head && head_ids) ? tv_head_embd_get(tok_embd, head, head_ids) : nullptr;
++        if (hm) {
++            ggml_tensor * args[3] = { tok_embd, head, inp->tokens };
++            embd0 = ggml_custom_4d(ctx0, GGML_TYPE_F32, tok_embd->ne[0], ubatch.n_tokens, 1, 1, args, 3,
++                                   tv_head_embd_rows, GGML_N_TASKS_MAX, (void *) hm);
++        } else {
++            embd0 = ggml_get_rows(ctx0, tok_embd, inp->tokens);
++        }
+         ggml_build_forward_order(gf, embd0);
+ 
+         embd1 = inp->embd;
+diff --git a/src/llama-graph.h b/src/llama-graph.h
+index c1a7d36..0efed9c 100644
+--- a/src/llama-graph.h
++++ b/src/llama-graph.h
+@@ -1239,7 +1239,10 @@ struct llm_graph_context {
+     //
+ 
+     // tok_scale: applied to token rows only
+-    ggml_tensor * build_inp_embd(ggml_tensor * tok_embd, float tok_scale = 1.0f) const;
++    // tvbox: head / head_ids = a pruned LM head whose rows are copies of token_embd rows (tied embedding): token
++    // rows are then read from the resident head when the token is in it (see tv_head_embd_rows)
++    ggml_tensor * build_inp_embd(ggml_tensor * tok_embd, float tok_scale = 1.0f,
++                                 ggml_tensor * head = nullptr, ggml_tensor * head_ids = nullptr) const;
+     ggml_tensor * build_inp_pos() const;
+     ggml_tensor * build_inp_attn_scale() const;
+     ggml_tensor * build_inp_out_ids() const;
 diff --git a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
 index a963f24..797dfd3 100644
 --- a/src/llama-model-loader.cpp
@@ -2648,13 +2847,83 @@ index c01f838..978fc06 100644
      cb(cur, "result_output", -1);
      res->t_logits = cur;
 diff --git a/src/models/qwen35.cpp b/src/models/qwen35.cpp
-index 8a4e434..eef6013 100644
+index 8a4e434..c327192 100644
 --- a/src/models/qwen35.cpp
 +++ b/src/models/qwen35.cpp
-@@ -1,6 +1,28 @@
+@@ -1,6 +1,98 @@
  #include "models.h"
  #include "llama-memory-recurrent.h"
  
++#if defined(__ARM_NEON) && defined(__aarch64__)
++#include <arm_neon.h>
++#endif
++
++// tvbox: the one-token decode step of the DeltaNet causal conv as one op. Stock: GET_ROWS (state gather) + CONCAT
++// (state | new column, transposed) + CPY (shifted state back into the cache) + SSM_CONV = 4 nodes and 4 barriers for
++// a 4-tap filter over 6,144 channels (~110 us). Here each channel reads its K-1 old values at row s_copy[0] of the
++// cache, writes the shifted window to the destination row (src[0], a view at rs_head; in place when the rows are
++// the same, which is safe per channel) and sums the taps in SSM_CONV's order, so the result is bit-identical.
++// SILU stays a separate (column-split) op. LLAMA_CONV_FUSED=0 = stock.
++static void qwen35_conv_step(ggml_tensor * dst, int ith, int nth, void * userdata) {
++    GGML_UNUSED(userdata);
++    const ggml_tensor * dstate = dst->src[0]; // cache view at the destination row
++    const ggml_tensor * cache  = dst->src[1]; // whole conv cache {n_embd_r, rs_size}
++    const ggml_tensor * xin    = dst->src[2]; // new column {C}
++    const ggml_tensor * kern   = dst->src[3]; // {K, C}
++    const ggml_tensor * ids    = dst->src[4]; // s_copy_main {1}
++    const int64_t C  = dst->ne[0];
++    const int     nc = (int) kern->ne[0];
++    const int     ns = nc - 1;
++    const int32_t row = ((const int32_t *) ids->data)[0];
++    const float * sp = (const float *) ((const char *) cache->data + (int64_t) row * cache->nb[1]);
++    float       * dp = (float *) dstate->data;
++    const float * x  = (const float *) xin->data;
++    float       * y  = (float *) dst->data;
++    const int64_t per = (C + nth - 1) / nth;
++    const int64_t c0  = per * ith;
++    const int64_t c1  = std::min(C, c0 + per);
++    int64_t c = c0;
++#if defined(__ARM_NEON) && defined(__aarch64__)
++    // 4 channels at a time: vld3/vld4 de-interleave the 3-value windows and the 4 taps; same FMA order as the loop
++    if (ns == 3 && kern->nb[1] == 4 * sizeof(float)) {
++        const float * kb = (const float *) kern->data;
++        for (; c + 3 < c1; c += 4) {
++            const float32x4x3_t w  = vld3q_f32(sp + c * 3);
++            const float32x4x4_t kk = vld4q_f32(kb + c * 4);
++            const float32x4_t   xv = vld1q_f32(x + c);
++            float32x4_t sum = vmulq_f32(w.val[0], kk.val[0]);
++            sum = vfmaq_f32(sum, w.val[1], kk.val[1]);
++            sum = vfmaq_f32(sum, w.val[2], kk.val[2]);
++            sum = vfmaq_f32(sum, xv,       kk.val[3]);
++            vst1q_f32(y + c, sum);
++            float32x4x3_t nw;
++            nw.val[0] = w.val[1];
++            nw.val[1] = w.val[2];
++            nw.val[2] = xv;
++            vst3q_f32(dp + c * 3, nw);
++        }
++    }
++#endif
++    for (; c < c1; c++) {
++        const float * sc = sp + c * ns;
++        const float * k  = (const float *) ((const char *) kern->data + c * kern->nb[1]);
++        float w[8];
++        for (int i = 0; i < ns; i++) {
++            w[i] = sc[i];
++        }
++        w[ns] = x[c];
++        float sumf = 0.0f;
++        for (int i = 0; i < nc; i++) {
++            sumf += w[i] * k[i];
++        }
++        y[c] = sumf;
++        float * d = dp + c * ns;
++        for (int i = 0; i < ns; i++) {
++            d[i] = w[i + 1];
++        }
++    }
++}
++
 +// pruned LM head (TV-box experiment): output holds only the n_keep rows listed in output_ids.
 +// Scatter the [n_keep, n_out] logits into [n_vocab, n_out], with -inf for dropped tokens.
 +static ggml_tensor * qwen35_scatter_pruned_logits(ggml_context * ctx0, ggml_tensor * cur, const llama_model & model) {
@@ -2680,7 +2949,7 @@ index 8a4e434..eef6013 100644
  void llama_model_qwen35::load_arch_hparams(llama_model_loader & ml) {
      ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS,       hparams.f_norm_rms_eps);
      ml.get_key_or_arr(LLM_KV_ROPE_DIMENSION_SECTIONS,    hparams.rope_sections, 4, true);
-@@ -37,11 +59,23 @@ void llama_model_qwen35::load_arch_tensors(llama_model_loader & ml) {
+@@ -37,11 +129,23 @@ void llama_model_qwen35::load_arch_tensors(llama_model_loader & ml) {
      const int trunk_flags = nf.trunk;
      const int mtp_flags   = nf.mtp;
  
@@ -2706,7 +2975,16 @@ index 8a4e434..eef6013 100644
  
      // optional projection of the embeddings output
      cls_out   = create_tensor(tn(LLM_TENSOR_CLS_OUT, "weight"), { n_embd, hparams.n_embd_out() }, TENSOR_NOT_REQUIRED);
-@@ -218,6 +252,14 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
+@@ -146,7 +250,7 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
+     ggml_tensor * cur;
+     ggml_tensor * inpL;
+ 
+-    inpL = build_inp_embd(model.tok_embd);
++    inpL = build_inp_embd(model.tok_embd, 1.0f, model.output, model.output_ids);
+ 
+     cb(inpL, "model.input_embed", -1);
+ 
+@@ -218,6 +322,14 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
  
      cb(cur, "result_norm", -1);
      res->t_embd = cur;
@@ -2721,7 +2999,7 @@ index 8a4e434..eef6013 100644
  
      if (model.cls_out) {
          ggml_tensor * embd = build_lora_mm(model.cls_out, cur);
-@@ -232,6 +274,8 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
+@@ -232,6 +344,8 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
      // LM head
      cur = build_lora_mm(model.output, cur, model.output_s);
  
@@ -2730,9 +3008,30 @@ index 8a4e434..eef6013 100644
      cb(cur, "result_output", -1);
      res->t_logits = cur;
  }
-@@ -396,7 +440,21 @@ ggml_tensor * llama_model_qwen35::graph::build_layer_attn_linear(
+@@ -394,13 +508,45 @@ ggml_tensor * llama_model_qwen35::graph::build_layer_attn_linear(
+     const int64_t conv_kernel_size = conv_kernel->ne[0];
+     const int64_t conv_channels    = d_inner + 2 * hparams.ssm_n_group * hparams.ssm_d_state;
  
-     ggml_tensor * conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
+-    ggml_tensor * conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
++    static const bool conv_fused = getenv("LLAMA_CONV_FUSED") == nullptr || atoi(getenv("LLAMA_CONV_FUSED")) != 0;
++    const bool use_conv_step = conv_fused && n_seq_tokens == 1 && n_seqs == 1 && cparams.n_rs_seq == 0 &&
++        conv_states_all->type == GGML_TYPE_F32 && conv_kernel->type == GGML_TYPE_F32 && conv_kernel_size <= 8 &&
++        ggml_is_contiguous(qkv_mixed) && ggml_nelements(qkv_mixed) == conv_channels;
++    ggml_tensor * conv_input = nullptr;
++    ggml_tensor * conv_step  = nullptr;
++    if (use_conv_step) {
++        const auto conv_head = mctx_cur->get_head();
++        ggml_tensor * conv_dst = build_rs(inp, conv_states_all, hparams.n_embd_r(), n_seqs,
++            [conv_head, n_seqs](ggml_context * ctx, ggml_tensor * states, ggml_tensor * ids) {
++                GGML_UNUSED(ids);
++                return ggml_view_2d(ctx, states, states->ne[0], n_seqs, states->nb[1], conv_head * states->nb[1]);
++            });
++        ggml_tensor * args[5] = { conv_dst, conv_states_all, qkv_mixed, conv_kernel, inp->s_copy_main };
++        conv_step = ggml_custom_4d(ctx0, GGML_TYPE_F32, conv_channels, n_seq_tokens, n_seqs, 1, args, 5,
++                                   qwen35_conv_step, GGML_N_TASKS_MAX, nullptr);
++    } else {
++        conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
++    }
  
 -    ggml_tensor * state = build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs);
 +    // tvbox: let the fused GDN op read each sequence's state straight from the cache (row s_copy[seq], resolved at
@@ -2753,7 +3052,12 @@ index 8a4e434..eef6013 100644
      state = ggml_reshape_4d(ctx0, state, head_v_dim, head_v_dim, num_v_heads, n_seqs);
      cb(state, "state_predelta", il);
  
-@@ -657,6 +715,9 @@ llama_model_qwen35::graph_mtp::graph_mtp(const llama_model & model, const llm_gr
+-    ggml_tensor * conv_output_proper = ggml_ssm_conv(ctx0, conv_input, conv_kernel);
++    ggml_tensor * conv_output_proper = conv_step ? conv_step : ggml_ssm_conv(ctx0, conv_input, conv_kernel);
+     cb(conv_output_proper, "conv_output_raw", il);
+ 
+     ggml_tensor * conv_output_silu = ggml_silu(ctx0, conv_output_proper);
+@@ -657,6 +803,9 @@ llama_model_qwen35::graph_mtp::graph_mtp(const llama_model & model, const llm_gr
      ggml_tensor * head_s = layer.nextn.shared_head_head ? layer.nextn.shared_head_head_s : model.output_s;
      GGML_ASSERT(head_w && "QWEN35 MTP: missing LM head (nextn.shared_head_head or model.output)");
      cur = build_lora_mm(head_w, cur, head_s);

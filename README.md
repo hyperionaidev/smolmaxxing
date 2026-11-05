@@ -5,12 +5,12 @@
 **Every device around you is more capable than it looks.** TV boxes, old phones, single-board computers and routers all ship with CPUs, RAM and flash that sit idle most of the day. **smolmaxxing** is about unlocking that capability: finding the biggest language model each device can really run, then pushing it further with custom kernels, smarter memory use and weight streaming. Every claim is measured on the hardware itself.
 
 **Device #1 is a Xiaomi TV Box S (3rd Gen)**: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, **1.9 GB of RAM** (about 1 GB usable), eMMC flash, Android 14, no root. On it, this repo runs models from 260 K to 9 B parameters:
-- **Qwen3.5-0.8B: 14.2 tok/s** (1.9× the stock 7.5).
-- **Qwen3.5-2B: 6.55 tok/s** in real chat (+11 % over the previous build, measured back to back on the same day, §16).
+- **Qwen3.5-0.8B: 16.8 tok/s** (2.2× the stock 7.5; measured in the evening of 11-05, see §17).
+- **Qwen3.5-2B: 7.7 tok/s** in real chat. The box's speed drifts by ~10 % over a day, so every step is measured back to back: §16 gave +11 %, §17 another +7 %.
 - **A 1-bit 8B model: 1.2 tok/s.**
 - **A 9B model: 0.27 tok/s**, streaming most of its weights from flash.
 
-Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E67).
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E72).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
@@ -32,8 +32,8 @@ Quality is English perplexity on a fixed 22 KB text, converted to **bits per byt
 | stories260K (llama2.c) | 1 MB | n/a | ~650 tok/s | n/a | the first thing that ran (§1-8) |
 | Gemma 3 270M Q4_K_M | 253 MB | n/a | 22 tok/s | 73 tok/s | |
 | Qwen3.5-0.8B Q4_K_M (stock) | 497 MB | n/a | 7.5 bench | 28 tok/s | |
-| **Qwen3.5-0.8B, all-Q4_K + 65K head** | 442 MiB (566 MB RSS) | ≈1.00* | **14.2 bench** | 33 tok/s | best speed for its quality so far (§15, §16) |
-| **Qwen3.5-2B, all-Q4_K + 65K head** | 0.99 GB | **0.909** | **6.55 chat** | 16.1 | **the default: best overall** (§11, §16) |
+| **Qwen3.5-0.8B, all-Q4_K + 65K head** | 442 MiB (566 MB RSS) | ≈1.00* | **16.8 bench** | 33 tok/s | best speed for its quality so far (§15-17) |
+| **Qwen3.5-2B, all-Q4_K + 65K head** | 0.99 GB | **0.909** | **7.7 chat** | 17.8 | **the default: best overall** (§11, §16, §17) |
 | Ternary-Bonsai-4B, lossless 1.875-bit | 1.0 GB | 0.964 | 3.07 chat | 7.2 | §13 |
 | Bonsai-8B, 1-bit + compact scales | 0.84 GB + 0.12 GB streamed | 0.991 | **1.21 chat** (2.2 bench) | 4.9 | §14 |
 | Ternary-Bonsai-8B | 0.89 GB + 0.80 GB streamed | 0.919 | 0.31 bench | 3.45 | §14 |
@@ -72,6 +72,7 @@ Granite 4.0 H 1B was the one model close to the 2B's quality. Rebuilt our way (E
 | **Q1_0 bit planes**: `vtst` turns a bit plane straight into a mask for `vdot`, no table lookups; **8-bit row-affine scales** (−5.6 %, 0.07 % error) | Bonsai-4B 3.02 → 4.22 tok/s; Bonsai-8B fits in 0.96 GB | E44, E52 |
 | Fused Gated-DeltaNet step with direct state write (Qwen3.5) | 2B 6.0 → 6.3-6.7 tok/s | E28 |
 | DeltaNet state **read in place by id** instead of a 1 MB/layer gather every token; **fp16 state** (`LLAMA_STATE_F16=1`, on by default in the UI) | 0.8B 11.9 → 12.9 tok/s; 2B +2.5 % for +0.15 % perplexity | E56, E61, E65 |
+| **The LM head on the fast kernel**: the 65,668-row head was never repacked (ggml repacks only row counts divisible by 8), so 4 token rows were added; embedding rows are then rebuilt from the repacked head (inverse 8-row interleave) instead of read from flash; the one-token DeltaNet conv step fused from 4 nodes into one NEON op | 2B +7 % (bench and chat); 0.8B +9.5 % | E69-E72 |
 | **Guided matmul scheduling**: each thread grabs remaining / (2 × threads) rows, so a slow or preempted thread leaves a short tail instead of ~28 ms per token of idle cores; **single-row element-wise ops split by columns** (ggml left them all on thread 0) | 2B 6.26 → 6.54 tok/s; 0.8B +1.4 % | E63, E64 |
 
 **Memory tricks:**
@@ -111,30 +112,30 @@ cmake -S . -B build-tv -G Ninja -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESS
   -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 -DGGML_OPENMP=OFF -DLLAMA_OPENSSL=OFF -DLLAMA_BUILD_TESTS=OFF
 ninja -C build-tv llama-server llama-cli llama-bench llama-perplexity llama-quantize
 cd ../..
-adb -s $ADB_SERIAL shell mkdir -p /data/local/tmp/llm/patched23 /data/local/tmp/llm/patched
-adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-{server,cli,bench,perplexity} /data/local/tmp/llm/patched23/
+adb -s $ADB_SERIAL shell mkdir -p /data/local/tmp/llm/patched25 /data/local/tmp/llm/patched
+adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-{server,cli,bench,perplexity} /data/local/tmp/llm/patched25/
 adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-quantize /data/local/tmp/llm/patched/   # used by tools/tv-quant.sh
 zig cc -target aarch64-linux-musl -O2 -static -o gguf_recut tools/gguf-recut/gguf_recut.c && adb -s $ADB_SERIAL push gguf_recut /data/local/tmp/llm/
 
 # 2. models: rebuilt from their Hugging Face sources straight onto the TV (see below)
 tools/rebuild-models.sh 2b          # also: 4b b8 tb8 q9 caches
 
-# 3. the live chat page (default: the 2B on patched23 with fp16 state), then open http://<tv-ip>:8090 from any device on the network
+# 3. the live chat page (default: the 2B on patched25 with fp16 state), then open http://<tv-ip>:8090 from any device on the network
 tv-llm-ui/start.sh
 tv-llm-ui/start.sh stop
 ```
 
 **Other models:**
 ```sh
-# Qwen3.5-0.8B, ~14 tok/s (first: `tools/rebuild-models.sh 08`, needs a native Mac build of llama-quantize)
-MODEL=q08-q4k-h65.gguf tv-llm-ui/start.sh
+# Qwen3.5-0.8B, ~16 tok/s (first: `tools/rebuild-models.sh 08`, needs a native Mac build of llama-quantize)
+MODEL=q08-q4k-h65p8.gguf tv-llm-ui/start.sh
 # The 8B / 9B numbers below were measured with the build of that time (patched16); the current build has the same
-# code plus §15-16. GGML_CHUNK_GUIDED=0 in SENV restores the old matmul scheduling. No fp16 state with MTP.
+# code plus §15-17. GGML_CHUNK_GUIDED=0 in SENV restores the old matmul scheduling. No fp16 state with MTP.
 # Bonsai-8B 1-bit, ~1.2 tok/s (first run: `tools/rebuild-models.sh b8 caches`)
-MODEL=b8-q1-hml.gguf BIN=patched23 EXTRA="-ctk q8_0 -ctv q8_0 -fa on -cram 0" \
+MODEL=b8-q1-hml.gguf BIN=patched25 EXTRA="-ctk q8_0 -ctv q8_0 -fa on -cram 0" \
   SENV="GGML_REPACK_CACHE=/data/local/tmp/llm/cache/b8c GGML_REPACK_RESIDENT_MB=800 GGML_STREAM_MODE=cache GGML_STREAM_WINDOW_MB=64" tv-llm-ui/start.sh
 # Qwen3.5-9B with MTP, ~0.27 tok/s
-MODEL=q9-iq2-h65-mtp.gguf BIN=patched23 EXTRA="-nr -ctxcp 0 -cram 0 -ub 16 -b 64 --spec-type draft-mtp --spec-draft-n-max 1" \
+MODEL=q9-iq2-h65-mtp.gguf BIN=patched25 EXTRA="-nr -ctxcp 0 -cram 0 -ub 16 -b 64 --spec-type draft-mtp --spec-draft-n-max 1" \
   SENV="LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64" tv-llm-ui/start.sh
 ```
 
@@ -147,7 +148,10 @@ The model files (0.5-4 GB each) are not in this repo. [`tools/rebuild-models.sh`
 | File on the TV | Target | Built from | SHA-256 |
 |---|---|---|---|
 | `w-q4k-h65.gguf` (Qwen3.5-2B) | `2b` | `unsloth/Qwen3.5-2B-GGUF` BF16 + `imatrix_unsloth`, MTP block from `Qwen/Qwen3.5-2B`, quantized on the TV, head `data/head-ids-ml60k.txt` | `16057be3…3285b` |
+| `w-q4k-h65p8.gguf` (Qwen3.5-2B, **default**) | `2b` | the file above re-cut on the TV with `data/head-ids-ml60k-p8.txt` (65,672 rows, so the head is repacked, §17) | `631a27ae…54fd11` |
+| `w-q4k-h45.gguf` (option) | `2b45` | the same, 45,654-row head `data/head-ids-ml40k.txt` (byte-identical to E29's H45 file) | `a50eadc5…664d5b` |
 | `q08-q4k-h65.gguf` (Qwen3.5-0.8B) | `08` | `unsloth/Qwen3.5-0.8B-GGUF` BF16 + its `imatrix_unsloth`, pure Q4_K, head `data/head-ids-ml60k.txt`, quantized on the Mac | `901f3838…8523a6b` |
+| `q08-q4k-h65p8.gguf` | `08` | the file above re-cut on the Mac with `data/head-ids-ml60k-p8.txt` (§17) | `7dd2aac5…52fc232` |
 | `tb4-q20-hml.gguf` | `4b` | `prism-ml/Ternary-Bonsai-4B-gguf` Q2_0_g64, head `data/head-ids-qwen3-ml64k.txt` | `a02d805f…3fe24` |
 | `b8-q1-hml.gguf` | `b8` | `prism-ml/Bonsai-8B-gguf` Q1_0, same head | `fc297cb3…0d42a` |
 | `tb8-q20-hml.gguf` | `tb8` | `prism-ml/Ternary-Bonsai-8B-gguf` Q2_0_g64, same head | `01b1e0ef…93e06` |
@@ -160,8 +164,8 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 
 | Path | What |
 |---|---|
-| [`EXPERIMENT.md`](EXPERIMENT.md) | the full write-up: §1-8 the first tiny model, §9-10 llama.cpp and the first flash streaming, §11 the 2B push, §13 the 4B push, §14 the 9B push, §15 the 0.8B speed push |
-| `patches/llama.cpp-v0.8.0-tvbox.patch` | every change to llama.cpp: pruned head (`output_ids`) for Qwen3 / Qwen3.5 / Granite 4.0 H, the kernels above (`ggml-cpu/repack-*-tv.inc`), fused DeltaNet (state read by id, optional fp16 state), repack cache and streaming engine (`ggml-cpu/stream-tv.inc`, loader hooks), padded small batches, op profiler, pruned-head-aware perplexity, Vulkan tuning for Mali |
+| [`EXPERIMENT.md`](EXPERIMENT.md) | the full write-up: §1-8 the first tiny model, §9-10 llama.cpp and the first flash streaming, §11 the 2B push, §13 the 4B push, §14 the 9B push, §15 the 0.8B speed push, §16-17 the 2B rounds 3-4 |
+| `patches/llama.cpp-v0.8.0-tvbox.patch` | every change to llama.cpp: pruned head (`output_ids`) for Qwen3 / Qwen3.5 / Granite 4.0 H, the kernels above (`ggml-cpu/repack-*-tv.inc`), fused DeltaNet (state read by id, optional fp16 state, one-token conv step), embedding rows from the resident head, repack cache and streaming engine (`ggml-cpu/stream-tv.inc`, loader hooks), padded small batches, op profiler, pruned-head-aware perplexity, Vulkan tuning for Mali |
 | `tools/` | GGUF rewriter / head pruner / re-cutter, vocabulary selection, corpus and MTP fetchers, model rebuild script, TV memory guard and RAM helper, benchmark sweeps, kernel benches and exactness checks (`kbench/`), flash benchmark |
 | `tv-llm-ui/` | the live token-stream page for llama-server (confidence colours, top-3 alternatives, speed, box stats), its launcher and the benchmark harness |
 | `tiny-llm-web/` | the llama2.c story server + TV page from the first experiment |
@@ -178,6 +182,7 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 - **Measure, then verify.** Two streaming bugs gave plausible speeds and wrong numbers; only comparing tensors with the file, and perplexity with a Mac reference, caught them.
 - **Small models are mostly vocabulary.** Qwen3.5-0.8B's 248K-row head is a third of its weights; pruning it to 65K rows plus all-Q4_K took it from 7.5 to 12.1 tok/s (E55). Small models also lose more to 4 bits (+7 % perplexity vs +2.3 % for the 2B).
 - **Simulate before you write a kernel.** Activation sparsity (E58) and a low-rank head (E60) both looked promising on paper; a quality simulation on the Mac killed each in under an hour.
+- **Check that every big matrix reaches the fast kernel.** The 2B's head (65,668 rows, ~10 % of each token's weights) silently ran on the generic kernel for weeks because ggml only repacks row counts divisible by 8; four extra rows gave +5.8 % (E71, E72). The load log's repack buffer size gives it away.
 - **Guard the box.** After two early kernel panics, every heavy run goes through a wrapper that kills it below 180 MB of free memory.
 
 ## License

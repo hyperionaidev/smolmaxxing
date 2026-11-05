@@ -1,0 +1,6 @@
+p23 h65 en Final estimate: PPL = 9.9523 +/- 0.55947 pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab) tv-guard: exit 0, min MemAvailable 169 MB, max RSS 1087 MB 
+p24 h65 en Final estimate: PPL = 9.9523 +/- 0.55947 pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab) tv-guard: exit 0, min MemAvailable 171 MB, max RSS 1146 MB 
+p24 h45 en Final estimate: PPL = 9.6562 +/- 0.53803 pruned-head misses: 56 of 2520 scored tokens (2.222%) skipped (target outside kept vocab) tv-guard: exit 0, min MemAvailable 145 MB, max RSS 1089 MB 
+p24 h65 ml Final estimate: PPL = 9.0753 +/- 0.50641 pruned-head misses: 317 of 2520 scored tokens (12.579%) skipped (target outside kept vocab) tv-guard: exit 0, min MemAvailable 183 MB, max RSS 1127 MB 
+p24 h45 ml Final estimate: PPL = 7.7168 +/- 0.42025 pruned-head misses: 497 of 2520 scored tokens (19.722%) skipped (target outside kept vocab) tv-guard: exit 0, min MemAvailable 153 MB, max RSS 1072 MB 
+DONE

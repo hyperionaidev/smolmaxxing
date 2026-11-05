@@ -1,0 +1,10 @@
+MTP n_max=0: w-q4k-h65.gguf, patched23, t=3, LLAMA_STATE_F16=1: generation 6.54 tok/s (token-weighted), prompt 16.0 tok/s, draft acceptance None
+VmRSS:	 1013900 kB
+MTP n_max=0: w-q4k-h65.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 6.68 tok/s (token-weighted), prompt 16.2 tok/s, draft acceptance None
+VmRSS:	 1019748 kB
+MTP n_max=0: w-q4k-h65.gguf, patched23, t=3, LLAMA_STATE_F16=1: generation 6.55 tok/s (token-weighted), prompt 16.5 tok/s, draft acceptance None
+VmRSS:	 1034212 kB
+MTP n_max=0: w-q4k-h65.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 6.79 tok/s (token-weighted), prompt 16.1 tok/s, draft acceptance None
+VmRSS:	 1053448 kB
+MTP n_max=0: w-q4k-h45.gguf, patched24, t=3, LLAMA_STATE_F16=1: generation 6.89 tok/s (token-weighted), prompt 16.5 tok/s, draft acceptance None
+VmRSS:	 1085488 kB

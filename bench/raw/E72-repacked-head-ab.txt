@@ -1,0 +1,17 @@
+tv_head_embd_get: embedding from head: on (65672 of 248320 rows resident, CPU_REPACK, 8x4 repack)
+2B  p24 h65                       7.33 ± 0.21 
+2B  p25 h65p8                     7.67 ± 0.15 
+2B  p25 h65p8 embd0               7.69 ± 0.13 
+08B p24 h65                      16.02 ± 0.29 
+08B p25 h65p8                    16.81 ± 0.24 
+2B  p24 h65                       7.43 ± 0.06 
+2B  p25 h65p8                     7.74 ± 0.08 
+2B  p25 h65p8 embd0               7.70 ± 0.10 
+08B p24 h65                      16.24 ± 0.17 
+08B p25 h65p8                    16.76 ± 0.35 
+2B  p24 h65                       7.17 ± 0.47 
+2B  p25 h65p8                     7.79 ± 0.06 
+2B  p25 h65p8 embd0               7.77 ± 0.06 
+08B p24 h65                      16.05 ± 0.42 
+08B p25 h65p8                    16.86 ± 0.09 
+DONE

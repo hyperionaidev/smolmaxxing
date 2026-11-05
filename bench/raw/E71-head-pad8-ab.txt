@@ -1,0 +1,10 @@
+h65 load_tensors:   CPU_REPACK model buffer size =   736.38 MiB
+h65 tv_head_embd_get: embedding from head: on (65668 of 248320 rows resident)
+h65p8 load_tensors:   CPU_REPACK model buffer size =   808.53 MiB
+h65           7.41 ± 0.09 
+h65p8           7.75 ± 0.10 
+h65           7.38 ± 0.12 
+h65p8           7.36 ± 0.63 
+h65           7.42 ± 0.08 
+h65p8           7.70 ± 0.10 
+DONE
