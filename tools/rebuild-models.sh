@@ -5,6 +5,7 @@
 #
 #   ADB_SERIAL=<tv-ip>:5555 tools/rebuild-models.sh 2b      # Qwen3.5-2B all-Q4_K + 65K head (the default model, §11.8)
 #                                                  08      # Qwen3.5-0.8B all-Q4_K + 65K head (§15; quantized on the Mac)
+#                                                  g1      # Granite 4.0 H 1B all-Q4_K (Q8_0 embedding) + 48K head (§15, E62)
 #                                                  4b      # Ternary-Bonsai-4B lossless + 61K head (§13)
 #                                                  b8      # Bonsai-8B 1-bit + 61K head (§14)
 #                                                  tb8     # Ternary-Bonsai-8B + 61K head (§14)
@@ -13,7 +14,7 @@
 #
 # Needs: the patched binaries on the TV (bin/patched16 pushed to /data/local/tmp/llm/patched16, bin/gguf_recut to
 # /data/local/tmp/llm), python3 (+ numpy via `uv run --with numpy` for fetch_mtp.py), curl, adb.
-# Head id lists are in data/ (made by tools/vocab_select.py for Qwen3.5 and tools/head_select_tok.py for Qwen3).
+# Head id lists are in data/ (made by tools/vocab_select.py for Qwen3.5 and tools/head_select_tok.py for Qwen3 / Granite).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 S="${ADB_SERIAL:?set ADB_SERIAL=<tv-ip>:5555}"
@@ -52,6 +53,19 @@ for T in "$@"; do case "$T" in
   rm $W/q08-bf16-h65.gguf
   adb -s "$S" push $W/q08-q4k-h65.gguf "$D/" >/dev/null
   ;;
+g1)
+  # Granite 4.0 H 1B (§15, E62; hybrid Mamba-2, tied 100K embedding): IBM's Q8_0 -> all-Q4_K with unsloth's imatrix,
+  # but token_embd kept at Q8_0 (Q4_K there costs +11.8 % PPL, Q8_0 +3.5 %), then a 49,152-row head cut from it
+  # (data/head-ids-granite-48k.txt, tools/head_select_tok.py). Starts from Q8_0 because the 2.9 GB BF16 doesn't fit
+  # on the Mac. Needs the Granite pruned-head port (src/models/granite-hybrid.cpp in the patch) and a native llama-quantize.
+  W=models/granite; mkdir -p $W
+  curl -sL "$HF/unsloth/granite-4.0-h-1b-GGUF/resolve/main/imatrix_unsloth.gguf_file" -o $W/imatrix-granite-h1b.gguf
+  curl -sL "$HF/ibm-granite/granite-4.0-h-1b-GGUF/resolve/main/granite-4.0-h-1b-Q8_0.gguf" -o $W/granite-h1b-q8_0.gguf
+  third_party/llama.cpp/build-mac/bin/llama-quantize --allow-requantize --pure --token-embedding-type q8_0 \
+    --imatrix $W/imatrix-granite-h1b.gguf $W/granite-h1b-q8_0.gguf $W/granite-h1b-q4k-e8-full.gguf Q4_K 8
+  rm $W/granite-h1b-q8_0.gguf
+  python3 -I tools/gguf_build.py $W/granite-h1b-q4k-e8-full.gguf - --head-ids data/head-ids-granite-48k.txt | to_tv g1-q4k-e8-h48.gguf
+  ;;
 4b)
   # Ternary-Bonsai-4B (tied embedding): add the 61,592-row frequency head cut from token_embd. Loaded with
   # patched16 it is repacked to 1.875 bits/weight in RAM (E39). The TQ1_0 variant of §13 = llama-quantize
@@ -83,5 +97,5 @@ caches)
   A "cd $D && GGML_REPACK_CACHE=$D/cache/tb8 sh tv-guard.sh c-tb8.log ./patched16/llama-bench -m tb8-q20-hml.gguf -t 3 -p 0 -n 1 -r 1"
   A "ls -la $D/cache"
   ;;
-*) echo "unknown target $T (2b 08 4b b8 tb8 q9 caches)"; exit 1 ;;
+*) echo "unknown target $T (2b 08 g1 4b b8 tb8 q9 caches)"; exit 1 ;;
 esac; done

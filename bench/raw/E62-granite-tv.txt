@@ -1,0 +1,34 @@
+| model                          |       size |     params | backend    | threads | n_ubatch |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | -------: | --------------: | -------------------: |
+| granitehybrid 1B Q4_K - Medium | 936.97 MiB |     1.54 B | CPU        |       3 |       32 |            tg64 |          5.29 ± 0.03 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 241 MB, max RSS 950 MB
+
+| model                          |       size |     params | backend    | threads | n_ubatch |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | -------: | --------------: | -------------------: |
+| granitehybrid 1B Q4_K - Medium | 936.97 MiB |     1.54 B | CPU        |       3 |       32 |            tg16 |          5.35 ± 0.00 |
+
+[opprof] 17 graphs, 3.488 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q4_K         3536    2058.1   59.0%      6.07   1782.3ms    582.0
+[opprof] SSM_SCAN               f32           612     381.6   10.9%      2.52    313.4ms    623.5
+[opprof] CPY                    f32          2448     344.3    9.9%      2.89    266.8ms    140.6
+[opprof] MUL_MAT                q8_0           17     201.8    5.8%      6.76    175.5ms  11873.1
+[opprof] RMS_NORM               f32          1989     118.0    3.4%      0.14     94.7ms     59.3
+[opprof] SCALE                  f32          2618      84.6    2.4%      1.51     42.4ms     32.3
+[opprof] GET_ROWS               q8_0           17      72.7    2.1%     38.31     72.6ms   4274.9
+[opprof] GLU                    f32          1292      62.9    1.8%      0.30     44.3ms     48.7
+[opprof] ADD                    f32          3196      35.7    1.0%      0.68     24.5ms     11.2
+[opprof] SSM_CONV               f32           612      30.1    0.9%      1.08     20.2ms     49.2
+[opprof] CONCAT                 f32           612      25.9    0.7%      0.94     14.2ms     42.3
+[opprof] GET_ROWS               f32          1258      22.1    0.6%     44.75      8.5ms     17.5
+[opprof] UNARY                  f32           612      18.8    0.5%      0.43     15.6ms     30.6
+[opprof] MUL                    f32           612      12.5    0.4%      0.60     10.1ms     20.4
+[opprof] CONT                   f32          1224      10.4    0.3%      0.73      3.6ms      8.5
+[opprof] SET_ROWS               f32           153       5.6    0.2%      0.65      4.5ms     36.3
+[opprof] FLASH_ATTN_EXT         f32            68       2.6    0.1%      0.16      2.3ms     37.6
+[opprof] FILL                   f32            17       0.9    0.0%      7.89      0.7ms     50.8
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 284 MB, max RSS 936 MB

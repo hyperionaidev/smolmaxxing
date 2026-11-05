@@ -1,0 +1,14 @@
+E62 Granite 4.0 H 1B (ibm-granite/granite-4.0-h-1b-GGUF Q8_0, sha256 f29248184ca766350e56e6d161c2a637ad302a6d595e15d4a62cd58327a0ac0e)
+Mac llama-perplexity, data/eval/eval-en.txt, -c 128 --chunks 40 (5632 tokens, 22031 bytes)
+  Q8_0 (IBM file)                                     PPL 11.6789  bits/byte 0.906
+  all-Q4_K --pure, unsloth imatrix (token_embd Q4_K)  PPL 13.0535  bits/byte 0.947  (+11.8 %)
+  all-Q4_K, token_embd Q6_K                           PPL 12.2774  bits/byte 0.925  (+5.1 %)
+  all-Q4_K, token_embd Q8_0                           PPL 12.0881  bits/byte 0.919  (+3.5 %)  -> kept
+  + 48K pruned head (Q8_0 rows)                       PPL 11.5101 on 98.65 % of positions (34 of 2520 skipped)
+Head lists (tools/head_select_tok.py, special tokens from 100256), held-out miss rate:
+                         32K rows   48K rows
+  english+code held-out  5.035 %    1.153 %
+  multilingual held-out  1.821 %    0.868 %
+  eval-en.txt            5.788 %    1.598 %
+Greedy answer (pruned file): "The capital of Australia is Canberra, chosen over Sydney due to its central location,
+which facilitated easier governance and administration of the nation."

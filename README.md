@@ -10,7 +10,7 @@
 - **A 1-bit 8B model: 1.2 tok/s.**
 - **A 9B model: 0.27 tok/s**, streaming most of its weights from flash.
 
-Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E61).
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E62).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
@@ -53,7 +53,10 @@ Quality is English perplexity on a fixed 22 KB text, converted to **bits per byt
 | Ternary-Bonsai-2-2B (Q2_0) | 5.9 tok/s | 15.8 tok/s | 1.124 |
 | Gemma 3 1B (Q4_K_M) | 5.7 tok/s | 11.1 tok/s | 1.260 |
 | Granite 4.0 H 1B (Q4_0, ~1.5 B) | too big as shipped | | **0.916** |
+| ↳ rebuilt: all-Q4_K, Q8_0 embedding, 48K head (E62) | 5.29 tok/s (fits only after freeing RAM, 950 MB RSS) | | 0.919 |
 | LFM3-1.7B (QAD Q4_0) | doesn't fit | | |
+
+Granite 4.0 H 1B was the one model close to the 2B's quality. Rebuilt our way (E62), it runs at 5.29 tok/s, below the 2B's 6.55 at slightly lower quality: it carries about twice the 0.8B's weight bytes per token.
 
 **Physics of the box:** one process can hold ~0.96 GB before Android starts killing things, and flash reads top out at **278 MB/s**. A model that has to stream X MB per token can never beat 278 / X tokens per second. That, not the CPU, is what limits everything above 2B.
 
@@ -71,7 +74,7 @@ Quality is English perplexity on a fixed 22 KB text, converted to **bits per byt
 | DeltaNet state **read in place by id** instead of a 1 MB/layer gather every token; optional **fp16 state** (`LLAMA_STATE_F16=1`) | 0.8B 11.9 → 12.9 tok/s; fp16: DeltaNet −17 %, token −0.7 % | E56, E61 |
 
 **Memory tricks:**
-- **Pruned LM head:** keep only the ~62-66 K most useful vocabulary rows, chosen by token frequency on English, code and 7 other languages. The other logits are scattered to −inf. Saves 0.2-0.5 GB and misses ~1 % of English tokens.
+- **Pruned LM head:** keep only the ~49-66 K most useful vocabulary rows, chosen by token frequency on English, code and 7 other languages. The other logits are scattered to −inf. Saves 0.2-0.5 GB and misses ~1 % of English tokens.
 - **Repack cache on flash** (`GGML_REPACK_CACHE`): repacked weights are written to a file once and mapped afterwards. Models load in seconds.
 
 **Weight streaming for models bigger than RAM** (`ggml-cpu/stream-tv.inc`):
@@ -155,7 +158,7 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 | Path | What |
 |---|---|
 | [`EXPERIMENT.md`](EXPERIMENT.md) | the full write-up: §1-8 the first tiny model, §9-10 llama.cpp and the first flash streaming, §11 the 2B push, §13 the 4B push, §14 the 9B push, §15 the 0.8B speed push |
-| `patches/llama.cpp-v0.8.0-tvbox.patch` | every change to llama.cpp: pruned head (`output_ids`) for Qwen3 / Qwen3.5, the kernels above (`ggml-cpu/repack-*-tv.inc`), fused DeltaNet (state read by id, optional fp16 state), repack cache and streaming engine (`ggml-cpu/stream-tv.inc`, loader hooks), padded small batches, op profiler, pruned-head-aware perplexity, Vulkan tuning for Mali |
+| `patches/llama.cpp-v0.8.0-tvbox.patch` | every change to llama.cpp: pruned head (`output_ids`) for Qwen3 / Qwen3.5 / Granite 4.0 H, the kernels above (`ggml-cpu/repack-*-tv.inc`), fused DeltaNet (state read by id, optional fp16 state), repack cache and streaming engine (`ggml-cpu/stream-tv.inc`, loader hooks), padded small batches, op profiler, pruned-head-aware perplexity, Vulkan tuning for Mali |
 | `tools/` | GGUF rewriter / head pruner / re-cutter, vocabulary selection, corpus and MTP fetchers, model rebuild script, TV memory guard and RAM helper, benchmark sweeps, kernel benches and exactness checks (`kbench/`), flash benchmark |
 | `tv-llm-ui/` | the live token-stream page for llama-server (confidence colours, top-3 alternatives, speed, box stats), its launcher and the benchmark harness |
 | `tiny-llm-web/` | the llama2.c story server + TV page from the first experiment |

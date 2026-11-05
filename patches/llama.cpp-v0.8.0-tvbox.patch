@@ -2373,6 +2373,79 @@ index 2e15777..b438821 100644
  
          return output;
      }
+diff --git a/src/models/granite-hybrid.cpp b/src/models/granite-hybrid.cpp
+index a752a36..47dff21 100644
+--- a/src/models/granite-hybrid.cpp
++++ b/src/models/granite-hybrid.cpp
+@@ -1,5 +1,26 @@
+ #include "models.h"
+ 
++// pruned LM head (TV-box experiment, same as qwen35.cpp): output holds only the n_keep rows listed in output_ids.
++// Scatter the [n_keep, n_out] logits into [n_vocab, n_out], with -inf for dropped tokens.
++static ggml_tensor * granite_scatter_pruned_logits(ggml_context * ctx0, ggml_tensor * cur, const llama_model & model) {
++    if (!model.output_ids) {
++        return cur;
++    }
++    const int64_t n_vocab_full = model.tok_embd->ne[1];
++    if (cur->ne[1] == 1 && ggml_is_contiguous(cur)) {
++        ggml_tensor * lt   = ggml_reshape_2d(ctx0, cur, 1, cur->ne[0]);
++        ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, 1, n_vocab_full);
++        full = ggml_fill_inplace(ctx0, full, -INFINITY);
++        full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++        return ggml_reshape_2d(ctx0, full, n_vocab_full, 1);
++    }
++    ggml_tensor * lt   = ggml_cont(ctx0, ggml_transpose(ctx0, cur));
++    ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, lt->ne[0], n_vocab_full);
++    full = ggml_fill_inplace(ctx0, full, -INFINITY);
++    full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++    return ggml_cont(ctx0, ggml_transpose(ctx0, full));
++}
++
+ void llama_model_granite_hybrid::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
+     ml.get_key(LLM_KV_LOGIT_SCALE,                 hparams.f_logit_scale, /* required */ false);
+@@ -38,7 +59,7 @@ void llama_model_granite_hybrid::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key(LLM_KV_EXPERT_SHARED_FEED_FORWARD_LENGTH, hparams.n_ff_shexp, /* required */ false);
+ }
+ 
+-void llama_model_granite_hybrid::load_arch_tensors(llama_model_loader &) {
++void llama_model_granite_hybrid::load_arch_tensors(llama_model_loader & ml) {
+     LLAMA_LOAD_LOCALS;
+ 
+     // mamba2 Mixer SSM params
+@@ -54,12 +75,22 @@ void llama_model_granite_hybrid::load_arch_tensors(llama_model_loader &) {
+     GGML_ASSERT(2 * n_embd == d_inner);
+ 
+     // embeddings
+-    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, 0);
++    // tvbox: with a pruned head, token_embd is only read row-by-row (GET_ROWS): lazy, random-access mapping
++    const ggml_tensor * ids_meta = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str());
++    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, ids_meta ? TENSOR_READ_LAZY : 0);
+ 
+     // output
+     {
+         output_norm = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd}, 0);
+-        output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), {n_embd, n_vocab}, TENSOR_NOT_REQUIRED);
++        if (ids_meta) {
++            // pruned LM head (TV-box experiment): output.weight = the n_keep rows listed in output_ids.weight
++            const int64_t n_keep = ids_meta->ne[0];
++            output_ids = create_tensor(tn(LLM_TENSOR_OUTPUT_IDS, "weight"), {n_keep}, 0);
++            output     = create_tensor(tn(LLM_TENSOR_OUTPUT,     "weight"), {n_embd, n_keep}, 0);
++            LLAMA_LOG_INFO("%s: pruned LM head: %lld of %lld vocab rows\n", __func__, (long long) n_keep, (long long) n_vocab);
++        } else {
++            output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), {n_embd, n_vocab}, TENSOR_NOT_REQUIRED);
++        }
+         // if output is NULL, init from the input tok embed, duplicated to allow offloading
+         if (output == NULL) {
+             output = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, TENSOR_DUPLICATED);
+@@ -195,6 +226,7 @@ llama_model_granite_hybrid::graph::graph(const llama_model & model, const llm_gr
+     if (hparams.f_logit_scale) {
+         cur = ggml_scale(ctx0, cur, 1.0f / hparams.f_logit_scale);
+     }
++    cur = granite_scatter_pruned_logits(ctx0, cur, model);
+     cb(cur, "result_output", -1);
+     res->t_logits = cur;
+ }
 diff --git a/src/models/qwen3.cpp b/src/models/qwen3.cpp
 index c01f838..978fc06 100644
 --- a/src/models/qwen3.cpp
