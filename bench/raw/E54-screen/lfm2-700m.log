@@ -1,0 +1,83 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| lfm2 700M Q4_0                 | 423.37 MiB |   742.49 M | CPU        |       3 |            tg64 |         11.51 ± 1.64 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 591 MB, max RSS 459 MB
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| lfm2 700M Q4_0                 | 423.37 MiB |   742.49 M | CPU        |       3 |           pp128 |         52.75 ± 0.00 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 596 MB, max RSS 479 MB
+0.04.527.244 I cmn          init: llama threadpool init, n_threads = 4
+0.04.702.481 I 
+0.04.702.631 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | REPACK = 1 | 
+0.04.702.685 I perplexity: tokenizing the input ..
+0.04.720.820 I perplexity: tokenization took 18.119 ms
+0.04.720.955 I perplexity: calculating perplexity over 40 chunks, n_ctx=128, batch_size=128, n_seq=1
+0.07.609.474 I perplexity: 2.89 seconds per pass - ETA 1.92 minutes
+[1]8.6797,[2]9.1163,[3]10.6903,[4]10.5164,[5]10.4770,[6]14.8857,[7]14.6674,[8]15.8860,[9]17.7232,[10]17.0777,[11]16.6814,[12]16.9443,[13]18.3739,[14]20.9368,[15]21.8632,[16]23.5495,[17]25.2241,[18]25.4242,[19]27.2287,[20]29.0693,[21]30.0667,[22]29.9595,[23]29.6211,[24]29.7418,[25]29.8977,[26]29.9841,[27]30.9298,[28]31.0254,[29]29.0724,[30]26.9768,[31]26.2256,[32]25.5489,[33]24.0491,[34]23.0775,[35]22.1983,[36]21.2771,[37]20.0062,[38]19.8041,[39]19.4646,[40]18.8074,
+2.00.551.565 I Final estimate: PPL = 18.8074 +/- 1.19162
+2.00.551.568 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab)
+
+tv-guard: exit 0, min MemAvailable 549 MB, max RSS 523 MB
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| lfm2 700M Q4_0                 | 423.37 MiB |   742.49 M | CPU        |       3 |            tg16 |         12.22 ± 0.00 |
+
+[opprof] 17 graphs, 1.363 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q4_0         1564     941.3   69.1%      6.52    825.3ms    601.9
+[opprof] MUL_MAT                q6_K           17     306.9   22.5%      4.57    306.9ms  18052.8
+[opprof] GET_ROWS               q6_K           17      41.5    3.0%     33.85     38.9ms   2439.6
+[opprof] RMS_NORM               f32           765      23.1    1.7%      0.19      5.4ms     30.2
+[opprof] GLU                    f32           272      17.4    1.3%      0.43     15.1ms     64.1
+[opprof] ADD                    f32           544       8.5    0.6%      0.39      5.4ms     15.6
+[opprof] CONCAT                 f32           170       5.4    0.4%      0.39      1.6ms     31.9
+[opprof] FLASH_ATTN_EXT         f32           102       4.9    0.4%      0.13      4.5ms     48.2
+[opprof] ROPE                   f32           204       3.6    0.3%      0.23      1.9ms     17.6
+[opprof] MUL                    f32           340       3.3    0.2%      0.63      2.2ms      9.7
+[opprof] CPY                    f32           340       2.6    0.2%      1.18      1.0ms      7.8
+[opprof] SSM_CONV               f32           170       1.8    0.1%      1.70      1.6ms     10.9
+[opprof] GET_ROWS               f32           204       1.2    0.1%      1.86      1.0ms      6.0
+[opprof] SET_ROWS               f32           204       0.6    0.0%      0.68      0.4ms      3.0
+[opprof] SCALE                  f32           170       0.2    0.0%      1.11      0.1ms      1.3
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 611 MB, max RSS 482 MB
+
+
+Loading model... |-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\ 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-8642541
+model      : s-lfm2-700m.gguf
+ftype      : Q4_0
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is Canberra, chosen as it was selected to provide a neutral location that would not favor any of the existing cities of Sydney and Melbourne. This decision was made to promote balanced development across the country.
+
+[ Prompt: 43.6 t/s | Generation: 11.8 t/s ]
+
+
+Exiting...
+tv-guard: exit 0, min MemAvailable 580 MB, max RSS 470 MB
+NTOK 6085

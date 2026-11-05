@@ -1,0 +1,5 @@
+q35-08-q40     tg   8.15 pp  31.78  PPL  14.1378  tokens  5905(known)  bits/byte 1.024  maxRSS 750 MB  (stock unsloth Q4_0, full head)
+lfm25-350m     tg  23.71 pp 104.11  PPL  92.6534  tokens  6085  bits/byte 1.805  maxRSS 298 MB
+lfm2-700m      tg  11.51 pp  52.75  PPL  18.8074  tokens  6085  bits/byte 1.169  maxRSS 523 MB
+lfm25-1.2b     tg   8.26 pp  31.63  PPL  17.1808  tokens  6085  bits/byte 1.133  maxRSS 783 MB
+qwen3-06b      tg   9.35 pp  50.58  PPL  16.5844  tokens  5756  bits/byte 1.059  maxRSS 798 MB

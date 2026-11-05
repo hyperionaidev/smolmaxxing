@@ -1,0 +1,30 @@
+models/small/q08-q4k-h65.gguf: 1 file pushed, 0 skipped. 6.6 MB/s (473984192 bytes in 68.281s)
+pushed q4k
+| qwen35 0.8B Q4_K - Medium      | 441.57 MiB |   819.70 M | CPU        |       3 |            tg64 |         12.14 ± 0.04 |
+tv-guard: exit 0, min MemAvailable 646 MB, max RSS 566 MB
+| qwen35 0.8B Q4_K - Medium      | 441.57 MiB |   819.70 M | CPU        |       3 |           pp128 |         33.08 ± 0.00 |
+tv-guard: exit 0, min MemAvailable 645 MB, max RSS 576 MB
+models/small/q08-q40-h65.gguf: 1 file pushed, 0 skipped. 7.9 MB/s (473984192 bytes in 57.177s)
+pushed q40
+| qwen35 0.8B Q4_0               | 441.57 MiB |   819.70 M | CPU        |       3 |            tg64 |         12.50 ± 0.07 |
+tv-guard: exit 0, min MemAvailable 598 MB, max RSS 566 MB
+| qwen35 0.8B Q4_0               | 441.57 MiB |   819.70 M | CPU        |       3 |           pp128 |         35.55 ± 0.00 |
+tv-guard: exit 0, min MemAvailable 592 MB, max RSS 576 MB
+models/small/q08-q8_0-h65.gguf: 1 file pushed, 0 skipped. 6.5 MB/s (883553472 bytes in 130.049s)
+pushed q8_0
+| qwen35 0.8B Q8_0               | 832.17 MiB |   819.70 M | CPU        |       3 |            tg64 |          8.23 ± 0.15 |
+tv-guard: exit 0, min MemAvailable 386 MB, max RSS 925 MB
+| qwen35 0.8B Q8_0               | 832.17 MiB |   819.70 M | CPU        |       3 |           pp128 |         29.35 ± 0.00 |
+tv-guard: exit 0, min MemAvailable 380 MB, max RSS 904 MB
+models/small/q08-q5_K-h65.gguf: 1 file pushed, 0 skipped. 4.8 MB/s (576376512 bytes in 114.804s)
+pushed q5_K
+| qwen35 0.8B Q5_K - Medium      | 539.22 MiB |   819.70 M | CPU        |       3 |            tg64 |          9.21 ± 0.14 |
+tv-guard: exit 0, min MemAvailable 608 MB, max RSS 663 MB
+| qwen35 0.8B Q5_K - Medium      | 539.22 MiB |   819.70 M | CPU        |       3 |           pp128 |         26.05 ± 0.00 |
+tv-guard: exit 0, min MemAvailable 610 MB, max RSS 674 MB
+models/small/q08-q6_K-h65.gguf: 1 file pushed, 0 skipped. 5.5 MB/s (685168352 bytes in 119.123s)
+pushed q6_K
+| qwen35 0.8B Q6_K               | 642.97 MiB |   819.70 M | CPU        |       3 |            tg64 |          6.78 ± 0.04 |
+tv-guard: exit 0, min MemAvailable 564 MB, max RSS 767 MB
+| qwen35 0.8B Q6_K               | 642.97 MiB |   819.70 M | CPU        |       3 |           pp128 |         20.80 ± 0.00 |
+tv-guard: exit 0, min MemAvailable 561 MB, max RSS 778 MB

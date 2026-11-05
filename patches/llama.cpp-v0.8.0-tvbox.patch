@@ -14,7 +14,7 @@ index dc6453c..22ced90 100644
      GGML_BACKEND_API bool    ggml_is_numa(void); // true if init detected that system has >1 NUMA node
  
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index 53d39d2..52f9c8b 100644
+index 53d39d2..e46af0c 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
 @@ -1742,12 +1742,19 @@ static void ggml_compute_forward_mul_mat_id(
@@ -37,7 +37,7 @@ index 53d39d2..52f9c8b 100644
  
      // extra_buffer op?
      if (ggml_cpu_extra_compute_forward(params, tensor)) {
-@@ -3108,10 +3115,37 @@ static int ggml_cpu_try_fuse_ops(
+@@ -3108,12 +3115,48 @@ static int ggml_cpu_try_fuse_ops(
      return 0;
  }
  
@@ -49,6 +49,13 @@ index 53d39d2..52f9c8b 100644
 +static double g_opprof_c [GGML_OP_COUNT][GGML_TYPE_COUNT]; // compute only (excluding the barrier wait)
 +static long   g_opprof_n [GGML_OP_COUNT][GGML_TYPE_COUNT];
 +static long   g_opprof_graphs;
++double g_loop_s; long g_loop_n; // tvbox: thread 0 node-loop time, summed over graphs (read by GGML_CPU_PROF)
++// tvbox: GGML_OPPROF=2 also traces one graph node by node (GGML_OPPROF_GRAPH = which graph, default 12):
++// per node the compute time of every thread, so load imbalance and barrier cost are visible
++#define OPTRACE_MAXN 8192
++static double g_optrace_c[8][OPTRACE_MAXN];
++static double g_optrace_s[8][OPTRACE_MAXN]; // start time of each node on each thread
++static long   g_optrace_graph = -1;
 +static double opprof_now(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec + ts.tv_nsec * 1e-9; }
 +static void ggml_opprof_dump(void) {
 +    double tot = 0; for (int o = 0; o < GGML_OP_COUNT; o++) for (int t = 0; t < GGML_TYPE_COUNT; t++) tot += g_opprof_t[o][t];
@@ -74,23 +81,37 @@ index 53d39d2..52f9c8b 100644
 +
      const struct ggml_cgraph * cgraph = tp->cgraph;
      const struct ggml_cplan  * cplan  = tp->cplan;
++    // read once per graph: thread 0 bumps g_opprof_graphs at the end while others may still be finishing
++    const long opprof_gidx = g_opprof_graphs;
  
-@@ -3148,6 +3182,10 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+ #ifdef GGML_USE_CPU_RISCV64_SPACEMIT
+     ggml_backend_cpu_riscv64_spacemit_set_numa_thread_affinity(state->ith);
+@@ -3136,6 +3179,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+     GGML_PRINT_DEBUG("thread #%d compute-start cplan %p last-graph %d\n", state->ith, (const void *)cplan, state->last_graph);
+ #endif
+ 
++    const double loop_t0 = state->ith == 0 ? opprof_now() : 0;
+     for (int node_n = 0; node_n < cgraph->n_nodes && atomic_load_explicit(&tp->abort, memory_order_relaxed) != node_n; node_n++) {
+         struct ggml_tensor * node = cgraph->nodes[node_n];
+ 
+@@ -3148,6 +3192,11 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
              continue;
          }
  
 +        const int    prof   = state->ith == 0 && g_opprof > 0;
-+        const double prof_t0 = prof ? opprof_now() : 0;
++        const int    trace  = g_opprof == 2 && opprof_gidx == g_optrace_graph && node_n < OPTRACE_MAXN && state->ith < 8;
++        const double prof_t0 = (prof || trace) ? opprof_now() : 0;
 +        const int    prof_n  = node_n;
 +
          // TODO: move fused-op detection into ggml_graph_plan so fusion decisions are made once at planning time
          // Try fused ops, fall back to normal compute
          const int n_fused = ggml_cpu_try_fuse_ops(cgraph, node_n, &params, cplan);
-@@ -3163,10 +3201,20 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3163,10 +3212,45 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
              tp->ec    = GGML_STATUS_ABORTED;
          }
  
-+        const double prof_t1 = prof ? opprof_now() : 0;
++        const double prof_t1 = (prof || trace) ? opprof_now() : 0;
++        if (trace) { g_optrace_c[state->ith][prof_n] = prof_t1 - prof_t0; g_optrace_s[state->ith][prof_n] = prof_t0; }
          if (node_n + 1 < cgraph->n_nodes) {
              ggml_barrier(state->threadpool);
          }
@@ -102,16 +123,129 @@ index 53d39d2..52f9c8b 100644
 +            g_opprof_n[pn->op][pt] += 1;
 +            if (pn->src[0]) g_opprof_b[pn->op][pt] += ggml_nbytes(pn->src[0]);
 +        }
++    }
++    if (state->ith == 0) { g_loop_s += opprof_now() - loop_t0; g_loop_n++; }
++    if (state->ith == 0 && g_opprof == 2 && g_optrace_graph < 0) {
++        g_optrace_graph = getenv("GGML_OPPROF_GRAPH") ? atoi(getenv("GGML_OPPROF_GRAPH")) : 12;
++    }
++    if (g_opprof == 2 && opprof_gidx == g_optrace_graph) {
++        ggml_barrier(state->threadpool);
++        if (state->ith == 0) {
++            const int nth = params.nth < 8 ? params.nth : 8;
++            fprintf(stderr, "[optrace] graph %ld, %d nodes, %d threads: idx op name src0type ne0 ne1 | us per thread\n", opprof_gidx, cgraph->n_nodes, nth);
++            for (int i = 0; i < cgraph->n_nodes && i < OPTRACE_MAXN; i++) {
++                const struct ggml_tensor * n = cgraph->nodes[i];
++                if (ggml_op_is_empty(n->op) || (n->flags & GGML_TENSOR_FLAG_COMPUTE) == 0) continue;
++                fprintf(stderr, "[optrace] %4d %-16s %-28s %-6s %6lld %6lld |", i, ggml_op_desc(n), n->name,
++                        n->src[0] ? ggml_type_name(n->src[0]->type) : "-", (long long) n->ne[0], (long long) n->ne[1]);
++                for (int t = 0; t < nth; t++) fprintf(stderr, " %7.1f", g_optrace_c[t][i] * 1e6);
++                // start of this node on each thread, relative to the earliest thread (us): scheduling skew
++                double s0 = g_optrace_s[0][i]; for (int t = 1; t < nth; t++) if (g_optrace_s[t][i] < s0) s0 = g_optrace_s[t][i];
++                fprintf(stderr, " | start");
++                for (int t = 0; t < nth; t++) fprintf(stderr, " %7.1f", (g_optrace_s[t][i] - s0) * 1e6);
++                fprintf(stderr, " | t %.1f\n", (s0 - g_optrace_s[0][0]) * 1e6);
++            }
++        }
++        ggml_barrier(state->threadpool);
      }
 +    if (state->ith == 0 && g_opprof > 0) g_opprof_graphs++;
  
  #ifdef GGML_USE_OPENMP
      GGML_PRINT_DEBUG("thread #%d compute-done cplan %p\n", state->ith, (const void *)cplan);
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.cpp b/ggml/src/ggml-cpu/ggml-cpu.cpp
+index 81ff5d7..71c82c6 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.cpp
++++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
+@@ -167,10 +167,16 @@ static enum ggml_status ggml_backend_cpu_graph_plan_compute(ggml_backend_t backe
+     GGML_UNUSED(backend);
+ }
+ 
++extern "C" { extern double g_loop_s; extern long g_loop_n; }
+ static enum ggml_status ggml_backend_cpu_graph_compute(ggml_backend_t backend, struct ggml_cgraph * cgraph) {
+     struct ggml_backend_cpu_context * cpu_ctx = (struct ggml_backend_cpu_context *)backend->context;
+ 
++    // tvbox: GGML_CPU_PROF=1 prints plan vs compute time per CPU graph_compute call (every 64 calls)
++    static const bool cpu_prof = getenv("GGML_CPU_PROF") != nullptr;
++    static double cp_t[2]; static long cp_n, cp_nodes;
++    const int64_t cp_t0 = cpu_prof ? ggml_time_us() : 0;
+     struct ggml_cplan cplan = ggml_graph_plan(cgraph, cpu_ctx->n_threads, cpu_ctx->threadpool);
++    const int64_t cp_t1 = cpu_prof ? ggml_time_us() : 0;
+ 
+     if (cpu_ctx->work_size < cplan.work_size) {
+         delete[] cpu_ctx->work_data;
+@@ -187,7 +193,13 @@ static enum ggml_status ggml_backend_cpu_graph_compute(ggml_backend_t backend, s
+     cplan.abort_callback_data = cpu_ctx->abort_callback_data;
+     cplan.use_ref             = cpu_ctx->use_ref;
+ 
+-    return ggml_graph_compute(cgraph, &cplan);
++    const enum ggml_status st = ggml_graph_compute(cgraph, &cplan);
++    if (cpu_prof) {
++        cp_t[0] += cp_t1 - cp_t0; cp_t[1] += ggml_time_us() - cp_t1; cp_n++; cp_nodes += cgraph->n_nodes;
++        if (cp_n % 64 == 0) fprintf(stderr, "[cpuprof] %ld calls, %.0f nodes/call: plan %.3f ms, compute %.3f ms per call, of which thread-0 node loop %.3f ms\n",
++                                    cp_n, (double) cp_nodes / cp_n, cp_t[0] / cp_n / 1e3, cp_t[1] / cp_n / 1e3, g_loop_s / g_loop_n * 1e3);
++    }
++    return st;
+ }
+ 
+ static const struct ggml_backend_i ggml_backend_cpu_i = {
 diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
-index 85e1701..6ec54de 100644
+index 85e1701..0be795c 100644
 --- a/ggml/src/ggml-cpu/ops.cpp
 +++ b/ggml/src/ggml-cpu/ops.cpp
-@@ -11155,6 +11155,13 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+@@ -2172,6 +2172,16 @@ static void ggml_compute_forward_gelu(
+ static void ggml_compute_forward_fill_f32(const ggml_compute_params * params, ggml_tensor * dst) {
+     const float c = ggml_get_op_params_f32(dst, 0);
+ 
++    // tvbox: contiguous tensor -> split the flat element range across threads (a [1, 248320] logits buffer was
++    // filled one 1-element row at a time: 1.2 ms per token)
++    if (ggml_is_contiguous(dst)) {
++        const int64_t n  = ggml_nelements(dst);
++        const int64_t dn = (n + params->nth - 1) / params->nth;
++        const int64_t i0 = MIN(n, dn * params->ith), i1 = MIN(n, i0 + dn);
++        if (i1 > i0) ggml_vec_set_f32((int) (i1 - i0), (float *) dst->data + i0, c);
++        return;
++    }
++
+     GGML_TENSOR_LOCALS(int64_t, ne, dst, ne);
+     GGML_TENSOR_LOCALS(size_t,  nb, dst, nb);
+ 
+@@ -4936,6 +4946,24 @@ static void ggml_compute_forward_scale_bf16(
+     }
+ }
+ 
++// tvbox: F16 scale (the recurrent-state clear runs ggml_scale_inplace(0) on an fp16 state cache)
++static void ggml_compute_forward_scale_f16(const ggml_compute_params * params, ggml_tensor * dst) {
++    const ggml_tensor * src0 = dst->src[0];
++    GGML_ASSERT(ggml_is_contiguous_rows(src0) && ggml_is_contiguous_rows(dst) && ggml_are_same_shape(src0, dst));
++    float s, b;
++    memcpy(&s, (float *) dst->op_params + 0, sizeof(float));
++    memcpy(&b, (float *) dst->op_params + 1, sizeof(float));
++    const int nc = src0->ne[0], nr = ggml_nrows(src0);
++    GGML_TENSOR_UNARY_OP_LOCALS
++    const int dr = (nr + params->nth - 1) / params->nth, ir0 = dr * params->ith, ir1 = MIN(ir0 + dr, nr);
++    for (int i = ir0; i < ir1; i++) {
++        const int64_t i1 = i % ne01, i2 = (i / ne01) % ne02, i3 = i / (ne01*ne02);
++        const ggml_fp16_t * x = (const ggml_fp16_t *) ((const char *) src0->data + i1*nb01 + i2*nb02 + i3*nb03);
++        ggml_fp16_t       * y = (ggml_fp16_t *)       ((char *)       dst->data  + i1*nb1  + i2*nb2  + i3*nb3);
++        for (int k = 0; k < nc; k++) y[k] = GGML_CPU_FP32_TO_FP16(s*GGML_CPU_FP16_TO_FP32(x[k]) + b);
++    }
++}
++
+ void ggml_compute_forward_scale(
+         const ggml_compute_params * params,
+         ggml_tensor * dst) {
+@@ -4947,6 +4975,10 @@ void ggml_compute_forward_scale(
+             {
+                 ggml_compute_forward_scale_f32(params, dst);
+             } break;
++        case GGML_TYPE_F16:
++            {
++                ggml_compute_forward_scale_f16(params, dst);
++            } break;
+         case GGML_TYPE_BF16:
+             {
+                 ggml_compute_forward_scale_bf16(params, dst);
+@@ -11155,6 +11187,20 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
      const int64_t state_size_per_snap = S_v * S_v * H * n_seqs;
      float * attn_out_base  = (float *)dst->data;
      float * state_out_base = (float *)dst->data + attn_score_elems;
@@ -122,10 +256,17 @@ index 85e1701..6ec54de 100644
 +        GGML_ASSERT(ggml_is_contiguous(dst->src[6]) && ggml_nelements(dst->src[6]) == state_size_per_snap);
 +        state_out_base = (float *) dst->src[6]->data;
 +    }
++    // tvbox: fp16 state cache: only the fused, scalar-gate, K == 1 path, reading by id (src[7]/[8]) and writing in
++    // place (src[6]); the state is converted to f32 in registers and stored back as fp16 (half the memory traffic)
++    const bool state_f16 = src_state->type == GGML_TYPE_F16;
++    if (state_f16) {
++        GGML_ASSERT(gdn_fused && !kda && K == 1 && dst->src[6] != nullptr && dst->src[6]->type == GGML_TYPE_F16 &&
++                    dst->src[7] != nullptr && dst->src[8] != nullptr && dst->src[8]->type == GGML_TYPE_F16);
++    }
  
      // snapshot slot mapping: slot 0 = most recent state, slot s = s tokens back.
      // When n_tokens < K only slots 0..n_tokens-1 are written; older slots are caller-owned.
-@@ -11184,10 +11191,13 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+@@ -11184,10 +11230,61 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
              ? state_work
              : state_out_base + (iv3 * H + iv1) * S_v * S_v;
  
@@ -133,15 +274,63 @@ index 85e1701..6ec54de 100644
          // state layout [S_v, S_v, H, n_seqs]: seq iv3 starts at iv3 * state_seq_stride.
          const float * s_in = state_in_base + iv3 * state_seq_stride + iv1 * S_v * S_v;
 -        memcpy(s_out, s_in, S_v * S_v * sizeof(float));
++#if defined(__ARM_NEON) && defined(__aarch64__)
++        if (state_f16) {
++            const int32_t id = ((const int32_t *) dst->src[7]->data)[iv3];
++            const __fp16 * s_in16  = (const __fp16 *) ((const char *) dst->src[8]->data + (size_t) id * dst->src[8]->nb[1]) + iv1 * S_v * S_v;
++            __fp16       * s_out16 = (__fp16 *) dst->src[6]->data + (iv3 * H + iv1) * S_v * S_v;
++            GGML_ASSERT(S_v % 16 == 0);
++            float * attn_data = attn_out_base + (iv3 * n_tokens * H + iv1) * S_v;
++            for (int64_t t = 0; t < n_tokens; t++) {
++                const float * q_d = (const float *)((const char *)src_q->data + iq3 * nbq3 + t * nbq2 + iq1 * nbq1);
++                const float * k_d = (const float *)((const char *)src_k->data + ik3 * nbk3 + t * nbk2 + ik1 * nbk1);
++                const float * v_d = (const float *)((const char *)src_v->data + iv3 * nbv3 + t * nbv2 + iv1 * nbv1);
++                const float beta_val = *(const float *)((const char *)src_beta->data + iv3 * nbb3 + t * nbb2 + iv1 * nbb1);
++                const float gs = expf(*(const float *)((const char *)src_g->data + iv3 * nbg3 + t * nbg2 + iv1 * nbg1));
++                const __fp16 * src_rows = t == 0 ? s_in16 : s_out16;
++                for (int64_t j = 0; j < S_v; ++j) {
++                    const __fp16 * r = src_rows + j * S_v;
++                    __fp16       * w = s_out16  + j * S_v;
++                    float32x4_t d0 = vdupq_n_f32(0), d1 = d0;
++                    for (int64_t i = 0; i < S_v; i += 8) {
++                        const float16x8_t h = vld1q_f16(r + i);
++                        d0 = vfmaq_f32(d0, vcvt_f32_f16(vget_low_f16(h)),  vld1q_f32(k_d + i));
++                        d1 = vfmaq_f32(d1, vcvt_f32_f16(vget_high_f16(h)), vld1q_f32(k_d + i + 4));
++                    }
++                    const float dj = (v_d[j] - gs * vaddvq_f32(vaddq_f32(d0, d1))) * beta_val;
++                    const float32x4_t vg = vdupq_n_f32(gs), vd = vdupq_n_f32(dj);
++                    float32x4_t a0 = vdupq_n_f32(0), a1 = a0;
++                    for (int64_t i = 0; i < S_v; i += 8) {
++                        const float16x8_t h = vld1q_f16(r + i);
++                        const float32x4_t x0 = vfmaq_f32(vmulq_f32(vcvt_f32_f16(vget_low_f16(h)),  vg), vld1q_f32(k_d + i),     vd);
++                        const float32x4_t x1 = vfmaq_f32(vmulq_f32(vcvt_f32_f16(vget_high_f16(h)), vg), vld1q_f32(k_d + i + 4), vd);
++                        vst1q_f16(w + i, vcombine_f16(vcvt_f16_f32(x0), vcvt_f16_f32(x1)));
++                        a0 = vfmaq_f32(a0, x0, vld1q_f32(q_d + i));
++                        a1 = vfmaq_f32(a1, x1, vld1q_f32(q_d + i + 4));
++                    }
++                    attn_data[j] = vaddvq_f32(vaddq_f32(a0, a1)) * scale;
++                }
++                attn_data += S_v * H;
++            }
++            continue;
++        }
++#else
++        GGML_ASSERT(!state_f16 && "fp16 GDN state needs aarch64 NEON");
++#endif
++        // tvbox: by-id state input (src[7] = I32 row ids per sequence, src[8] = the recurrent cache [n_embd_s, size])
++        if (dst->src[7] != nullptr) {
++            const int32_t id = ((const int32_t *) dst->src[7]->data)[iv3];
++            s_in = (const float *) ((const char *) dst->src[8]->data + (size_t) id * dst->src[8]->nb[1]) + iv1 * S_v * S_v;
++        }
 +        // tvbox: the fused (non-KDA) path reads the first token's state straight from s_in, so the
 +        // copy is only needed for KDA, or when there are no tokens
-+        if (kda || !gdn_fused || n_tokens == 0) {
++        if ((kda || !gdn_fused || n_tokens == 0) && s_out != s_in) {
 +            memcpy(s_out, s_in, S_v * S_v * sizeof(float));
 +        }
  
          // attn output pointer for first token of this (head, seq)
          float * attn_data = attn_out_base + (iv3 * n_tokens * H + iv1) * S_v;
-@@ -11203,6 +11213,45 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+@@ -11203,6 +11300,51 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
              // state is stored transposed: s_out[j*S_v + i] = S[i][j]
              // so row j of s_out = column j of S (contiguous access)
  
@@ -152,6 +341,8 @@ index 85e1701..6ec54de 100644
 +                // which is the same math as below (g*dot(row, k) == dot(g*row, k)); the row stays in L1 between reads.
 +                const float gs = expf(g_d[0]);
 +                const float * src_rows = t == 0 ? s_in : s_out;
++                // tvbox: GGML_GDN_F16SIM=1 rounds the stored state to fp16 (quality check before an fp16 state cache)
++                static const bool f16sim = getenv("GGML_GDN_F16SIM") != nullptr;
 +                for (int64_t j = 0; j < S_v; ++j) {
 +                    const float * r = src_rows + j * S_v;
 +                    float       * w = s_out    + j * S_v;
@@ -168,6 +359,10 @@ index 85e1701..6ec54de 100644
 +                        float32x4_t r1 = vfmaq_f32(vmulq_f32(vld1q_f32(r + i +  4), vg), vld1q_f32(k_d + i +  4), vd);
 +                        float32x4_t r2 = vfmaq_f32(vmulq_f32(vld1q_f32(r + i +  8), vg), vld1q_f32(k_d + i +  8), vd);
 +                        float32x4_t r3 = vfmaq_f32(vmulq_f32(vld1q_f32(r + i + 12), vg), vld1q_f32(k_d + i + 12), vd);
++                        if (f16sim) {
++                            r0 = vcvt_f32_f16(vcvt_f16_f32(r0)); r1 = vcvt_f32_f16(vcvt_f16_f32(r1));
++                            r2 = vcvt_f32_f16(vcvt_f16_f32(r2)); r3 = vcvt_f32_f16(vcvt_f16_f32(r3));
++                        }
 +                        vst1q_f32(w + i + 0, r0); vst1q_f32(w + i + 4, r1); vst1q_f32(w + i + 8, r2); vst1q_f32(w + i + 12, r3);
 +                        a0 = vfmaq_f32(a0, r0, vld1q_f32(q_d + i +  0));
 +                        a1 = vfmaq_f32(a1, r1, vld1q_f32(q_d + i +  4));
@@ -187,7 +382,7 @@ index 85e1701..6ec54de 100644
              if (kda) {
                  // precompute exp(g) into delta scratch (reused below)
                  for (int64_t i = 0; i < S_v; ++i) {
-@@ -11234,6 +11283,7 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+@@ -11234,6 +11376,7 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
                  ggml_vec_dot_f32(S_v, &sum, 0, &s_out[j * S_v], 0, q_d, 0, 1);
                  attn_data[j] = sum * scale;
              }
@@ -1791,6 +1986,20 @@ index c094368..b6c80db 100644
          return ctx->device->pipeline_dequant_mul_mat_vec_q8_1_f32[dmmv_wg][a_type][num_cols-1];
      }
  
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+index 5d8449a..5c41d4a 100644
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -6437,7 +6437,8 @@ struct ggml_tensor * ggml_gated_delta_net(
+     GGML_ASSERT(v->type == GGML_TYPE_F32);
+     GGML_ASSERT(g->type == GGML_TYPE_F32);
+     GGML_ASSERT(beta->type == GGML_TYPE_F32);
+-    GGML_ASSERT(state->type == GGML_TYPE_F32);
++    // tvbox: F16 state = fp16 recurrent cache (CPU fused path only, state read by id / written in place)
++    GGML_ASSERT(state->type == GGML_TYPE_F32 || state->type == GGML_TYPE_F16);
+ 
+     const int64_t S_v      = v->ne[0];
+     const int64_t H        = v->ne[1];
 diff --git a/src/llama-arch.cpp b/src/llama-arch.cpp
 index 497e426..d2973bf 100644
 --- a/src/llama-arch.cpp
@@ -1823,6 +2032,106 @@ index eca6d18..8873717 100644
      LLM_TENSOR_OUTPUT_NORM,
      LLM_TENSOR_OUTPUT_NORM_LFM2, // fix for wrong tensor name
      LLM_TENSOR_ROPE_FREQS,
+diff --git a/src/llama-context.cpp b/src/llama-context.cpp
+index 33ad784..b330678 100644
+--- a/src/llama-context.cpp
++++ b/src/llama-context.cpp
+@@ -1529,6 +1529,11 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
+         return nullptr;
+     }
+ 
++    // tvbox: LLAMA_UBATCH_PROF=1 prints where a ubatch's time goes (graph build/alloc vs inputs vs compute) every 32 ubatches
++    static const bool ub_prof = getenv("LLAMA_UBATCH_PROF") != nullptr;
++    static double ub_t[4]; static long ub_n, ub_reused;
++    const int64_t ub_t0 = ub_prof ? ggml_time_us() : 0;
++
+     auto * res = get_gf_res_prev();
+     auto * gf  = res->get_gf();
+ 
+@@ -1575,6 +1580,7 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
+         gf_res_prev_active = res;
+     }
+ 
++    const int64_t ub_t1 = ub_prof ? ggml_time_us() : 0;
+     // set the input data for the input tensors
+     {
+         //const auto t_start_us = ggml_time_us();
+@@ -1585,7 +1591,17 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
+         //LLAMA_LOG_INFO("graph set inputs time: %.3f ms\n", (ggml_time_us() - t_start_us)/1000.0);
+     }
+ 
++    const int64_t ub_t2 = ub_prof ? ggml_time_us() : 0;
+     const auto status = graph_compute(res->get_gf(), ubatch.n_tokens > 1);
++    if (ub_prof) {
++        const int64_t ub_t3 = ggml_time_us();
++        ub_t[0] += ub_t1 - ub_t0; ub_t[1] += ub_t2 - ub_t1; ub_t[2] += ub_t3 - ub_t2; ub_n++;
++        ub_reused = n_reused;
++        if (ub_n % 32 == 0) {
++            fprintf(stderr, "[ubprof] %ld ubatches (graph reused %ld): build+alloc %.3f ms, set_inputs %.3f ms, compute %.3f ms per ubatch\n",
++                    ub_n, ub_reused, ub_t[0] / ub_n / 1e3, ub_t[1] / ub_n / 1e3, ub_t[2] / ub_n / 1e3);
++        }
++    }
+     if (status != GGML_STATUS_SUCCESS) {
+         LLAMA_LOG_ERROR("%s: failed to compute graph, compute status: %d\n", __func__, status);
+         ret = status;
+diff --git a/src/llama-graph.cpp b/src/llama-graph.cpp
+index cffd083..6ea64be 100644
+--- a/src/llama-graph.cpp
++++ b/src/llama-graph.cpp
+@@ -1639,10 +1639,53 @@ ggml_tensor * llm_graph_context::build_hadamard_input(
+     return x;
+ }
+ 
++// tvbox: activation-sparsity simulation (TEAL / CATS style, training-free). LLAMA_SPARSE_SIM="a,d,g": before every
++// layer mat-mul, keep only the largest-magnitude (1-a) fraction of the input entries per token (d for ffn_down,
++// whose input is the SwiGLU output), counted in groups of g consecutive input dims (by group L2 norm; g=1 =
++// single entries). Zeroed inputs mean the matching weight columns need not be read: this measures the quality cost.
++struct tvbox_sparse_cfg { float frac; int group; };
++static void tvbox_sparse_op(ggml_tensor * dst, const ggml_tensor * a, int ith, int nth, void * ud) {
++    const tvbox_sparse_cfg * c = (const tvbox_sparse_cfg *) ud;
++    const int64_t n = a->ne[0], rows = ggml_nrows(a), g = c->group, ng = n / g;
++    std::vector<float> nrm(ng), tmp(ng);
++    for (int64_t r = ith; r < rows; r += nth) {
++        const float * x = (const float *) ((const char *) a->data + r * a->nb[1]);
++        float * y = (float *) ((char *) dst->data + r * dst->nb[1]);
++        for (int64_t j = 0; j < ng; j++) { float s = 0; for (int64_t k = 0; k < g; k++) s += x[j*g+k]*x[j*g+k]; nrm[j] = s; }
++        const int64_t kill = (int64_t) (c->frac * ng);
++        float thr = -1.0f;
++        if (kill > 0) { tmp = nrm; std::nth_element(tmp.begin(), tmp.begin() + (kill - 1), tmp.end()); thr = tmp[kill - 1]; }
++        int64_t killed = 0;
++        for (int64_t j = 0; j < ng; j++) {
++            const bool z = nrm[j] <= thr && killed < kill;
++            killed += z;
++            for (int64_t k = 0; k < g; k++) y[j*g+k] = z ? 0.0f : x[j*g+k];
++        }
++        for (int64_t i = ng * g; i < n; i++) y[i] = x[i];
++    }
++}
++
+ ggml_tensor * llm_graph_context::build_lora_mm(
+           ggml_tensor * w,
+           ggml_tensor * cur,
+           ggml_tensor * w_s) const {
++    static tvbox_sparse_cfg sp_in = {0, 1}, sp_down = {0, 1};
++    static const bool sp_on = [] {
++        const char * e = getenv("LLAMA_SPARSE_SIM");
++        if (!e) return false;
++        float a = 0, d = 0; int g = 1;
++        sscanf(e, "%f,%f,%d", &a, &d, &g);
++        sp_in = {a, g}; sp_down = {d, g};
++        fprintf(stderr, "tvbox sparse sim: inputs %.2f, ffn_down %.2f, group %d\n", a, d, g);
++        return true;
++    }();
++    if (sp_on && strncmp(w->name, "blk.", 4) == 0 && cur->type == GGML_TYPE_F32) {
++        const bool down = strstr(w->name, "ffn_down") != nullptr;
++        tvbox_sparse_cfg * c = down ? &sp_down : &sp_in;
++        if (c->frac > 0) {
++            cur = ggml_map_custom1(ctx0, ggml_cont(ctx0, cur), tvbox_sparse_op, GGML_N_TASKS_MAX, c);
++        }
++    }
+     // a Hadamard-folded weight reads the transformed input; a LoRA delta lives in the primal basis and reads `cur`
+     ggml_tensor * cur_mm = build_hadamard_input(w, cur);
+     ggml_tensor * res = ggml_mul_mat(ctx0, w, cur_mm);
 diff --git a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
 index a963f24..797dfd3 100644
 --- a/src/llama-model-loader.cpp
@@ -1985,6 +2294,37 @@ index a963f24..797dfd3 100644
          }
          if (progress_callback) {
              // Even though the model is done loading, we still honor
+diff --git a/src/llama-model.cpp b/src/llama-model.cpp
+index 81af890..cb27e34 100644
+--- a/src/llama-model.cpp
++++ b/src/llama-model.cpp
+@@ -2940,7 +2940,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+                     /* attn_n_swa        */ hparams.n_swa,
+                     /* attn_swa_type     */ hparams.swa_type,
+                     /* recurrent_type_r  */ GGML_TYPE_F32,
+-                    /* recurrent_type_s  */ GGML_TYPE_F32,
++                    /* recurrent_type_s  */ (getenv("LLAMA_STATE_F16") ? GGML_TYPE_F16 : GGML_TYPE_F32), // tvbox: fp16 recurrent state
+                     /* recurrent_rs_size */ std::max((uint32_t) 1, cparams.n_seq_max),
+                     /* n_seq_max         */ cparams.n_seq_max,
+                     /* n_rs_seq          */ cparams.n_rs_seq,
+@@ -3193,7 +3193,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+                             /* attn_kv_size      */ cparams.n_ctx_seq,
+                             /* attn_n_ubatch     */ cparams.n_ubatch,
+                             /* recurrent_type_r  */ GGML_TYPE_F32,
+-                            /* recurrent_type_s  */ GGML_TYPE_F32,
++                            /* recurrent_type_s  */ (getenv("LLAMA_STATE_F16") ? GGML_TYPE_F16 : GGML_TYPE_F32), // tvbox: fp16 recurrent state
+                             /* recurrent_rs_size */ std::max((uint32_t) 1, cparams.n_seq_max),
+                             /* n_seq_max         */ cparams.n_seq_max,
+                             /* n_rs_seq          */ cparams.n_rs_seq,
+@@ -3233,7 +3233,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+                             /* attn_n_swa        */ hparams.n_swa,
+                             /* attn_swa_type     */ hparams.swa_type,
+                             /* recurrent_type_k  */ GGML_TYPE_F32,
+-                            /* recurrent_type_v  */ GGML_TYPE_F32,
++                            /* recurrent_type_v  */ (getenv("LLAMA_STATE_F16") ? GGML_TYPE_F16 : GGML_TYPE_F32), // tvbox: fp16 recurrent (DeltaNet) state
+                             /* recurrent_kv_size */ std::max((uint32_t) 1, cparams.n_seq_max),
+                             /* n_seq_max         */ cparams.n_seq_max,
+                             /* n_rs_seq          */ cparams.n_rs_seq,
 diff --git a/src/llama-model.h b/src/llama-model.h
 index 222238e..0ba958c 100644
 --- a/src/llama-model.h
@@ -1998,10 +2338,10 @@ index 222238e..0ba958c 100644
      struct ggml_tensor * output_norm_enc = nullptr;
  
 diff --git a/src/models/delta-net-base.cpp b/src/models/delta-net-base.cpp
-index 2e15777..79febd5 100644
+index 2e15777..b438821 100644
 --- a/src/models/delta-net-base.cpp
 +++ b/src/models/delta-net-base.cpp
-@@ -549,10 +549,21 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
+@@ -549,10 +549,27 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
          cb(output, "attn_output", il);
          cb(new_state, "new_state", il);
  
@@ -2017,8 +2357,14 @@ index 2e15777..79febd5 100644
 +        // LLAMA_GDN_COPY=1 keeps the stock copy.
 +        static const bool gdn_direct = getenv("LLAMA_GDN_COPY") == nullptr;
 +        ggml_tensor * gdn = new_state->view_src;
++        // tvbox: the state input is a view of the cache (qwen35 by-id path): give the op the row ids and the cache
++        // so it reads each sequence's state at s_copy[seq] (src[7] ids, src[8] cache)
++        if (gdn && gdn->op == GGML_OP_GATED_DELTA_NET && s->view_src == ssm_states_all) {
++            gdn->src[7] = inp->s_copy_main;
++            gdn->src[8] = ssm_states_all;
++        }
 +        if (gdn_direct && gdn && gdn->op == GGML_OP_GATED_DELTA_NET && gdn->op_params[0] == 1 &&
-+            ggml_is_contiguous(state_dst) && ssm_states_all->type == GGML_TYPE_F32) {
++            ggml_is_contiguous(state_dst) && (ssm_states_all->type == GGML_TYPE_F32 || ssm_states_all->type == GGML_TYPE_F16)) {
 +            gdn->src[6] = state_dst;
 +            ggml_build_forward_expand(gf, gdn);
 +        } else {
@@ -2091,10 +2437,10 @@ index c01f838..978fc06 100644
      cb(cur, "result_output", -1);
      res->t_logits = cur;
 diff --git a/src/models/qwen35.cpp b/src/models/qwen35.cpp
-index 8a4e434..19c5018 100644
+index 8a4e434..eef6013 100644
 --- a/src/models/qwen35.cpp
 +++ b/src/models/qwen35.cpp
-@@ -1,6 +1,20 @@
+@@ -1,6 +1,28 @@
  #include "models.h"
  #include "llama-memory-recurrent.h"
  
@@ -2105,6 +2451,14 @@ index 8a4e434..19c5018 100644
 +        return cur;
 +    }
 +    const int64_t n_vocab_full = model.tok_embd->ne[1];
++    if (cur->ne[1] == 1 && ggml_is_contiguous(cur)) {
++        // tvbox: one output row: [n_keep, 1] has the same layout as [1, n_keep], no transposes needed
++        ggml_tensor * lt   = ggml_reshape_2d(ctx0, cur, 1, cur->ne[0]);
++        ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, 1, n_vocab_full);
++        full = ggml_fill_inplace(ctx0, full, -INFINITY);
++        full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++        return ggml_reshape_2d(ctx0, full, n_vocab_full, 1);
++    }
 +    ggml_tensor * lt   = ggml_cont(ctx0, ggml_transpose(ctx0, cur));                         // [n_out, n_keep]
 +    ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, lt->ne[0], n_vocab_full);   // [n_out, n_vocab]
 +    full = ggml_fill_inplace(ctx0, full, -INFINITY);
@@ -2115,7 +2469,7 @@ index 8a4e434..19c5018 100644
  void llama_model_qwen35::load_arch_hparams(llama_model_loader & ml) {
      ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS,       hparams.f_norm_rms_eps);
      ml.get_key_or_arr(LLM_KV_ROPE_DIMENSION_SECTIONS,    hparams.rope_sections, 4, true);
-@@ -37,11 +51,23 @@ void llama_model_qwen35::load_arch_tensors(llama_model_loader & ml) {
+@@ -37,11 +59,23 @@ void llama_model_qwen35::load_arch_tensors(llama_model_loader & ml) {
      const int trunk_flags = nf.trunk;
      const int mtp_flags   = nf.mtp;
  
@@ -2141,7 +2495,22 @@ index 8a4e434..19c5018 100644
  
      // optional projection of the embeddings output
      cls_out   = create_tensor(tn(LLM_TENSOR_CLS_OUT, "weight"), { n_embd, hparams.n_embd_out() }, TENSOR_NOT_REQUIRED);
-@@ -232,6 +258,8 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
+@@ -218,6 +252,14 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
+ 
+     cb(cur, "result_norm", -1);
+     res->t_embd = cur;
++    // tvbox: LLAMA_DUMP_HIDDEN=<file> appends every final hidden state (f32 rows) to <file> (head experiments)
++    if (getenv("LLAMA_DUMP_HIDDEN")) {
++        cur = ggml_map_custom1(ctx0, ggml_cont(ctx0, cur), [](ggml_tensor * dst, const ggml_tensor * a, int ith, int nth, void *) {
++            memcpy(dst->data, a->data, ggml_nbytes(a));
++            if (ith == 0) { FILE * f = fopen(getenv("LLAMA_DUMP_HIDDEN"), "ab"); fwrite(a->data, 1, ggml_nbytes(a), f); fclose(f); }
++            GGML_UNUSED(nth);
++        }, 1, nullptr);
++    }
+ 
+     if (model.cls_out) {
+         ggml_tensor * embd = build_lora_mm(model.cls_out, cur);
+@@ -232,6 +274,8 @@ llama_model_qwen35::graph::graph(const llama_model & model, const llm_graph_para
      // LM head
      cur = build_lora_mm(model.output, cur, model.output_s);
  
@@ -2150,7 +2519,30 @@ index 8a4e434..19c5018 100644
      cb(cur, "result_output", -1);
      res->t_logits = cur;
  }
-@@ -657,6 +685,9 @@ llama_model_qwen35::graph_mtp::graph_mtp(const llama_model & model, const llm_gr
+@@ -396,7 +440,21 @@ ggml_tensor * llama_model_qwen35::graph::build_layer_attn_linear(
+ 
+     ggml_tensor * conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
+ 
+-    ggml_tensor * state = build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs);
++    // tvbox: let the fused GDN op read each sequence's state straight from the cache (row s_copy[seq], resolved at
++    // compute time) instead of gathering the 1 MB/layer state into a temporary with GET_ROWS first. The view below
++    // only fixes the shape and the graph dependency; build_recurrent_attn() hands the op the ids and the cache.
++    // LLAMA_GDN_GATHER=1 = stock gather.
++    static const bool gdn_byid = getenv("LLAMA_GDN_GATHER") == nullptr;
++    const auto rs_head = mctx_cur->get_head();
++    const bool state_f16 = ssm_states_all->type == GGML_TYPE_F16;
++    GGML_ASSERT(!state_f16 || (gdn_byid && cparams.n_rs_seq == 0) || !"fp16 recurrent state needs the by-id GDN path (no MTP)");
++    ggml_tensor * state = (gdn_byid && cparams.n_rs_seq == 0 && (ssm_states_all->type == GGML_TYPE_F32 || state_f16))
++        ? build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs,
++              [rs_head, n_seqs](ggml_context * ctx, ggml_tensor * states, ggml_tensor * ids) {
++                  GGML_UNUSED(ids);
++                  return ggml_view_2d(ctx, states, states->ne[0], n_seqs, states->nb[1], rs_head * states->nb[1]);
++              })
++        : build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs);
+     state = ggml_reshape_4d(ctx0, state, head_v_dim, head_v_dim, num_v_heads, n_seqs);
+     cb(state, "state_predelta", il);
+ 
+@@ -657,6 +715,9 @@ llama_model_qwen35::graph_mtp::graph_mtp(const llama_model & model, const llm_gr
      ggml_tensor * head_s = layer.nextn.shared_head_head ? layer.nextn.shared_head_head_s : model.output_s;
      GGML_ASSERT(head_w && "QWEN35 MTP: missing LM head (nextn.shared_head_head or model.output)");
      cur = build_lora_mm(head_w, cur, head_s);

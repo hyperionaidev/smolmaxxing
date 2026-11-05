@@ -1,0 +1,4 @@
+ctx 128 X=1 Final estimate: PPL = 12.7040
+ctx 128 GGML_GDN_F16SIM=1 Final estimate: PPL = 12.7051
+ctx 512 X=1 Final estimate: PPL = 12.7887
+ctx 512 GGML_GDN_F16SIM=1 Final estimate: PPL = 12.8018

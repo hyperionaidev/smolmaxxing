@@ -1,0 +1,89 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 0.8B Q4_0               | 473.21 MiB |   752.39 M | CPU        |       3 |            tg64 |          8.15 ± 0.14 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 455 MB, max RSS 598 MB
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 0.8B Q4_0               | 473.21 MiB |   752.39 M | CPU        |       3 |           pp128 |         31.78 ± 0.00 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 446 MB, max RSS 618 MB
+0.06.699.594 I cmn          init: llama threadpool init, n_threads = 4
+0.07.074.752 I 
+0.07.074.897 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | REPACK = 1 | 
+0.07.074.953 I perplexity: tokenizing the input ..
+0.07.109.022 I perplexity: tokenization took 34.053 ms
+0.07.109.143 I perplexity: calculating perplexity over 40 chunks, n_ctx=128, batch_size=128, n_seq=1
+0.11.856.109 I perplexity: 4.75 seconds per pass - ETA 3.15 minutes
+[1]7.8000,[2]7.7213,[3]10.8339,[4]10.3056,[5]10.0370,[6]10.8211,[7]11.3903,[8]11.9563,[9]12.4006,[10]13.5718,[11]12.4711,[12]12.5305,[13]12.3181,[14]14.6423,[15]15.7543,[16]16.6197,[17]17.7327,[18]19.4319,[19]20.0701,[20]20.9153,[21]21.8156,[22]22.0044,[23]22.1278,[24]21.9572,[25]22.4042,[26]22.7781,[27]23.3482,[28]23.2293,[29]21.6371,[30]20.0410,[31]19.4827,[32]18.7972,[33]17.7410,[34]16.9904,[35]16.8141,[36]16.0133,[37]15.5602,[38]15.1130,[39]14.8006,[40]14.1378,
+3.16.025.357 I Final estimate: PPL = 14.1378 +/- 0.84113
+3.16.025.359 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab)
+
+tv-guard: exit 0, min MemAvailable 319 MB, max RSS 750 MB
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 0.8B Q4_0               | 473.21 MiB |   752.39 M | CPU        |       3 |            tg16 |          7.63 ± 0.00 |
+
+[opprof] 17 graphs, 2.201 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q6_K           17     784.5   35.6%      4.52    784.4ms  46144.3
+[opprof] MUL_MAT                q4_0         2193     761.4   34.6%      5.63    621.1ms    347.2
+[opprof] GATED_DELTA_NET        f32           306     142.9    6.5%      0.02    114.6ms    466.9
+[opprof] MUL_MAT                q5_K          306     116.6    5.3%      3.78     83.3ms    380.9
+[opprof] GET_ROWS               f32           646     104.1    4.7%      3.30    100.8ms    161.1
+[opprof] GET_ROWS               q6_K           17      71.0    3.2%     49.96     62.2ms   4175.3
+[opprof] UNARY                  f32          1326      33.2    1.5%      0.33     30.5ms     25.1
+[opprof] MUL_MAT                q4_1           51      27.8    1.3%      4.20     23.8ms    545.6
+[opprof] CPY                    f32           918      26.1    1.2%      1.15      5.0ms     28.4
+[opprof] RMS_NORM               f32          1955      23.1    1.0%      0.55     12.4ms     11.8
+[opprof] ADD                    f32          1122      22.6    1.0%      0.15      7.5ms     20.1
+[opprof] SSM_CONV               f32           306      15.1    0.7%      1.99     11.0ms     49.5
+[opprof] MUL                    f32           714      14.7    0.7%      0.23      3.3ms     20.6
+[opprof] CONCAT                 f32           306      14.5    0.7%      1.55     10.4ms     47.5
+[opprof] GLU                    f32           408      13.8    0.6%      0.42     13.2ms     33.9
+[opprof] SCALE                  f32          1224      11.9    0.5%      3.80     10.9ms      9.8
+[opprof] MUL_MAT                q8_0          612       7.7    0.3%      1.39      6.7ms     12.5
+[opprof] FLASH_ATTN_EXT         f32           102       5.5    0.3%      0.15      3.1ms     54.3
+[opprof] ROPE                   f32           204       3.5    0.2%      0.30      3.0ms     17.2
+[opprof] SET_ROWS               f32           204       0.5    0.0%      0.78      0.4ms      2.6
+[opprof] CONT                   f32           102       0.5    0.0%      3.21      0.3ms      4.8
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 466 MB, max RSS 723 MB
+
+
+Loading model... |-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/ 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-8642541
+model      : s-q35-08-q40.gguf
+ftype      : Q4_0
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is Canberra, chosen over Sydney because it was located in the middle of the country, making it a more central and accessible location for government administration.
+
+[ Prompt: 32.3 t/s | Generation: 8.0 t/s ]
+
+
+Exiting...
+tv-guard: exit 0, min MemAvailable 408 MB, max RSS 657 MB
+NTOK 0

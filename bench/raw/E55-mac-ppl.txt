@@ -1,0 +1,15 @@
+== bf16-h65
+0.26.332.327 I Final estimate: PPL = 12.3580 +/- 0.72722
+0.26.332.327 I pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab)
+== q4k-h65
+0.20.432.331 I Final estimate: PPL = 13.2409 +/- 0.78925
+0.20.432.331 I pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab)
+== q40-h65
+0.16.364.785 I Final estimate: PPL = 14.1683 +/- 0.84716
+0.16.364.786 I pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab)
+== q8_0 883553472
+0.22.655.551 I Final estimate: PPL = 12.3684 +/- 0.72804
+== q6_K 685168352
+0.31.165.220 I Final estimate: PPL = 12.4540 +/- 0.73450
+== q5_K 576376512
+0.24.813.249 I Final estimate: PPL = 12.6262 +/- 0.74490

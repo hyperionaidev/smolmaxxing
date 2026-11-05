@@ -4,6 +4,7 @@
 # them back. Each target is independent:
 #
 #   ADB_SERIAL=<tv-ip>:5555 tools/rebuild-models.sh 2b      # Qwen3.5-2B all-Q4_K + 65K head (the default model, §11.8)
+#                                                  08      # Qwen3.5-0.8B all-Q4_K + 65K head (§15; quantized on the Mac)
 #                                                  4b      # Ternary-Bonsai-4B lossless + 61K head (§13)
 #                                                  b8      # Bonsai-8B 1-bit + 61K head (§14)
 #                                                  tb8     # Ternary-Bonsai-8B + 61K head (§14)
@@ -38,6 +39,19 @@ for T in "$@"; do case "$T" in
   #    then swap the 32K head for the 65,668-row multilingual one (gguf_recut re-cuts rows from token_embd)
   A "cd $D && sh tv-guard.sh q-2b.log sh tv-quant.sh q4k work-bf16-h32k-mtp.gguf w-q4k.gguf && ./gguf_recut w-q4k.gguf w-q4k-h65.gguf head-ids-ml60k.txt && rm w-q4k.gguf"
   ;;
+08)
+  # Qwen3.5-0.8B (§15, E55): unsloth BF16 + the 65,668-row head (same tokenizer as the 2B), pure Q4_K with
+  # unsloth's 0.8B imatrix. Quantized on the Mac (needs a native build: third_party/llama.cpp/build-mac/bin/llama-quantize,
+  # ~25 s), since the BF16 file (1.65 GB with the head) doesn't fit next to the other models on the TV's flash.
+  W=models/small; mkdir -p $W
+  curl -sL "$HF/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/imatrix_unsloth.gguf_file" -o $W/imatrix-q08.gguf
+  curl -sL "$HF/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-BF16.gguf" \
+    | python3 -I tools/gguf_build.py - $W/q08-bf16-h65.gguf --head-ids data/head-ids-ml60k.txt
+  third_party/llama.cpp/build-mac/bin/llama-quantize --imatrix $W/imatrix-q08.gguf --pure \
+    --token-embedding-type q4_K --output-tensor-type q4_K $W/q08-bf16-h65.gguf $W/q08-q4k-h65.gguf Q4_K_M 8
+  rm $W/q08-bf16-h65.gguf
+  adb -s "$S" push $W/q08-q4k-h65.gguf "$D/" >/dev/null
+  ;;
 4b)
   # Ternary-Bonsai-4B (tied embedding): add the 61,592-row frequency head cut from token_embd. Loaded with
   # patched16 it is repacked to 1.875 bits/weight in RAM (E39). The TQ1_0 variant of §13 = llama-quantize
@@ -69,5 +83,5 @@ caches)
   A "cd $D && GGML_REPACK_CACHE=$D/cache/tb8 sh tv-guard.sh c-tb8.log ./patched16/llama-bench -m tb8-q20-hml.gguf -t 3 -p 0 -n 1 -r 1"
   A "ls -la $D/cache"
   ;;
-*) echo "unknown target $T (2b 4b b8 tb8 q9 caches)"; exit 1 ;;
+*) echo "unknown target $T (2b 08 4b b8 tb8 q9 caches)"; exit 1 ;;
 esac; done

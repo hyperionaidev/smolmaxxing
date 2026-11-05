@@ -1,0 +1,872 @@
+[optrace] graph 12, 1403 nodes, 3 threads: idx op name src0type ne0 ne1 | us per thread
+[optrace]    0 GET_ROWS         model.input_embed            q4_K     1024      1 |     6.5     2.3     2.2
+[optrace]    4 RMS_NORM         norm-0                       f32      1024      1 |    48.5     2.5     2.5
+[optrace]    5 MUL              attn_norm-0                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]    8 SCALE            cache_r_l0 (reshaped) (view) (view) f32         0      1 |     0.1     0.1     0.2
+[optrace]    9 GET_ROWS         node_9                       f32     18432      1 |    15.2     0.8     0.9
+[optrace]   13 CPY              cache_r_l0 (view) (copy of node_9 (view)) f32     18432      0 |     0.1     0.2     0.2
+[optrace]   15 MUL_MAT          node_15                      q4_K     6144      1 |   489.6   461.5   431.4
+[optrace]   18 CONCAT           conv_input-0                 f32         4   6144 |    30.7    28.8    28.5
+[optrace]   21 CPY              conv_state_update-0 (copy of conv_state_last-0) f32     18432      1 |    15.0    15.4    15.5
+[optrace]   24 SCALE            cache_s_l0 (reshaped) (view) (view) f32         0      1 |     0.2     0.1     0.2
+[optrace]   27 GET_ROWS         node_27                      f32    262144      0 |     0.1     0.2     0.2
+[optrace]   30 CPY              cache_s_l0 (view) (copy of  (view)) f32    262144      0 |     0.2     0.2     0.2
+[optrace]   31 SSM_CONV         conv_output_raw-0            f32      6144      1 |    29.4    30.3    29.5
+[optrace]   32 SILU             conv_output_silu-0           f32      6144      1 |    37.8     1.3     1.2
+[optrace]   34 RMS_NORM         node_34                      f32       128     16 |     6.2     6.0     5.9
+[optrace]   35 SCALE            q_conv_predelta-0            f32       128     16 |     1.5     2.1     1.9
+[optrace]   37 RMS_NORM         node_37                      f32       128     16 |     3.7     3.3     3.5
+[optrace]   38 SCALE            k_conv_predelta-0            f32       128     16 |     1.0     0.9     0.7
+[optrace]   40 MUL_MAT          node_40                      q4_K       16      1 |    10.6    11.1     7.8
+[optrace]   42 ADD              node_42                      f32        16      1 |     3.0     2.3     2.3
+[optrace]   43 SOFTPLUS         a_softplus-0                 f32        16      1 |     4.0     1.0     1.0
+[optrace]   44 MUL              gate-0                       f32        16      1 |     2.7     1.5     1.4
+[optrace]   46 MUL_MAT          node_46                      q4_K       16      1 |     7.2     7.5     4.5
+[optrace]   48 SIGMOID          beta_sigmoid-0               f32         1     16 |     1.9     2.0     1.9
+[optrace]   52 GATED_DELTA_NET  node_52                      f32      2048    129 |   238.5   280.3   201.3
+[optrace]   54 RMS_NORM         norm-0                       f32       128     16 |    12.0    10.0    10.7
+[optrace]   55 MUL              node_55                      f32       128     16 |     0.0     0.0     0.0
+[optrace]   56 MUL_MAT          z-0                          q4_K     2048      1 |   337.1   378.6   329.3
+[optrace]   58 SILU             node_58                      f32       128     16 |     8.1     8.3     6.7
+[optrace]   59 MUL              node_59                      f32       128     16 |     5.5     6.2     5.0
+[optrace]   61 MUL_MAT          linear_attn_out-0            q4_K     1024      1 |   168.4   166.5   173.7
+[optrace]   62 ADD              attn_residual-0              f32      1024      1 |     6.1     2.0     1.9
+[optrace]   63 RMS_NORM         norm-0                       f32      1024      1 |     6.3     1.7     1.6
+[optrace]   64 MUL              attn_post_norm-0             f32      1024      1 |     0.0     0.0     0.0
+[optrace]   65 MUL_MAT          ffn_gate-0                   q4_K     3584      1 |   256.3   260.6   239.3
+[optrace]   66 MUL_MAT          ffn_up-0                     q4_K     3584      1 |   287.2   300.7   294.9
+[optrace]   67 SWIGLU           ffn_swiglu-0                 f32      3584      1 |    28.2     2.7     2.8
+[optrace]   68 MUL_MAT          ffn_out-0                    q4_K     1024      1 |   327.9   288.6   272.3
+[optrace]   69 ADD              l_out-0                      f32      1024      1 |     8.0     1.1     1.8
+[optrace]   70 RMS_NORM         norm-1                       f32      1024      1 |     6.0     1.7     1.6
+[optrace]   71 MUL              attn_norm-1                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]   74 SCALE            cache_r_l1 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace]   75 GET_ROWS         node_75                      f32     18432      1 |    13.0     1.3     1.2
+[optrace]   79 CPY              cache_r_l1 (view) (copy of node_75 (view)) f32     18432      0 |     0.2     0.1     0.1
+[optrace]   81 MUL_MAT          node_81                      q4_K     6144      1 |   415.3   421.2   398.1
+[optrace]   84 CONCAT           conv_input-1                 f32         4   6144 |    37.2    28.4    29.1
+[optrace]   87 CPY              conv_state_update-1 (copy of conv_state_last-1) f32     18432      1 |    15.3    15.3    15.4
+[optrace]   90 SCALE            cache_s_l1 (reshaped) (view) (view) f32         0      1 |     0.2     0.1     0.2
+[optrace]   92 GET_ROWS         node_92                      f32    262144      0 |     0.0     0.1     0.2
+[optrace]   95 CPY              cache_s_l1 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace]   96 SSM_CONV         conv_output_raw-1            f32      6144      1 |    30.3    29.8    30.6
+[optrace]   97 SILU             conv_output_silu-1           f32      6144      1 |    37.7     1.0     1.0
+[optrace]   99 RMS_NORM         node_99                      f32       128     16 |     6.1     5.8     6.0
+[optrace]  100 SCALE            q_conv_predelta-1            f32       128     16 |     1.5     1.7     1.7
+[optrace]  102 RMS_NORM         node_102                     f32       128     16 |     3.4     3.1     3.2
+[optrace]  103 SCALE            k_conv_predelta-1            f32       128     16 |     1.3     1.2     1.0
+[optrace]  105 MUL_MAT          node_105                     q4_K       16      1 |    11.3    10.6     7.4
+[optrace]  107 ADD              node_107                     f32        16      1 |     2.5     1.2     1.3
+[optrace]  108 SOFTPLUS         a_softplus-1                 f32        16      1 |     4.0     0.9     0.9
+[optrace]  109 MUL              gate-1                       f32        16      1 |     3.0     1.7     1.1
+[optrace]  111 MUL_MAT          node_111                     q4_K       16      1 |     7.5     8.5     4.5
+[optrace]  113 SIGMOID          beta_sigmoid-1               f32         1     16 |     1.9     2.0     1.9
+[optrace]  116 GATED_DELTA_NET  node_116                     f32      2048    129 |   259.2   189.4   268.3
+[optrace]  118 RMS_NORM         norm-1                       f32       128     16 |     9.5     8.1     7.8
+[optrace]  119 MUL              node_119                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  120 MUL_MAT          z-1                          q4_K     2048      1 |   345.5   302.2   305.8
+[optrace]  122 SILU             node_122                     f32       128     16 |     7.8     6.3     5.2
+[optrace]  123 MUL              node_123                     f32       128     16 |     4.7     5.6     4.5
+[optrace]  125 MUL_MAT          linear_attn_out-1            q4_K     1024      1 |   181.2   180.7   171.8
+[optrace]  126 ADD              attn_residual-1              f32      1024      1 |     6.3     2.2     2.2
+[optrace]  127 RMS_NORM         norm-1                       f32      1024      1 |     6.0     1.7     1.2
+[optrace]  128 MUL              attn_post_norm-1             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  129 MUL_MAT          ffn_gate-1                   q4_K     3584      1 |   294.1   304.0   257.7
+[optrace]  130 MUL_MAT          ffn_up-1                     q4_K     3584      1 |   219.5   253.7   255.9
+[optrace]  131 SWIGLU           ffn_swiglu-1                 f32      3584      1 |    29.5     3.1     2.8
+[optrace]  132 MUL_MAT          ffn_out-1                    q4_K     1024      1 |   240.5   327.0   239.2
+[optrace]  133 ADD              l_out-1                      f32      1024      1 |     7.0    29.6     2.3
+[optrace]  134 RMS_NORM         norm-2                       f32      1024      1 |     5.8     1.9     1.3
+[optrace]  135 MUL              attn_norm-2                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]  138 SCALE            cache_r_l2 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace]  139 GET_ROWS         node_139                     f32     18432      1 |    14.6     1.5     1.5
+[optrace]  143 CPY              cache_r_l2 (view) (copy of node_139 (view)) f32     18432      0 |     0.2     0.2     0.2
+[optrace]  145 MUL_MAT          node_145                     q4_K     6144      1 |   451.1   479.1   451.7
+[optrace]  148 CONCAT           conv_input-2                 f32         4   6144 |   246.9    29.4    30.0
+[optrace]  151 CPY              conv_state_update-2 (copy of conv_state_last-2) f32     18432      1 |    16.4    15.8    15.5
+[optrace]  154 SCALE            cache_s_l2 (reshaped) (view) (view) f32         0      1 |     0.5     0.5     0.5
+[optrace]  156 GET_ROWS         node_156                     f32    262144      0 |     0.1     0.2     0.2
+[optrace]  159 CPY              cache_s_l2 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace]  160 SSM_CONV         conv_output_raw-2            f32      6144      1 |    32.1    30.0    30.8
+[optrace]  161 SILU             conv_output_silu-2           f32      6144      1 |    38.1     1.5     1.4
+[optrace]  163 RMS_NORM         node_163                     f32       128     16 |     6.0     5.9     6.1
+[optrace]  164 SCALE            q_conv_predelta-2            f32       128     16 |     1.5     1.8     1.7
+[optrace]  166 RMS_NORM         node_166                     f32       128     16 |     3.6     3.2     3.5
+[optrace]  167 SCALE            k_conv_predelta-2            f32       128     16 |     0.9     0.9     0.7
+[optrace]  169 MUL_MAT          node_169                     q4_K       16      1 |    13.5    13.5     9.1
+[optrace]  171 ADD              node_171                     f32        16      1 |     3.0     1.7     1.9
+[optrace]  172 SOFTPLUS         a_softplus-2                 f32        16      1 |     4.3     1.3     1.4
+[optrace]  173 MUL              gate-2                       f32        16      1 |     2.4     1.4     1.3
+[optrace]  175 MUL_MAT          node_175                     q4_K       16      1 |     6.6     7.1     4.4
+[optrace]  177 SIGMOID          beta_sigmoid-2               f32         1     16 |     1.6     1.9     1.6
+[optrace]  180 GATED_DELTA_NET  node_180                     f32      2048    129 |   334.9   240.5   246.5
+[optrace]  182 RMS_NORM         norm-2                       f32       128     16 |     9.2     3.5     9.6
+[optrace]  183 MUL              node_183                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  184 MUL_MAT          z-2                          q4_K     2048      1 |   242.3   266.2   256.4
+[optrace]  186 SILU             node_186                     f32       128     16 |     7.7     8.0     6.5
+[optrace]  187 MUL              node_187                     f32       128     16 |     5.4     5.6     4.7
+[optrace]  189 MUL_MAT          linear_attn_out-2            q4_K     1024      1 |   163.7   146.0   167.7
+[optrace]  190 ADD              attn_residual-2              f32      1024      1 |     7.4     2.1     1.8
+[optrace]  191 RMS_NORM         norm-2                       f32      1024      1 |     5.7     1.7     1.3
+[optrace]  192 MUL              attn_post_norm-2             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  193 MUL_MAT          ffn_gate-2                   q4_K     3584      1 |   228.5   248.6   275.6
+[optrace]  194 MUL_MAT          ffn_up-2                     q4_K     3584      1 |   216.5   263.5   222.5
+[optrace]  195 SWIGLU           ffn_swiglu-2                 f32      3584      1 |    27.4     3.0     2.9
+[optrace]  196 MUL_MAT          ffn_out-2                    q4_K     1024      1 |   307.6   304.5   304.2
+[optrace]  197 ADD              l_out-2                      f32      1024      1 |     7.5     2.9     1.8
+[optrace]  198 RMS_NORM         norm-3                       f32      1024      1 |     6.3     1.6     1.1
+[optrace]  199 MUL              attn_norm-3                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]  200 MUL_MAT          Qcur_full-3                  q4_K     4096      1 |   233.5   273.0   280.3
+[optrace]  202 RMS_NORM         norm-3                       f32       256      8 |     5.2     6.3     5.3
+[optrace]  203 MUL              Qcur_normed-3                f32       256      8 |     0.0     0.0     0.0
+[optrace]  204 ROPE             Qcur-3                       f32       256      8 |    17.0    17.5    17.1
+[optrace]  205 MUL_MAT          Vcur-3                       q4_K      512      1 |    48.2    44.1    48.4
+[optrace]  207 MUL_MAT          Kcur-3                       q4_K      512      1 |    83.8    41.3    44.8
+[optrace]  209 RMS_NORM         norm-3                       f32       256      2 |     3.2     3.3     1.2
+[optrace]  210 MUL              Kcur_normed-3                f32       256      2 |     0.0     0.0     0.0
+[optrace]  211 ROPE             Kcur-3                       f32       256      2 |     9.2     9.1     1.8
+[optrace]  213 SET_ROWS         cache_k_l3 (view)            f32       512    256 |     2.3     1.2     1.2
+[optrace]  215 SET_ROWS         cache_v_l3 (view)            f32       512    256 |     2.4     0.7     0.7
+[optrace]  222 FLASH_ATTN_EXT   node_222                     f32       256      8 |    30.8    24.5    30.7
+[optrace]  225 CONT             gate_reshaped-3              f32      2048      1 |     3.0     3.2     3.5
+[optrace]  226 SIGMOID          gate_sigmoid-3               f32      2048      1 |   135.5     1.6     1.5
+[optrace]  227 MUL              attn_gated-3                 f32      2048      1 |     8.1     1.0     0.8
+[optrace]  228 MUL_MAT          attn_output-3                q4_K     1024      1 |   180.5   196.6   195.7
+[optrace]  229 ADD              attn_residual-3              f32      1024      1 |     7.0     2.8     2.9
+[optrace]  230 RMS_NORM         norm-3                       f32      1024      1 |     6.3     1.9     1.9
+[optrace]  231 MUL              attn_post_norm-3             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  232 MUL_MAT          ffn_gate-3                   q4_K     3584      1 |   327.3   286.0   340.0
+[optrace]  233 MUL_MAT          ffn_up-3                     q4_K     3584      1 |   242.0   280.5   255.3
+[optrace]  234 SWIGLU           ffn_swiglu-3                 f32      3584      1 |    31.1     2.8     2.7
+[optrace]  235 MUL_MAT          ffn_out-3                    q4_K     1024      1 |   290.2   296.0   277.3
+[optrace]  236 ADD              l_out-3                      f32      1024      1 |     7.5     3.0     3.1
+[optrace]  237 RMS_NORM         norm-4                       f32      1024      1 |     6.6     2.2     1.9
+[optrace]  238 MUL              attn_norm-4                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]  241 SCALE            cache_r_l4 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.1
+[optrace]  242 GET_ROWS         node_242                     f32     18432      1 |    26.3     1.3     1.3
+[optrace]  246 CPY              cache_r_l4 (view) (copy of node_242 (view)) f32     18432      0 |     0.2     0.2     0.1
+[optrace]  248 MUL_MAT          node_248                     q4_K     6144      1 |   494.3   462.5   388.0
+[optrace]  251 CONCAT           conv_input-4                 f32         4   6144 |    32.7    27.1    30.2
+[optrace]  254 CPY              conv_state_update-4 (copy of conv_state_last-4) f32     18432      1 |    15.9    16.2    16.2
+[optrace]  257 SCALE            cache_s_l4 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace]  259 GET_ROWS         node_259                     f32    262144      0 |     0.1     0.1     0.0
+[optrace]  262 CPY              cache_s_l4 (view) (copy of  (view)) f32    262144      0 |     0.2     0.3     0.2
+[optrace]  263 SSM_CONV         conv_output_raw-4            f32      6144      1 |    64.3    29.8    29.5
+[optrace]  264 SILU             conv_output_silu-4           f32      6144      1 |    37.9     1.2     1.0
+[optrace]  266 RMS_NORM         node_266                     f32       128     16 |     6.3     6.0     6.0
+[optrace]  267 SCALE            q_conv_predelta-4            f32       128     16 |     1.6     1.8     1.7
+[optrace]  269 RMS_NORM         node_269                     f32       128     16 |     3.9     3.5     3.7
+[optrace]  270 SCALE            k_conv_predelta-4            f32       128     16 |     1.0     1.1     0.8
+[optrace]  272 MUL_MAT          node_272                     q4_K       16      1 |    11.6    11.9     8.0
+[optrace]  274 ADD              node_274                     f32        16      1 |     3.0     2.0     1.8
+[optrace]  275 SOFTPLUS         a_softplus-4                 f32        16      1 |     4.3     0.9     0.9
+[optrace]  276 MUL              gate-4                       f32        16      1 |     2.4     1.2     1.1
+[optrace]  278 MUL_MAT          node_278                     q4_K       16      1 |    27.4    26.3    23.6
+[optrace]  280 SIGMOID          beta_sigmoid-4               f32         1     16 |     1.7     1.9     1.7
+[optrace]  283 GATED_DELTA_NET  node_283                     f32      2048    129 |   232.7   252.5   185.5
+[optrace]  285 RMS_NORM         norm-4                       f32       128     16 |    10.5     9.9     9.0
+[optrace]  286 MUL              node_286                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  287 MUL_MAT          z-4                          q4_K     2048      1 |   283.6   281.5   276.2
+[optrace]  289 SILU             node_289                     f32       128     16 |     7.0     7.4     5.7
+[optrace]  290 MUL              node_290                     f32       128     16 |     5.2     5.2     4.2
+[optrace]  292 MUL_MAT          linear_attn_out-4            q4_K     1024      1 |   166.2   159.5   141.5
+[optrace]  293 ADD              attn_residual-4              f32      1024      1 |     6.5     2.1     1.7
+[optrace]  294 RMS_NORM         norm-4                       f32      1024      1 |     4.8     0.8     1.0
+[optrace]  295 MUL              attn_post_norm-4             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  296 MUL_MAT          ffn_gate-4                   q4_K     3584      1 |   351.5   302.6   303.9
+[optrace]  297 MUL_MAT          ffn_up-4                     q4_K     3584      1 |   254.4   259.0   223.3
+[optrace]  298 SWIGLU           ffn_swiglu-4                 f32      3584      1 |    27.3     3.0     2.9
+[optrace]  299 MUL_MAT          ffn_out-4                    q4_K     1024      1 |   272.0   224.6   261.5
+[optrace]  300 ADD              l_out-4                      f32      1024      1 |     7.5     2.7     2.0
+[optrace]  301 RMS_NORM         norm-5                       f32      1024      1 |     6.3     1.6     1.1
+[optrace]  302 MUL              attn_norm-5                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]  305 SCALE            cache_r_l5 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace]  306 GET_ROWS         node_306                     f32     18432      1 |    25.1     1.1     1.1
+[optrace]  310 CPY              cache_r_l5 (view) (copy of node_306 (view)) f32     18432      0 |     0.1     0.2     0.2
+[optrace]  312 MUL_MAT          node_312                     q4_K     6144      1 |   497.0   537.7   453.4
+[optrace]  315 CONCAT           conv_input-5                 f32         4   6144 |    24.8    27.9    28.3
+[optrace]  318 CPY              conv_state_update-5 (copy of conv_state_last-5) f32     18432      1 |    15.3    15.7    15.8
+[optrace]  321 SCALE            cache_s_l5 (reshaped) (view) (view) f32         0      1 |     0.0     0.2     0.1
+[optrace]  323 GET_ROWS         node_323                     f32    262144      0 |     0.0     0.2     0.2
+[optrace]  326 CPY              cache_s_l5 (view) (copy of  (view)) f32    262144      0 |     0.2     0.2     0.2
+[optrace]  327 SSM_CONV         conv_output_raw-5            f32      6144      1 |    29.4    29.5    29.0
+[optrace]  328 SILU             conv_output_silu-5           f32      6144      1 |    37.5     1.0     0.9
+[optrace]  330 RMS_NORM         node_330                     f32       128     16 |     6.0     5.6     5.8
+[optrace]  331 SCALE            q_conv_predelta-5            f32       128     16 |     1.7     2.0     1.7
+[optrace]  333 RMS_NORM         node_333                     f32       128     16 |     3.8     3.5     3.6
+[optrace]  334 SCALE            k_conv_predelta-5            f32       128     16 |     1.1     1.1     0.9
+[optrace]  336 MUL_MAT          node_336                     q4_K       16      1 |    11.7    12.1     8.2
+[optrace]  338 ADD              node_338                     f32        16      1 |     2.5     1.9     1.8
+[optrace]  339 SOFTPLUS         a_softplus-5                 f32        16      1 |     3.8     0.8     0.7
+[optrace]  340 MUL              gate-5                       f32        16      1 |     2.3     1.2     1.1
+[optrace]  342 MUL_MAT          node_342                     q4_K       16      1 |     7.0     7.4     4.1
+[optrace]  344 SIGMOID          beta_sigmoid-5               f32         1     16 |     1.7     1.8     1.7
+[optrace]  347 GATED_DELTA_NET  node_347                     f32      2048    129 |   182.0   236.2   248.6
+[optrace]  349 RMS_NORM         norm-5                       f32       128     16 |     9.0     9.1     9.1
+[optrace]  350 MUL              node_350                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  351 MUL_MAT          z-5                          q4_K     2048      1 |   254.4   267.2   252.7
+[optrace]  353 SILU             node_353                     f32       128     16 |     7.0     7.1     5.7
+[optrace]  354 MUL              node_354                     f32       128     16 |     4.2     5.5     4.3
+[optrace]  356 MUL_MAT          linear_attn_out-5            q4_K     1024      1 |   218.7   242.1   211.9
+[optrace]  357 ADD              attn_residual-5              f32      1024      1 |     5.4     3.8     3.7
+[optrace]  358 RMS_NORM         norm-5                       f32      1024      1 |     6.5     0.6     2.2
+[optrace]  359 MUL              attn_post_norm-5             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  360 MUL_MAT          ffn_gate-5                   q4_K     3584      1 |   216.6   269.1   256.0
+[optrace]  361 MUL_MAT          ffn_up-5                     q4_K     3584      1 |   251.8   261.2   227.9
+[optrace]  362 SWIGLU           ffn_swiglu-5                 f32      3584      1 |    27.0     2.6     2.6
+[optrace]  363 MUL_MAT          ffn_out-5                    q4_K     1024      1 |   272.7   279.3   272.6
+[optrace]  364 ADD              l_out-5                      f32      1024      1 |     6.7     2.3     2.1
+[optrace]  365 RMS_NORM         norm-6                       f32      1024      1 |     6.9     1.3     1.2
+[optrace]  366 MUL              attn_norm-6                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]  369 SCALE            cache_r_l6 (reshaped) (view) (view) f32         0      1 |     0.3     0.3     0.2
+[optrace]  370 GET_ROWS         node_370                     f32     18432      1 |    14.0     1.3     1.2
+[optrace]  374 CPY              cache_r_l6 (view) (copy of node_370 (view)) f32     18432      0 |     0.0     0.2     0.2
+[optrace]  376 MUL_MAT          node_376                     q4_K     6144      1 |   589.9   480.8   509.1
+[optrace]  379 CONCAT           conv_input-6                 f32         4   6144 |    33.6    33.4    32.5
+[optrace]  382 CPY              conv_state_update-6 (copy of conv_state_last-6) f32     18432      1 |    15.5    15.6    15.5
+[optrace]  385 SCALE            cache_s_l6 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace]  387 GET_ROWS         node_387                     f32    262144      0 |     0.1     0.2     0.2
+[optrace]  390 CPY              cache_s_l6 (view) (copy of  (view)) f32    262144      0 |     0.2     0.1     0.1
+[optrace]  391 SSM_CONV         conv_output_raw-6            f32      6144      1 |    30.3    31.9    30.5
+[optrace]  392 SILU             conv_output_silu-6           f32      6144      1 |    37.8     1.3     1.3
+[optrace]  394 RMS_NORM         node_394                     f32       128     16 |     7.0     3.8     6.6
+[optrace]  395 SCALE            q_conv_predelta-6            f32       128     16 |     1.7     2.0     1.8
+[optrace]  397 RMS_NORM         node_397                     f32       128     16 |     3.7     3.6     3.6
+[optrace]  398 SCALE            k_conv_predelta-6            f32       128     16 |     1.1     1.1     0.9
+[optrace]  400 MUL_MAT          node_400                     q4_K       16      1 |    11.3    58.1    45.1
+[optrace]  402 ADD              node_402                     f32        16      1 |     2.6     2.0     1.3
+[optrace]  403 SOFTPLUS         a_softplus-6                 f32        16      1 |     4.6     1.0     1.0
+[optrace]  404 MUL              gate-6                       f32        16      1 |     2.5     1.3     1.3
+[optrace]  406 MUL_MAT          node_406                     q4_K       16      1 |     6.7     6.4     4.2
+[optrace]  408 SIGMOID          beta_sigmoid-6               f32         1     16 |     1.8     1.9     1.9
+[optrace]  411 GATED_DELTA_NET  node_411                     f32      2048    129 |   259.4   192.2   234.4
+[optrace]  413 RMS_NORM         norm-6                       f32       128     16 |     9.9     9.5     8.7
+[optrace]  414 MUL              node_414                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  415 MUL_MAT          z-6                          q4_K     2048      1 |   269.5   240.2   253.8
+[optrace]  417 SILU             node_417                     f32       128     16 |     7.2     7.6     5.7
+[optrace]  418 MUL              node_418                     f32       128     16 |     4.3     6.0     3.9
+[optrace]  420 MUL_MAT          linear_attn_out-6            q4_K     1024      1 |   151.9   159.9   149.3
+[optrace]  421 ADD              attn_residual-6              f32      1024      1 |     5.5     1.6     1.5
+[optrace]  422 RMS_NORM         norm-6                       f32      1024      1 |     5.3     1.4     1.0
+[optrace]  423 MUL              attn_post_norm-6             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  424 MUL_MAT          ffn_gate-6                   q4_K     3584      1 |   230.2   353.2   253.8
+[optrace]  425 MUL_MAT          ffn_up-6                     q4_K     3584      1 |   315.9   260.3   304.1
+[optrace]  426 SWIGLU           ffn_swiglu-6                 f32      3584      1 |    30.6     2.8     2.7
+[optrace]  427 MUL_MAT          ffn_out-6                    q4_K     1024      1 |   247.9   255.8   248.4
+[optrace]  428 ADD              l_out-6                      f32      1024      1 |     6.7     2.6     1.7
+[optrace]  429 RMS_NORM         norm-7                       f32      1024      1 |     6.1     2.0     1.1
+[optrace]  430 MUL              attn_norm-7                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]  431 MUL_MAT          Qcur_full-7                  q4_K     4096      1 |   298.5   263.1   258.3
+[optrace]  433 RMS_NORM         norm-7                       f32       256      8 |     5.8     6.0     5.5
+[optrace]  434 MUL              Qcur_normed-7                f32       256      8 |     0.0     0.0     0.0
+[optrace]  435 ROPE             Qcur-7                       f32       256      8 |    17.5    17.9    17.3
+[optrace]  436 MUL_MAT          Vcur-7                       q4_K      512      1 |    72.8    73.1    73.0
+[optrace]  438 MUL_MAT          Kcur-7                       q4_K      512      1 |    48.3    41.7    46.5
+[optrace]  440 RMS_NORM         norm-7                       f32       256      2 |     3.6     3.5     1.7
+[optrace]  441 MUL              Kcur_normed-7                f32       256      2 |     0.0     0.0     0.0
+[optrace]  442 ROPE             Kcur-7                       f32       256      2 |    10.0    10.1     2.2
+[optrace]  444 SET_ROWS         cache_k_l7 (view)            f32       512    256 |     2.2     1.2     1.2
+[optrace]  446 SET_ROWS         cache_v_l7 (view)            f32       512    256 |     1.9     0.5     0.5
+[optrace]  453 FLASH_ATTN_EXT   node_453                     f32       256      8 |    25.4    31.5    31.7
+[optrace]  456 CONT             gate_reshaped-7              f32      2048      1 |     3.3     3.1     3.5
+[optrace]  457 SIGMOID          gate_sigmoid-7               f32      2048      1 |   115.9     1.3     1.3
+[optrace]  458 MUL              attn_gated-7                 f32      2048      1 |     8.2     1.2     1.1
+[optrace]  459 MUL_MAT          attn_output-7                q4_K     1024      1 |   206.3   225.5   185.4
+[optrace]  460 ADD              attn_residual-7              f32      1024      1 |     7.3     2.9     2.7
+[optrace]  461 RMS_NORM         norm-7                       f32      1024      1 |     6.7     2.0     2.0
+[optrace]  462 MUL              attn_post_norm-7             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  463 MUL_MAT          ffn_gate-7                   q4_K     3584      1 |   219.2   265.9   261.5
+[optrace]  464 MUL_MAT          ffn_up-7                     q4_K     3584      1 |   294.0   240.4   274.8
+[optrace]  465 SWIGLU           ffn_swiglu-7                 f32      3584      1 |    28.3     2.8     2.7
+[optrace]  466 MUL_MAT          ffn_out-7                    q4_K     1024      1 |   247.4   246.7   275.0
+[optrace]  467 ADD              l_out-7                      f32      1024      1 |     6.7     1.8     1.9
+[optrace]  468 RMS_NORM         norm-8                       f32      1024      1 |     5.9     1.1     1.0
+[optrace]  469 MUL              attn_norm-8                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]  472 SCALE            cache_r_l8 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace]  473 GET_ROWS         node_473                     f32     18432      1 |    13.7     1.3     1.3
+[optrace]  477 CPY              cache_r_l8 (view) (copy of node_473 (view)) f32     18432      0 |     0.1     0.2     0.2
+[optrace]  479 MUL_MAT          node_479                     q4_K     6144      1 |   424.1   453.2   472.1
+[optrace]  482 CONCAT           conv_input-8                 f32         4   6144 |    31.8    30.8    28.4
+[optrace]  485 CPY              conv_state_update-8 (copy of conv_state_last-8) f32     18432      1 |    15.4    15.6    15.0
+[optrace]  488 SCALE            cache_s_l8 (reshaped) (view) (view) f32         0      1 |     0.2     0.3     0.2
+[optrace]  490 GET_ROWS         node_490                     f32    262144      0 |     0.1     0.2     0.2
+[optrace]  493 CPY              cache_s_l8 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace]  494 SSM_CONV         conv_output_raw-8            f32      6144      1 |    29.6    29.4    29.7
+[optrace]  495 SILU             conv_output_silu-8           f32      6144      1 |    37.4     0.9     1.0
+[optrace]  497 RMS_NORM         node_497                     f32       128     16 |     5.9     6.0     6.0
+[optrace]  498 SCALE            q_conv_predelta-8            f32       128     16 |     1.5     2.0     1.7
+[optrace]  500 RMS_NORM         node_500                     f32       128     16 |     3.5     3.4     3.4
+[optrace]  501 SCALE            k_conv_predelta-8            f32       128     16 |     0.9     0.9     0.7
+[optrace]  503 MUL_MAT          node_503                     q4_K       16      1 |    10.9    11.0     7.5
+[optrace]  505 ADD              node_505                     f32        16      1 |     2.3     1.7     1.2
+[optrace]  506 SOFTPLUS         a_softplus-8                 f32        16      1 |     3.8     0.9     0.9
+[optrace]  507 MUL              gate-8                       f32        16      1 |     2.5     1.5     1.2
+[optrace]  509 MUL_MAT          node_509                     q4_K       16      1 |     6.8     7.9     4.8
+[optrace]  511 SIGMOID          beta_sigmoid-8               f32         1     16 |     1.6     1.9     1.6
+[optrace]  514 GATED_DELTA_NET  node_514                     f32      2048    129 |   176.2   238.7   257.2
+[optrace]  516 RMS_NORM         norm-8                       f32       128     16 |     9.0     8.7     9.3
+[optrace]  517 MUL              node_517                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  518 MUL_MAT          z-8                          q4_K     2048      1 |   303.2   302.8   297.4
+[optrace]  520 SILU             node_520                     f32       128     16 |     6.9     7.2     5.7
+[optrace]  521 MUL              node_521                     f32       128     16 |     4.3     6.5     4.2
+[optrace]  523 MUL_MAT          linear_attn_out-8            q4_K     1024      1 |   236.7   262.2   213.0
+[optrace]  524 ADD              attn_residual-8              f32      1024      1 |     6.9     2.3     1.7
+[optrace]  525 RMS_NORM         norm-8                       f32      1024      1 |     6.2     2.1     1.4
+[optrace]  526 MUL              attn_post_norm-8             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  527 MUL_MAT          ffn_gate-8                   q4_K     3584      1 |   251.0   294.8   296.2
+[optrace]  528 MUL_MAT          ffn_up-8                     q4_K     3584      1 |   233.8   276.7   284.2
+[optrace]  529 SWIGLU           ffn_swiglu-8                 f32      3584      1 |    27.0     2.5     2.6
+[optrace]  530 MUL_MAT          ffn_out-8                    q4_K     1024      1 |   266.8   265.9   236.5
+[optrace]  531 ADD              l_out-8                      f32      1024      1 |     7.1     2.2     2.2
+[optrace]  532 RMS_NORM         norm-9                       f32      1024      1 |     6.5     1.5     1.7
+[optrace]  533 MUL              attn_norm-9                  f32      1024      1 |     0.0     0.0     0.0
+[optrace]  536 SCALE            cache_r_l9 (reshaped) (view) (view) f32         0      1 |     0.2     0.1     0.2
+[optrace]  537 GET_ROWS         node_537                     f32     18432      1 |    25.4     1.5     1.2
+[optrace]  541 CPY              cache_r_l9 (view) (copy of node_537 (view)) f32     18432      0 |     0.1     0.2     0.2
+[optrace]  543 MUL_MAT          node_543                     q4_K     6144      1 |   541.1   461.6   521.3
+[optrace]  546 CONCAT           conv_input-9                 f32         4   6144 |    31.5    28.5    28.5
+[optrace]  549 CPY              conv_state_update-9 (copy of conv_state_last-9) f32     18432      1 |    14.9    15.1    15.1
+[optrace]  552 SCALE            cache_s_l9 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace]  554 GET_ROWS         node_554                     f32    262144      0 |     0.1     0.2     0.2
+[optrace]  557 CPY              cache_s_l9 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace]  558 SSM_CONV         conv_output_raw-9            f32      6144      1 |    29.3    31.8    30.3
+[optrace]  559 SILU             conv_output_silu-9           f32      6144      1 |    37.7     1.3     1.2
+[optrace]  561 RMS_NORM         node_561                     f32       128     16 |     6.1     5.9     5.7
+[optrace]  562 SCALE            q_conv_predelta-9            f32       128     16 |     1.3     1.9     1.5
+[optrace]  564 RMS_NORM         node_564                     f32       128     16 |     3.8     3.6     3.6
+[optrace]  565 SCALE            k_conv_predelta-9            f32       128     16 |     1.2     1.2     1.0
+[optrace]  567 MUL_MAT          node_567                     q4_K       16      1 |    12.0    12.0     8.2
+[optrace]  569 ADD              node_569                     f32        16      1 |     2.1     1.5     1.2
+[optrace]  570 SOFTPLUS         a_softplus-9                 f32        16      1 |     4.0     0.9     0.8
+[optrace]  571 MUL              gate-9                       f32        16      1 |     2.5     1.3     1.3
+[optrace]  573 MUL_MAT          node_573                     q4_K       16      1 |     6.6     7.1     4.3
+[optrace]  575 SIGMOID          beta_sigmoid-9               f32         1     16 |     1.7     1.7     1.6
+[optrace]  578 GATED_DELTA_NET  node_578                     f32      2048    129 |   250.5   230.2   181.1
+[optrace]  580 RMS_NORM         norm-9                       f32       128     16 |    24.9    24.0    24.8
+[optrace]  581 MUL              node_581                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  582 MUL_MAT          z-9                          q4_K     2048      1 |   415.3   292.7   293.9
+[optrace]  584 SILU             node_584                     f32       128     16 |     7.8     6.1     6.4
+[optrace]  585 MUL              node_585                     f32       128     16 |     5.0     5.5     4.6
+[optrace]  587 MUL_MAT          linear_attn_out-9            q4_K     1024      1 |   203.9   165.3   179.1
+[optrace]  588 ADD              attn_residual-9              f32      1024      1 |     7.0     2.0     1.8
+[optrace]  589 RMS_NORM         norm-9                       f32      1024      1 |     6.0     1.8     1.2
+[optrace]  590 MUL              attn_post_norm-9             f32      1024      1 |     0.0     0.0     0.0
+[optrace]  591 MUL_MAT          ffn_gate-9                   q4_K     3584      1 |   226.7   229.4   270.9
+[optrace]  592 MUL_MAT          ffn_up-9                     q4_K     3584      1 |   282.5   232.9   234.9
+[optrace]  593 SWIGLU           ffn_swiglu-9                 f32      3584      1 |    30.1     3.0     2.8
+[optrace]  594 MUL_MAT          ffn_out-9                    q4_K     1024      1 |   251.0   259.7   247.5
+[optrace]  595 ADD              l_out-9                      f32      1024      1 |     6.0     1.8     1.9
+[optrace]  596 RMS_NORM         norm-10                      f32      1024      1 |     5.4     1.2     1.1
+[optrace]  597 MUL              attn_norm-10                 f32      1024      1 |     0.0     0.0     0.0
+[optrace]  600 SCALE            cache_r_l10 (reshaped) (view) (view) f32         0      1 |     0.2     0.1     0.2
+[optrace]  601 GET_ROWS         node_601                     f32     18432      1 |    13.8     1.2     1.4
+[optrace]  605 CPY              cache_r_l10 (view) (copy of node_601 (view)) f32     18432      0 |     0.1     0.2     0.2
+[optrace]  607 MUL_MAT          node_607                     q4_K     6144      1 |   420.1   489.9   433.6
+[optrace]  610 CONCAT           conv_input-10                f32         4   6144 |    30.0    29.0    28.4
+[optrace]  613 CPY              conv_state_update-10 (copy of conv_state_last-10) f32     18432      1 |    15.4    15.3    15.5
+[optrace]  616 SCALE            cache_s_l10 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace]  618 GET_ROWS         node_618                     f32    262144      0 |     0.1     0.2     0.1
+[optrace]  621 CPY              cache_s_l10 (view) (copy of  (view)) f32    262144      0 |     0.1     0.1     0.1
+[optrace]  622 SSM_CONV         conv_output_raw-10           f32      6144      1 |    29.6    28.8    29.1
+[optrace]  623 SILU             conv_output_silu-10          f32      6144      1 |    38.2     1.3     1.1
+[optrace]  625 RMS_NORM         node_625                     f32       128     16 |     5.4     4.9     5.0
+[optrace]  626 SCALE            q_conv_predelta-10           f32       128     16 |     1.6     2.0     1.6
+[optrace]  628 RMS_NORM         node_628                     f32       128     16 |     3.7     3.3     3.5
+[optrace]  629 SCALE            k_conv_predelta-10           f32       128     16 |     0.9     1.0     0.7
+[optrace]  631 MUL_MAT          node_631                     q4_K       16      1 |    10.6    11.0     7.7
+[optrace]  633 ADD              node_633                     f32        16      1 |     2.4     1.5     0.8
+[optrace]  634 SOFTPLUS         a_softplus-10                f32        16      1 |     4.1     1.0     1.0
+[optrace]  635 MUL              gate-10                      f32        16      1 |     2.5     1.2     1.1
+[optrace]  637 MUL_MAT          node_637                     q4_K       16      1 |     8.0     7.0     4.7
+[optrace]  639 SIGMOID          beta_sigmoid-10              f32         1     16 |     1.7     1.8     1.6
+[optrace]  642 GATED_DELTA_NET  node_642                     f32      2048    129 |   301.7   313.6   314.9
+[optrace]  644 RMS_NORM         norm-10                      f32       128     16 |     8.1     8.0     8.2
+[optrace]  645 MUL              node_645                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  646 MUL_MAT          z-10                         q4_K     2048      1 |   269.1   273.2   247.6
+[optrace]  648 SILU             node_648                     f32       128     16 |     7.2     7.8     5.5
+[optrace]  649 MUL              node_649                     f32       128     16 |     5.3     5.2     3.9
+[optrace]  651 MUL_MAT          linear_attn_out-10           q4_K     1024      1 |   216.9   186.2   210.8
+[optrace]  652 ADD              attn_residual-10             f32      1024      1 |     7.8     2.2     2.0
+[optrace]  653 RMS_NORM         norm-10                      f32      1024      1 |     5.5     2.2     1.2
+[optrace]  654 MUL              attn_post_norm-10            f32      1024      1 |     0.0     0.0     0.0
+[optrace]  655 MUL_MAT          ffn_gate-10                  q4_K     3584      1 |   284.8   278.7   317.7
+[optrace]  656 MUL_MAT          ffn_up-10                    q4_K     3584      1 |   263.7   297.6   323.2
+[optrace]  657 SWIGLU           ffn_swiglu-10                f32      3584      1 |    27.5     2.8     2.7
+[optrace]  658 MUL_MAT          ffn_out-10                   q4_K     1024      1 |   236.5   265.4   267.7
+[optrace]  659 ADD              l_out-10                     f32      1024      1 |     6.9     2.4     2.5
+[optrace]  660 RMS_NORM         norm-11                      f32      1024      1 |     6.3     1.5     1.5
+[optrace]  661 MUL              attn_norm-11                 f32      1024      1 |     0.0     0.0     0.0
+[optrace]  662 MUL_MAT          Qcur_full-11                 q4_K     4096      1 |   284.0   280.4   295.1
+[optrace]  664 RMS_NORM         norm-11                      f32       256      8 |     6.0     6.7     5.8
+[optrace]  665 MUL              Qcur_normed-11               f32       256      8 |     0.0     0.0     0.0
+[optrace]  666 ROPE             Qcur-11                      f32       256      8 |    17.5    18.1    17.1
+[optrace]  667 MUL_MAT          Vcur-11                      q4_K      512      1 |    46.6    51.3    46.1
+[optrace]  669 MUL_MAT          Kcur-11                      q4_K      512      1 |    91.3    48.8    39.0
+[optrace]  671 RMS_NORM         norm-11                      f32       256      2 |     3.3     3.7     1.8
+[optrace]  672 MUL              Kcur_normed-11               f32       256      2 |     0.0     0.0     0.0
+[optrace]  673 ROPE             Kcur-11                      f32       256      2 |    10.9    11.3     3.1
+[optrace]  675 SET_ROWS         cache_k_l11 (view)           f32       512    256 |     2.7     1.4     1.4
+[optrace]  677 SET_ROWS         cache_v_l11 (view)           f32       512    256 |     1.6     0.4     0.4
+[optrace]  684 FLASH_ATTN_EXT   node_684                     f32       256      8 |    30.8    25.2    31.0
+[optrace]  687 CONT             gate_reshaped-11             f32      2048      1 |     3.0     3.5     3.7
+[optrace]  688 SIGMOID          gate_sigmoid-11              f32      2048      1 |   153.3     1.8     1.8
+[optrace]  689 MUL              attn_gated-11                f32      2048      1 |     8.9     0.7     1.4
+[optrace]  690 MUL_MAT          attn_output-11               q4_K     1024      1 |   167.9   162.7   148.3
+[optrace]  691 ADD              attn_residual-11             f32      1024      1 |     6.7     2.2     2.2
+[optrace]  692 RMS_NORM         norm-11                      f32      1024      1 |     6.0     1.6     1.2
+[optrace]  693 MUL              attn_post_norm-11            f32      1024      1 |     0.0     0.0     0.0
+[optrace]  694 MUL_MAT          ffn_gate-11                  q4_K     3584      1 |   254.6   218.6   234.2
+[optrace]  695 MUL_MAT          ffn_up-11                    q4_K     3584      1 |   289.3   269.2   235.0
+[optrace]  696 SWIGLU           ffn_swiglu-11                f32      3584      1 |    28.5     2.5     2.4
+[optrace]  697 MUL_MAT          ffn_out-11                   q4_K     1024      1 |   223.7   345.2   251.7
+[optrace]  698 ADD              l_out-11                     f32      1024      1 |     6.3     3.0     1.7
+[optrace]  699 RMS_NORM         norm-12                      f32      1024      1 |     6.7     1.1     1.5
+[optrace]  700 MUL              attn_norm-12                 f32      1024      1 |     0.0     0.0     0.0
+[optrace]  703 SCALE            cache_r_l12 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace]  704 GET_ROWS         node_704                     f32     18432      1 |    13.3     1.5     1.5
+[optrace]  708 CPY              cache_r_l12 (view) (copy of node_704 (view)) f32     18432      0 |     0.1     0.2     0.2
+[optrace]  710 MUL_MAT          node_710                     q4_K     6144      1 |   482.8   402.8   435.4
+[optrace]  713 CONCAT           conv_input-12                f32         4   6144 |    34.1    31.0    31.2
+[optrace]  716 CPY              conv_state_update-12 (copy of conv_state_last-12) f32     18432      1 |    53.8    15.2    14.3
+[optrace]  719 SCALE            cache_s_l12 (reshaped) (view) (view) f32         0      1 |     0.3     0.1     0.2
+[optrace]  721 GET_ROWS         node_721                     f32    262144      0 |     0.0     0.2     0.2
+[optrace]  724 CPY              cache_s_l12 (view) (copy of  (view)) f32    262144      0 |     0.1     0.1     0.1
+[optrace]  725 SSM_CONV         conv_output_raw-12           f32      6144      1 |    30.9    31.1    31.9
+[optrace]  726 SILU             conv_output_silu-12          f32      6144      1 |    37.7     1.1     1.2
+[optrace]  728 RMS_NORM         node_728                     f32       128     16 |     6.2     5.9     5.9
+[optrace]  729 SCALE            q_conv_predelta-12           f32       128     16 |     1.5     1.9     1.7
+[optrace]  731 RMS_NORM         node_731                     f32       128     16 |     3.5     3.3     3.4
+[optrace]  732 SCALE            k_conv_predelta-12           f32       128     16 |     1.0     1.1     0.8
+[optrace]  734 MUL_MAT          node_734                     q4_K       16      1 |    11.3    12.2     8.0
+[optrace]  736 ADD              node_736                     f32        16      1 |     2.5     1.7     1.1
+[optrace]  737 SOFTPLUS         a_softplus-12                f32        16      1 |     4.7     0.9     1.0
+[optrace]  738 MUL              gate-12                      f32        16      1 |     2.4     1.5     1.0
+[optrace]  740 MUL_MAT          node_740                     q4_K       16      1 |     6.7     7.2     4.3
+[optrace]  742 SIGMOID          beta_sigmoid-12              f32         1     16 |     2.2     2.3     1.9
+[optrace]  745 GATED_DELTA_NET  node_745                     f32      2048    129 |   232.5   362.1   268.7
+[optrace]  747 RMS_NORM         norm-12                      f32       128     16 |    40.0     7.7     8.0
+[optrace]  748 MUL              node_748                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  749 MUL_MAT          z-12                         q4_K     2048      1 |   267.6   233.6   275.3
+[optrace]  751 SILU             node_751                     f32       128     16 |     6.8     8.0     6.0
+[optrace]  752 MUL              node_752                     f32       128     16 |     5.3     5.6     5.0
+[optrace]  754 MUL_MAT          linear_attn_out-12           q4_K     1024      1 |   162.5   161.8   145.5
+[optrace]  755 ADD              attn_residual-12             f32      1024      1 |     6.4     2.4     2.3
+[optrace]  756 RMS_NORM         norm-12                      f32      1024      1 |     5.5     1.6     1.7
+[optrace]  757 MUL              attn_post_norm-12            f32      1024      1 |     0.0     0.0     0.0
+[optrace]  758 MUL_MAT          ffn_gate-12                  q4_K     3584      1 |   290.4   290.5   275.1
+[optrace]  759 MUL_MAT          ffn_up-12                    q4_K     3584      1 |   302.4   355.5   251.6
+[optrace]  760 SWIGLU           ffn_swiglu-12                f32      3584      1 |    27.6     2.9     2.8
+[optrace]  761 MUL_MAT          ffn_out-12                   q4_K     1024      1 |   289.1   260.3   281.5
+[optrace]  762 ADD              l_out-12                     f32      1024      1 |     7.1     3.1     1.9
+[optrace]  763 RMS_NORM         norm-13                      f32      1024      1 |     6.5     2.2     1.2
+[optrace]  764 MUL              attn_norm-13                 f32      1024      1 |     0.0     0.0     0.0
+[optrace]  767 SCALE            cache_r_l13 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.1
+[optrace]  768 GET_ROWS         node_768                     f32     18432      1 |    27.8     1.5     1.5
+[optrace]  772 CPY              cache_r_l13 (view) (copy of node_768 (view)) f32     18432      0 |     0.2     0.2     0.3
+[optrace]  774 MUL_MAT          node_774                     q4_K     6144      1 |   383.7   419.4   458.1
+[optrace]  777 CONCAT           conv_input-13                f32         4   6144 |    30.0    29.1    32.4
+[optrace]  780 CPY              conv_state_update-13 (copy of conv_state_last-13) f32     18432      1 |    15.2    15.1    15.8
+[optrace]  783 SCALE            cache_s_l13 (reshaped) (view) (view) f32         0      1 |     0.1     0.1     0.1
+[optrace]  785 GET_ROWS         node_785                     f32    262144      0 |     0.1     0.1     0.0
+[optrace]  788 CPY              cache_s_l13 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace]  789 SSM_CONV         conv_output_raw-13           f32      6144      1 |    30.0    29.9    30.4
+[optrace]  790 SILU             conv_output_silu-13          f32      6144      1 |    37.8     1.1     0.9
+[optrace]  792 RMS_NORM         node_792                     f32       128     16 |     5.7     5.6     5.7
+[optrace]  793 SCALE            q_conv_predelta-13           f32       128     16 |     1.6     1.8     1.7
+[optrace]  795 RMS_NORM         node_795                     f32       128     16 |     3.6     3.2     3.4
+[optrace]  796 SCALE            k_conv_predelta-13           f32       128     16 |     1.1     1.1     0.9
+[optrace]  798 MUL_MAT          node_798                     q4_K       16      1 |    10.1    10.9     7.5
+[optrace]  800 ADD              node_800                     f32        16      1 |     2.0     1.5     1.1
+[optrace]  801 SOFTPLUS         a_softplus-13                f32        16      1 |     4.1     0.8     0.8
+[optrace]  802 MUL              gate-13                      f32        16      1 |     2.7     1.5     1.3
+[optrace]  804 MUL_MAT          node_804                     q4_K       16      1 |     7.8     8.0     5.1
+[optrace]  806 SIGMOID          beta_sigmoid-13              f32         1     16 |     1.8     1.9     1.6
+[optrace]  809 GATED_DELTA_NET  node_809                     f32      2048    129 |   335.2   345.2   318.8
+[optrace]  811 RMS_NORM         norm-13                      f32       128     16 |     8.0     7.8     7.6
+[optrace]  812 MUL              node_812                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  813 MUL_MAT          z-13                         q4_K     2048      1 |   263.8   239.9   262.5
+[optrace]  815 SILU             node_815                     f32       128     16 |     8.0     8.2     6.1
+[optrace]  816 MUL              node_816                     f32       128     16 |     4.8     6.0     4.4
+[optrace]  818 MUL_MAT          linear_attn_out-13           q4_K     1024      1 |   182.3   171.3   201.5
+[optrace]  819 ADD              attn_residual-13             f32      1024      1 |     6.3     2.0     1.9
+[optrace]  820 RMS_NORM         norm-13                      f32      1024      1 |     5.8     1.4     1.5
+[optrace]  821 MUL              attn_post_norm-13            f32      1024      1 |     0.0     0.0     0.0
+[optrace]  822 MUL_MAT          ffn_gate-13                  q4_K     3584      1 |   233.4   280.8   276.0
+[optrace]  823 MUL_MAT          ffn_up-13                    q4_K     3584      1 |   274.5   312.5   311.8
+[optrace]  824 SWIGLU           ffn_swiglu-13                f32      3584      1 |    26.3     3.1     3.1
+[optrace]  825 MUL_MAT          ffn_out-13                   q4_K     1024      1 |   317.9   337.3   277.6
+[optrace]  826 ADD              l_out-13                     f32      1024      1 |     5.8     3.6     2.1
+[optrace]  827 RMS_NORM         norm-14                      f32      1024      1 |     6.5     0.7     1.1
+[optrace]  828 MUL              attn_norm-14                 f32      1024      1 |     0.0     0.0     0.0
+[optrace]  831 SCALE            cache_r_l14 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace]  832 GET_ROWS         node_832                     f32     18432      1 |    31.0     1.3     1.2
+[optrace]  836 CPY              cache_r_l14 (view) (copy of node_832 (view)) f32     18432      0 |     0.2     0.1     0.1
+[optrace]  838 MUL_MAT          node_838                     q4_K     6144      1 |   486.9   449.8   428.7
+[optrace]  841 CONCAT           conv_input-14                f32         4   6144 |    31.1    29.5    31.1
+[optrace]  844 CPY              conv_state_update-14 (copy of conv_state_last-14) f32     18432      1 |    15.4    15.6    15.5
+[optrace]  847 SCALE            cache_s_l14 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace]  849 GET_ROWS         node_849                     f32    262144      0 |     0.1     0.2     0.2
+[optrace]  852 CPY              cache_s_l14 (view) (copy of  (view)) f32    262144      0 |     0.2     0.2     0.2
+[optrace]  853 SSM_CONV         conv_output_raw-14           f32      6144      1 |    30.6    31.0    32.2
+[optrace]  854 SILU             conv_output_silu-14          f32      6144      1 |    37.9     1.3     1.3
+[optrace]  856 RMS_NORM         node_856                     f32       128     16 |     5.9     5.9     5.8
+[optrace]  857 SCALE            q_conv_predelta-14           f32       128     16 |     1.6     2.0     1.8
+[optrace]  859 RMS_NORM         node_859                     f32       128     16 |     3.7     3.4     3.5
+[optrace]  860 SCALE            k_conv_predelta-14           f32       128     16 |     1.1     1.1     1.0
+[optrace]  862 MUL_MAT          node_862                     q4_K       16      1 |    10.3    11.2     7.7
+[optrace]  864 ADD              node_864                     f32        16      1 |     2.4     1.7     1.7
+[optrace]  865 SOFTPLUS         a_softplus-14                f32        16      1 |     4.3     1.0     1.0
+[optrace]  866 MUL              gate-14                      f32        16      1 |     2.6     1.2     1.3
+[optrace]  868 MUL_MAT          node_868                     q4_K       16      1 |     6.6     7.7     4.2
+[optrace]  870 SIGMOID          beta_sigmoid-14              f32         1     16 |     1.7     2.0     1.8
+[optrace]  873 GATED_DELTA_NET  node_873                     f32      2048    129 |   252.8   243.8   178.1
+[optrace]  875 RMS_NORM         norm-14                      f32       128     16 |    10.0     9.1     9.4
+[optrace]  876 MUL              node_876                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  877 MUL_MAT          z-14                         q4_K     2048      1 |   336.0   284.0   286.7
+[optrace]  879 SILU             node_879                     f32       128     16 |     6.7     6.6     5.9
+[optrace]  880 MUL              node_880                     f32       128     16 |     5.2     5.4     4.3
+[optrace]  882 MUL_MAT          linear_attn_out-14           q4_K     1024      1 |   171.8   158.6   178.8
+[optrace]  883 ADD              attn_residual-14             f32      1024      1 |     6.3     2.0     1.9
+[optrace]  884 RMS_NORM         norm-14                      f32      1024      1 |     5.9     1.7     1.0
+[optrace]  885 MUL              attn_post_norm-14            f32      1024      1 |     0.0     0.0     0.0
+[optrace]  886 MUL_MAT          ffn_gate-14                  q4_K     3584      1 |   276.7   274.6   264.3
+[optrace]  887 MUL_MAT          ffn_up-14                    q4_K     3584      1 |   240.6   278.2   245.7
+[optrace]  888 SWIGLU           ffn_swiglu-14                f32      3584      1 |    29.4     3.0     2.9
+[optrace]  889 MUL_MAT          ffn_out-14                   q4_K     1024      1 |   270.2   337.7   237.5
+[optrace]  890 ADD              l_out-14                     f32      1024      1 |     7.0    27.5     2.0
+[optrace]  891 RMS_NORM         norm-15                      f32      1024      1 |     5.9     1.9     1.1
+[optrace]  892 MUL              attn_norm-15                 f32      1024      1 |     0.0     0.0     0.0
+[optrace]  893 MUL_MAT          Qcur_full-15                 q4_K     4096      1 |   260.2   299.0   260.3
+[optrace]  895 RMS_NORM         norm-15                      f32       256      8 |     6.2     7.0     6.0
+[optrace]  896 MUL              Qcur_normed-15               f32       256      8 |     0.0     0.0     0.0
+[optrace]  897 ROPE             Qcur-15                      f32       256      8 |    17.6    18.1    17.5
+[optrace]  898 MUL_MAT          Vcur-15                      q4_K      512      1 |    45.2    44.8    41.0
+[optrace]  900 MUL_MAT          Kcur-15                      q4_K      512      1 |    47.6    51.0    45.1
+[optrace]  902 RMS_NORM         norm-15                      f32       256      2 |     2.7     3.1     1.1
+[optrace]  903 MUL              Kcur_normed-15               f32       256      2 |     0.0     0.0     0.0
+[optrace]  904 ROPE             Kcur-15                      f32       256      2 |     8.4     8.7     1.0
+[optrace]  906 SET_ROWS         cache_k_l15 (view)           f32       512    256 |     3.2     1.7     1.6
+[optrace]  908 SET_ROWS         cache_v_l15 (view)           f32       512    256 |     1.6     0.5     0.5
+[optrace]  915 FLASH_ATTN_EXT   node_915                     f32       256      8 |    32.3    26.3    32.4
+[optrace]  918 CONT             gate_reshaped-15             f32      2048      1 |     3.0     3.5     3.4
+[optrace]  919 SIGMOID          gate_sigmoid-15              f32      2048      1 |   219.3     1.7     1.2
+[optrace]  920 MUL              attn_gated-15                f32      2048      1 |     9.6     1.3     1.3
+[optrace]  921 MUL_MAT          attn_output-15               q4_K     1024      1 |   179.8   168.3   188.6
+[optrace]  922 ADD              attn_residual-15             f32      1024      1 |     7.0     2.0     2.1
+[optrace]  923 RMS_NORM         norm-15                      f32      1024      1 |     6.1     1.9     2.1
+[optrace]  924 MUL              attn_post_norm-15            f32      1024      1 |     0.0     0.0     0.0
+[optrace]  925 MUL_MAT          ffn_gate-15                  q4_K     3584      1 |   298.5   336.4   299.2
+[optrace]  926 MUL_MAT          ffn_up-15                    q4_K     3584      1 |   278.0   238.4   250.4
+[optrace]  927 SWIGLU           ffn_swiglu-15                f32      3584      1 |    26.9     2.5     2.5
+[optrace]  928 MUL_MAT          ffn_out-15                   q4_K     1024      1 |   314.8   315.2   318.7
+[optrace]  929 ADD              l_out-15                     f32      1024      1 |     7.8     3.6     3.5
+[optrace]  930 RMS_NORM         norm-16                      f32      1024      1 |     6.1     2.0     2.0
+[optrace]  931 MUL              attn_norm-16                 f32      1024      1 |     0.0     0.0     0.0
+[optrace]  934 SCALE            cache_r_l16 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace]  935 GET_ROWS         node_935                     f32     18432      1 |    14.0     1.3     1.3
+[optrace]  939 CPY              cache_r_l16 (view) (copy of node_935 (view)) f32     18432      0 |     0.2     0.2     0.2
+[optrace]  941 MUL_MAT          node_941                     q4_K     6144      1 |   373.8   503.4   431.2
+[optrace]  944 CONCAT           conv_input-16                f32         4   6144 |    31.8    29.3    29.4
+[optrace]  947 CPY              conv_state_update-16 (copy of conv_state_last-16) f32     18432      1 |    15.2    15.3    15.3
+[optrace]  950 SCALE            cache_s_l16 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.3
+[optrace]  952 GET_ROWS         node_952                     f32    262144      0 |     0.1     0.2     0.2
+[optrace]  955 CPY              cache_s_l16 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace]  956 SSM_CONV         conv_output_raw-16           f32      6144      1 |    30.5    30.1    30.5
+[optrace]  957 SILU             conv_output_silu-16          f32      6144      1 |    37.8     1.3     1.3
+[optrace]  959 RMS_NORM         node_959                     f32       128     16 |     5.5     5.4     5.3
+[optrace]  960 SCALE            q_conv_predelta-16           f32       128     16 |     2.2     2.4     2.2
+[optrace]  962 RMS_NORM         node_962                     f32       128     16 |     3.6     3.4     3.5
+[optrace]  963 SCALE            k_conv_predelta-16           f32       128     16 |     0.9     0.8     0.7
+[optrace]  965 MUL_MAT          node_965                     q4_K       16      1 |    12.0    11.4     8.3
+[optrace]  967 ADD              node_967                     f32        16      1 |     2.9     1.3     0.9
+[optrace]  968 SOFTPLUS         a_softplus-16                f32        16      1 |     4.0     1.0     1.1
+[optrace]  969 MUL              gate-16                      f32        16      1 |     2.8     1.3     1.2
+[optrace]  971 MUL_MAT          node_971                     q4_K       16      1 |     6.5     7.2     4.0
+[optrace]  973 SIGMOID          beta_sigmoid-16              f32         1     16 |     1.9     1.9     1.8
+[optrace]  976 GATED_DELTA_NET  node_976                     f32      2048    129 |   247.7   231.8   185.0
+[optrace]  978 RMS_NORM         norm-16                      f32       128     16 |    12.0    10.9    10.8
+[optrace]  979 MUL              node_979                     f32       128     16 |     0.0     0.0     0.0
+[optrace]  980 MUL_MAT          z-16                         q4_K     2048      1 |   278.0   277.8   289.9
+[optrace]  982 SILU             node_982                     f32       128     16 |     7.1     7.6     5.7
+[optrace]  983 MUL              node_983                     f32       128     16 |     4.3     5.8     4.7
+[optrace]  985 MUL_MAT          linear_attn_out-16           q4_K     1024      1 |   300.4   211.7   232.5
+[optrace]  986 ADD              attn_residual-16             f32      1024      1 |     7.0     2.2     2.1
+[optrace]  987 RMS_NORM         norm-16                      f32      1024      1 |     6.0     1.7     1.4
+[optrace]  988 MUL              attn_post_norm-16            f32      1024      1 |     0.0     0.0     0.0
+[optrace]  989 MUL_MAT          ffn_gate-16                  q4_K     3584      1 |   272.5   269.2   310.1
+[optrace]  990 MUL_MAT          ffn_up-16                    q4_K     3584      1 |   224.2   245.1   255.4
+[optrace]  991 SWIGLU           ffn_swiglu-16                f32      3584      1 |    27.8     2.6     2.5
+[optrace]  992 MUL_MAT          ffn_out-16                   q4_K     1024      1 |   256.7   264.5   258.7
+[optrace]  993 ADD              l_out-16                     f32      1024      1 |     7.4     2.7     1.7
+[optrace]  994 RMS_NORM         norm-17                      f32      1024      1 |     6.1     1.7     1.2
+[optrace]  995 MUL              attn_norm-17                 f32      1024      1 |     0.0     0.0     0.0
+[optrace]  998 SCALE            cache_r_l17 (reshaped) (view) (view) f32         0      1 |     0.1     0.1     0.1
+[optrace]  999 GET_ROWS         node_999                     f32     18432      1 |    13.5     1.2     1.2
+[optrace] 1003 CPY              cache_r_l17 (view) (copy of node_999 (view)) f32     18432      0 |     0.1     0.2     0.1
+[optrace] 1005 MUL_MAT          node_1005                    q4_K     6144      1 |   423.7   525.0   397.4
+[optrace] 1008 CONCAT           conv_input-17                f32         4   6144 |    29.1    28.3    27.6
+[optrace] 1011 CPY              conv_state_update-17 (copy of conv_state_last-17) f32     18432      1 |    14.7    14.9    14.8
+[optrace] 1014 SCALE            cache_s_l17 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace] 1016 GET_ROWS         node_1016                    f32    262144      0 |     0.1     0.2     0.2
+[optrace] 1019 CPY              cache_s_l17 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace] 1020 SSM_CONV         conv_output_raw-17           f32      6144      1 |    29.9    30.6    28.9
+[optrace] 1021 SILU             conv_output_silu-17          f32      6144      1 |    38.1     1.2     1.0
+[optrace] 1023 RMS_NORM         node_1023                    f32       128     16 |     5.3     5.0     4.8
+[optrace] 1024 SCALE            q_conv_predelta-17           f32       128     16 |     1.2     1.7     1.7
+[optrace] 1026 RMS_NORM         node_1026                    f32       128     16 |     3.7     3.3     3.5
+[optrace] 1027 SCALE            k_conv_predelta-17           f32       128     16 |     1.0     0.9     0.7
+[optrace] 1029 MUL_MAT          node_1029                    q4_K       16      1 |    11.7    11.8     8.0
+[optrace] 1031 ADD              node_1031                    f32        16      1 |     2.6     1.5     1.0
+[optrace] 1032 SOFTPLUS         a_softplus-17                f32        16      1 |     4.3     1.1     1.0
+[optrace] 1033 MUL              gate-17                      f32        16      1 |     2.6     1.3     1.2
+[optrace] 1035 MUL_MAT          node_1035                    q4_K       16      1 |     6.5     7.5     4.5
+[optrace] 1037 SIGMOID          beta_sigmoid-17              f32         1     16 |     1.5     1.7     1.5
+[optrace] 1040 GATED_DELTA_NET  node_1040                    f32      2048    129 |   325.2   187.9   251.5
+[optrace] 1042 RMS_NORM         norm-17                      f32       128     16 |     8.8     9.5     8.8
+[optrace] 1043 MUL              node_1043                    f32       128     16 |     0.0     0.0     0.0
+[optrace] 1044 MUL_MAT          z-17                         q4_K     2048      1 |   257.1   309.9   260.5
+[optrace] 1046 SILU             node_1046                    f32       128     16 |     7.4     8.3     6.5
+[optrace] 1047 MUL              node_1047                    f32       128     16 |     5.2     5.3     4.3
+[optrace] 1049 MUL_MAT          linear_attn_out-17           q4_K     1024      1 |   203.0   215.6   184.3
+[optrace] 1050 ADD              attn_residual-17             f32      1024      1 |     6.1     2.3     1.7
+[optrace] 1051 RMS_NORM         norm-17                      f32      1024      1 |     5.8     1.7     1.6
+[optrace] 1052 MUL              attn_post_norm-17            f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1053 MUL_MAT          ffn_gate-17                  q4_K     3584      1 |   341.7   285.0   286.0
+[optrace] 1054 MUL_MAT          ffn_up-17                    q4_K     3584      1 |   276.0   240.2   258.8
+[optrace] 1055 SWIGLU           ffn_swiglu-17                f32      3584      1 |    29.0     2.9     2.9
+[optrace] 1056 MUL_MAT          ffn_out-17                   q4_K     1024      1 |   279.6   241.7   235.8
+[optrace] 1057 ADD              l_out-17                     f32      1024      1 |     7.1     2.6     2.1
+[optrace] 1058 RMS_NORM         norm-18                      f32      1024      1 |     6.2     1.7     1.3
+[optrace] 1059 MUL              attn_norm-18                 f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1062 SCALE            cache_r_l18 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace] 1063 GET_ROWS         node_1063                    f32     18432      1 |    27.8     1.5     1.5
+[optrace] 1067 CPY              cache_r_l18 (view) (copy of node_1063 (view)) f32     18432      0 |     0.1     0.2     0.2
+[optrace] 1069 MUL_MAT          node_1069                    q4_K     6144      1 |   493.6   440.1   500.3
+[optrace] 1072 CONCAT           conv_input-18                f32         4   6144 |    61.6    27.5    28.5
+[optrace] 1075 CPY              conv_state_update-18 (copy of conv_state_last-18) f32     18432      1 |    15.4    59.5    15.7
+[optrace] 1078 SCALE            cache_s_l18 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.1
+[optrace] 1080 GET_ROWS         node_1080                    f32    262144      0 |     0.0     0.2     0.2
+[optrace] 1083 CPY              cache_s_l18 (view) (copy of  (view)) f32    262144      0 |     0.1     0.1     0.1
+[optrace] 1084 SSM_CONV         conv_output_raw-18           f32      6144      1 |    58.7    29.5    29.9
+[optrace] 1085 SILU             conv_output_silu-18          f32      6144      1 |    37.8     1.2     1.2
+[optrace] 1087 RMS_NORM         node_1087                    f32       128     16 |     5.6     5.6     5.6
+[optrace] 1088 SCALE            q_conv_predelta-18           f32       128     16 |     1.2     1.7     1.5
+[optrace] 1090 RMS_NORM         node_1090                    f32       128     16 |     3.7     3.4     3.5
+[optrace] 1091 SCALE            k_conv_predelta-18           f32       128     16 |     1.0     0.9     0.8
+[optrace] 1093 MUL_MAT          node_1093                    q4_K       16      1 |    11.4    11.8     7.9
+[optrace] 1095 ADD              node_1095                    f32        16      1 |     2.9     1.7     1.5
+[optrace] 1096 SOFTPLUS         a_softplus-18                f32        16      1 |     4.2     1.0     1.0
+[optrace] 1097 MUL              gate-18                      f32        16      1 |     3.0     1.6     1.5
+[optrace] 1099 MUL_MAT          node_1099                    q4_K       16      1 |     7.0     7.2     4.2
+[optrace] 1101 SIGMOID          beta_sigmoid-18              f32         1     16 |     1.7     1.8     1.7
+[optrace] 1104 GATED_DELTA_NET  node_1104                    f32      2048    129 |   181.1   248.2   251.3
+[optrace] 1106 RMS_NORM         norm-18                      f32       128     16 |     9.4     9.2     8.6
+[optrace] 1107 MUL              node_1107                    f32       128     16 |     0.0     0.0     0.0
+[optrace] 1108 MUL_MAT          z-18                         q4_K     2048      1 |   279.0   261.7   256.6
+[optrace] 1110 SILU             node_1110                    f32       128     16 |     6.8     6.8     5.0
+[optrace] 1111 MUL              node_1111                    f32       128     16 |     4.4     4.6     3.9
+[optrace] 1113 MUL_MAT          linear_attn_out-18           q4_K     1024      1 |   151.6   148.9   166.2
+[optrace] 1114 ADD              attn_residual-18             f32      1024      1 |     6.1     1.4     1.4
+[optrace] 1115 RMS_NORM         norm-18                      f32      1024      1 |     5.0     1.1     1.1
+[optrace] 1116 MUL              attn_post_norm-18            f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1117 MUL_MAT          ffn_gate-18                  q4_K     3584      1 |   240.5   314.0   231.6
+[optrace] 1118 MUL_MAT          ffn_up-18                    q4_K     3584      1 |   234.2   284.3   286.4
+[optrace] 1119 SWIGLU           ffn_swiglu-18                f32      3584      1 |    31.4     2.5     2.6
+[optrace] 1120 MUL_MAT          ffn_out-18                   q4_K     1024      1 |   260.4   248.3   255.3
+[optrace] 1121 ADD              l_out-18                     f32      1024      1 |     7.3     2.7     2.1
+[optrace] 1122 RMS_NORM         norm-19                      f32      1024      1 |     6.3     2.1     1.1
+[optrace] 1123 MUL              attn_norm-19                 f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1124 MUL_MAT          Qcur_full-19                 q4_K     4096      1 |   361.7   295.0   344.5
+[optrace] 1126 RMS_NORM         norm-19                      f32       256      8 |     6.3     7.0     6.2
+[optrace] 1127 MUL              Qcur_normed-19               f32       256      8 |     0.0     0.0     0.0
+[optrace] 1128 ROPE             Qcur-19                      f32       256      8 |    17.0    17.5    16.9
+[optrace] 1129 MUL_MAT          Vcur-19                      q4_K      512      1 |    46.3   106.7    42.9
+[optrace] 1131 MUL_MAT          Kcur-19                      q4_K      512      1 |    57.9    73.1    55.5
+[optrace] 1133 RMS_NORM         norm-19                      f32       256      2 |     3.5     3.8     1.6
+[optrace] 1134 MUL              Kcur_normed-19               f32       256      2 |     0.0     0.0     0.0
+[optrace] 1135 ROPE             Kcur-19                      f32       256      2 |    10.2    10.6     1.5
+[optrace] 1137 SET_ROWS         cache_k_l19 (view)           f32       512    256 |     2.7     1.5     1.5
+[optrace] 1139 SET_ROWS         cache_v_l19 (view)           f32       512    256 |     1.8     0.7     0.7
+[optrace] 1146 FLASH_ATTN_EXT   node_1146                    f32       256      8 |    29.9    24.4    30.2
+[optrace] 1149 CONT             gate_reshaped-19             f32      2048      1 |     3.1     3.4     3.8
+[optrace] 1150 SIGMOID          gate_sigmoid-19              f32      2048      1 |   116.1     1.5     1.5
+[optrace] 1151 MUL              attn_gated-19                f32      2048      1 |     8.1     1.1     1.1
+[optrace] 1152 MUL_MAT          attn_output-19               q4_K     1024      1 |   159.4   165.6   134.8
+[optrace] 1153 ADD              attn_residual-19             f32      1024      1 |     6.0     1.9     1.8
+[optrace] 1154 RMS_NORM         norm-19                      f32      1024      1 |     5.8     1.4     1.4
+[optrace] 1155 MUL              attn_post_norm-19            f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1156 MUL_MAT          ffn_gate-19                  q4_K     3584      1 |   281.7   277.9   237.3
+[optrace] 1157 MUL_MAT          ffn_up-19                    q4_K     3584      1 |   271.6   266.9   270.8
+[optrace] 1158 SWIGLU           ffn_swiglu-19                f32      3584      1 |    28.9     2.7     2.6
+[optrace] 1159 MUL_MAT          ffn_out-19                   q4_K     1024      1 |   325.7   322.0   306.9
+[optrace] 1160 ADD              l_out-19                     f32      1024      1 |     8.0     2.8     1.9
+[optrace] 1161 RMS_NORM         norm-20                      f32      1024      1 |     6.5     1.8     1.4
+[optrace] 1162 MUL              attn_norm-20                 f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1165 SCALE            cache_r_l20 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.1
+[optrace] 1166 GET_ROWS         node_1166                    f32     18432      1 |    27.0     1.4     1.4
+[optrace] 1170 CPY              cache_r_l20 (view) (copy of node_1166 (view)) f32     18432      0 |     0.2     0.2     0.2
+[optrace] 1172 MUL_MAT          node_1172                    q4_K     6144      1 |   507.7   435.7   445.9
+[optrace] 1175 CONCAT           conv_input-20                f32         4   6144 |    30.7    30.8    28.5
+[optrace] 1178 CPY              conv_state_update-20 (copy of conv_state_last-20) f32     18432      1 |    15.0    15.2    14.8
+[optrace] 1181 SCALE            cache_s_l20 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.1
+[optrace] 1183 GET_ROWS         node_1183                    f32    262144      0 |     0.2     0.1     0.2
+[optrace] 1186 CPY              cache_s_l20 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace] 1187 SSM_CONV         conv_output_raw-20           f32      6144      1 |    31.0    30.2    30.8
+[optrace] 1188 SILU             conv_output_silu-20          f32      6144      1 |    37.8     1.2     1.2
+[optrace] 1190 RMS_NORM         node_1190                    f32       128     16 |     5.9     5.8     5.9
+[optrace] 1191 SCALE            q_conv_predelta-20           f32       128     16 |     1.4     1.7     1.6
+[optrace] 1193 RMS_NORM         node_1193                    f32       128     16 |     3.6     3.2     3.5
+[optrace] 1194 SCALE            k_conv_predelta-20           f32       128     16 |     1.0     0.9     0.7
+[optrace] 1196 MUL_MAT          node_1196                    q4_K       16      1 |    12.0    11.8     8.2
+[optrace] 1198 ADD              node_1198                    f32        16      1 |     2.1     1.2     1.2
+[optrace] 1199 SOFTPLUS         a_softplus-20                f32        16      1 |     3.9     0.9     0.9
+[optrace] 1200 MUL              gate-20                      f32        16      1 |     2.3     1.0     1.0
+[optrace] 1202 MUL_MAT          node_1202                    q4_K       16      1 |     6.7     6.5     4.2
+[optrace] 1204 SIGMOID          beta_sigmoid-20              f32         1     16 |     1.8     1.9     1.9
+[optrace] 1207 GATED_DELTA_NET  node_1207                    f32      2048    129 |   258.6   309.3   291.3
+[optrace] 1209 RMS_NORM         norm-20                      f32       128     16 |    51.0     6.9     7.6
+[optrace] 1210 MUL              node_1210                    f32       128     16 |     0.0     0.0     0.0
+[optrace] 1211 MUL_MAT          z-20                         q4_K     2048      1 |   215.5   234.5   222.5
+[optrace] 1213 SILU             node_1213                    f32       128     16 |     7.6     7.9     6.2
+[optrace] 1214 MUL              node_1214                    f32       128     16 |     5.0     6.6     4.2
+[optrace] 1216 MUL_MAT          linear_attn_out-20           q4_K     1024      1 |   141.0   156.3   140.2
+[optrace] 1217 ADD              attn_residual-20             f32      1024      1 |     6.2     2.1     1.9
+[optrace] 1218 RMS_NORM         norm-20                      f32      1024      1 |     5.3     1.4     0.9
+[optrace] 1219 MUL              attn_post_norm-20            f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1220 MUL_MAT          ffn_gate-20                  q4_K     3584      1 |   261.3   233.3   232.2
+[optrace] 1221 MUL_MAT          ffn_up-20                    q4_K     3584      1 |   295.7   252.4   255.5
+[optrace] 1222 SWIGLU           ffn_swiglu-20                f32      3584      1 |    27.0     2.8     3.0
+[optrace] 1223 MUL_MAT          ffn_out-20                   q4_K     1024      1 |   370.5   307.6   345.3
+[optrace] 1224 ADD              l_out-20                     f32      1024      1 |     7.6     3.0     2.9
+[optrace] 1225 RMS_NORM         norm-21                      f32      1024      1 |     6.4     2.0     1.6
+[optrace] 1226 MUL              attn_norm-21                 f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1229 SCALE            cache_r_l21 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace] 1230 GET_ROWS         node_1230                    f32     18432      1 |    27.0     1.1     1.2
+[optrace] 1234 CPY              cache_r_l21 (view) (copy of node_1230 (view)) f32     18432      0 |     0.2     0.2     0.2
+[optrace] 1236 MUL_MAT          node_1236                    q4_K     6144      1 |   379.6   403.4   446.0
+[optrace] 1239 CONCAT           conv_input-21                f32         4   6144 |    34.6    31.4    30.7
+[optrace] 1242 CPY              conv_state_update-21 (copy of conv_state_last-21) f32     18432      1 |    15.4    15.5    15.4
+[optrace] 1245 SCALE            cache_s_l21 (reshaped) (view) (view) f32         0      1 |     0.1     0.2     0.2
+[optrace] 1247 GET_ROWS         node_1247                    f32    262144      0 |     0.1     0.3     0.3
+[optrace] 1250 CPY              cache_s_l21 (view) (copy of  (view)) f32    262144      0 |     0.1     0.3     0.2
+[optrace] 1251 SSM_CONV         conv_output_raw-21           f32      6144      1 |    30.1    31.3    30.0
+[optrace] 1252 SILU             conv_output_silu-21          f32      6144      1 |    37.7     1.1     1.0
+[optrace] 1254 RMS_NORM         node_1254                    f32       128     16 |     5.8     5.6     5.5
+[optrace] 1255 SCALE            q_conv_predelta-21           f32       128     16 |     1.9     2.2     1.9
+[optrace] 1257 RMS_NORM         node_1257                    f32       128     16 |     3.8     3.5     3.5
+[optrace] 1258 SCALE            k_conv_predelta-21           f32       128     16 |     0.9     0.9     0.8
+[optrace] 1260 MUL_MAT          node_1260                    q4_K       16      1 |    10.6    10.7     7.2
+[optrace] 1262 ADD              node_1262                    f32        16      1 |     2.0     1.4     1.5
+[optrace] 1263 SOFTPLUS         a_softplus-21                f32        16      1 |     4.5     1.5     1.5
+[optrace] 1264 MUL              gate-21                      f32        16      1 |     3.2     1.5     1.5
+[optrace] 1266 MUL_MAT          node_1266                    q4_K       16      1 |     7.0     8.0     4.8
+[optrace] 1268 SIGMOID          beta_sigmoid-21              f32         1     16 |     1.7     1.9     1.7
+[optrace] 1271 GATED_DELTA_NET  node_1271                    f32      2048    129 |   348.5   339.1   294.0
+[optrace] 1273 RMS_NORM         norm-21                      f32       128     16 |     8.1     3.9     8.8
+[optrace] 1274 MUL              node_1274                    f32       128     16 |     0.0     0.0     0.0
+[optrace] 1275 MUL_MAT          z-21                         q4_K     2048      1 |   253.1   231.4   230.9
+[optrace] 1277 SILU             node_1277                    f32       128     16 |     7.7     8.0     6.3
+[optrace] 1278 MUL              node_1278                    f32       128     16 |     5.4     5.7     4.7
+[optrace] 1280 MUL_MAT          linear_attn_out-21           q4_K     1024      1 |   144.3   170.6   178.0
+[optrace] 1281 ADD              attn_residual-21             f32      1024      1 |     6.3     1.8     1.5
+[optrace] 1282 RMS_NORM         norm-21                      f32      1024      1 |     4.9     1.2     1.0
+[optrace] 1283 MUL              attn_post_norm-21            f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1284 MUL_MAT          ffn_gate-21                  q4_K     3584      1 |   336.5   265.3   273.7
+[optrace] 1285 MUL_MAT          ffn_up-21                    q4_K     3584      1 |   395.5   330.3   325.0
+[optrace] 1286 SWIGLU           ffn_swiglu-21                f32      3584      1 |    31.3     3.0     3.0
+[optrace] 1287 MUL_MAT          ffn_out-21                   q4_K     1024      1 |   280.6   239.9   286.2
+[optrace] 1288 ADD              l_out-21                     f32      1024      1 |     7.2     2.6     2.1
+[optrace] 1289 RMS_NORM         norm-22                      f32      1024      1 |     6.2     1.7     1.1
+[optrace] 1290 MUL              attn_norm-22                 f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1293 SCALE            cache_r_l22 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace] 1294 GET_ROWS         node_1294                    f32     18432      1 |    14.8     1.2     1.2
+[optrace] 1298 CPY              cache_r_l22 (view) (copy of node_1294 (view)) f32     18432      0 |     0.1     0.2     0.2
+[optrace] 1300 MUL_MAT          node_1300                    q4_K     6144      1 |   464.4   437.4   469.0
+[optrace] 1303 CONCAT           conv_input-22                f32         4   6144 |    30.8    28.5    32.5
+[optrace] 1306 CPY              conv_state_update-22 (copy of conv_state_last-22) f32     18432      1 |    15.8    15.5    15.2
+[optrace] 1309 SCALE            cache_s_l22 (reshaped) (view) (view) f32         0      1 |     0.2     0.2     0.2
+[optrace] 1311 GET_ROWS         node_1311                    f32    262144      0 |     0.2     0.2     0.2
+[optrace] 1314 CPY              cache_s_l22 (view) (copy of  (view)) f32    262144      0 |     0.1     0.2     0.2
+[optrace] 1315 SSM_CONV         conv_output_raw-22           f32      6144      1 |    32.0    31.9    32.2
+[optrace] 1316 SILU             conv_output_silu-22          f32      6144      1 |    38.3     1.7     1.6
+[optrace] 1318 RMS_NORM         node_1318                    f32       128     16 |     5.2     5.4     5.1
+[optrace] 1319 SCALE            q_conv_predelta-22           f32       128     16 |     1.5     2.0     1.6
+[optrace] 1321 RMS_NORM         node_1321                    f32       128     16 |     3.4     3.3     3.3
+[optrace] 1322 SCALE            k_conv_predelta-22           f32       128     16 |     1.0     1.0     0.8
+[optrace] 1324 MUL_MAT          node_1324                    q4_K       16      1 |    11.1   112.7     7.3
+[optrace] 1326 ADD              node_1326                    f32        16      1 |     2.1     1.9     1.3
+[optrace] 1327 SOFTPLUS         a_softplus-22                f32        16      1 |    41.0     0.9     0.8
+[optrace] 1328 MUL              gate-22                      f32        16      1 |     2.6     0.6     1.2
+[optrace] 1330 MUL_MAT          node_1330                    q4_K       16      1 |     8.4     9.7     6.1
+[optrace] 1332 SIGMOID          beta_sigmoid-22              f32         1     16 |     1.9     2.0     1.7
+[optrace] 1335 GATED_DELTA_NET  node_1335                    f32      2048    129 |   223.2   321.1   337.4
+[optrace] 1337 RMS_NORM         norm-22                      f32       128     16 |    11.5    11.0     9.0
+[optrace] 1338 MUL              node_1338                    f32       128     16 |     0.0     0.0     0.0
+[optrace] 1339 MUL_MAT          z-22                         q4_K     2048      1 |   291.9   313.3   384.3
+[optrace] 1341 SILU             node_1341                    f32       128     16 |     6.1     9.5     7.3
+[optrace] 1342 MUL              node_1342                    f32       128     16 |     5.5     7.0     4.8
+[optrace] 1344 MUL_MAT          linear_attn_out-22           q4_K     1024      1 |   186.2   180.0   162.3
+[optrace] 1345 ADD              attn_residual-22             f32      1024      1 |     7.7     2.3     2.5
+[optrace] 1346 RMS_NORM         norm-22                      f32      1024      1 |     6.0     0.8     1.9
+[optrace] 1347 MUL              attn_post_norm-22            f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1348 MUL_MAT          ffn_gate-22                  q4_K     3584      1 |   265.0   265.2   251.8
+[optrace] 1349 MUL_MAT          ffn_up-22                    q4_K     3584      1 |   271.5   273.6   261.0
+[optrace] 1350 SWIGLU           ffn_swiglu-22                f32      3584      1 |    27.9     3.5     3.3
+[optrace] 1351 MUL_MAT          ffn_out-22                   q4_K     1024      1 |   287.9   349.4   247.0
+[optrace] 1352 ADD              l_out-22                     f32      1024      1 |     6.3     2.6     1.9
+[optrace] 1353 RMS_NORM         norm-23                      f32      1024      1 |     6.4     0.9     1.8
+[optrace] 1354 MUL              attn_norm-23                 f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1355 MUL_MAT          Qcur_full-23                 q4_K     4096      1 |   256.6   303.4   303.8
+[optrace] 1357 RMS_NORM         norm-23                      f32       256      8 |     5.7     6.9     6.1
+[optrace] 1358 MUL              Qcur_normed-23               f32       256      8 |     0.0     0.0     0.0
+[optrace] 1359 ROPE             Qcur-23                      f32       256      8 |    17.6    18.2    17.6
+[optrace] 1360 MUL_MAT          Vcur-23                      q4_K      512      1 |    38.7    45.2    45.8
+[optrace] 1362 MUL_MAT          Kcur-23                      q4_K      512      1 |    43.1    46.2    50.5
+[optrace] 1364 RMS_NORM         norm-23                      f32       256      2 |     2.8     3.1     1.3
+[optrace] 1365 MUL              Kcur_normed-23               f32       256      2 |     0.0     0.0     0.0
+[optrace] 1366 ROPE             Kcur-23                      f32       256      2 |     8.0     8.4     1.2
+[optrace] 1368 SET_ROWS         cache_k_l23 (view)           f32       512    256 |     2.4     1.3     1.3
+[optrace] 1370 SET_ROWS         cache_v_l23 (view)           f32       512    256 |     1.5     0.5     0.5
+[optrace] 1377 FLASH_ATTN_EXT   node_1377                    f32       256      8 |    25.0    31.0    31.1
+[optrace] 1380 CONT             gate_reshaped-23             f32      2048      1 |     3.1     3.5     3.9
+[optrace] 1381 SIGMOID          gate_sigmoid-23              f32      2048      1 |   172.0     2.1     2.0
+[optrace] 1382 MUL              attn_gated-23                f32      2048      1 |     9.1     1.3     1.2
+[optrace] 1383 MUL_MAT          attn_output-23               q4_K     1024      1 |   382.4   165.4   191.3
+[optrace] 1384 GET_ROWS         node_1384                    f32      1024      1 |     4.0     0.6     2.9
+[optrace] 1385 GET_ROWS         node_1385                    f32      1024      1 |     1.6     0.4     0.4
+[optrace] 1386 ADD              attn_residual-23             f32      1024      1 |     6.2     2.0     1.1
+[optrace] 1387 RMS_NORM         norm-23                      f32      1024      1 |    41.2     1.9     1.7
+[optrace] 1388 MUL              attn_post_norm-23            f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1389 MUL_MAT          ffn_gate-23                  q4_K     3584      1 |   313.0   266.1   277.0
+[optrace] 1390 MUL_MAT          ffn_up-23                    q4_K     3584      1 |   242.2   266.5   281.4
+[optrace] 1391 SWIGLU           ffn_swiglu-23                f32      3584      1 |    27.5     2.6     2.5
+[optrace] 1392 MUL_MAT          ffn_out-23                   q4_K     1024      1 |   281.5   291.3   289.4
+[optrace] 1393 ADD              l_out-23                     f32      1024      1 |     7.4     3.6     3.2
+[optrace] 1394 RMS_NORM         norm                         f32      1024      1 |     8.8     1.9     1.4
+[optrace] 1395 MUL              result_norm                  f32      1024      1 |     0.0     0.0     0.0
+[optrace] 1396 MUL_MAT          node_1396                    q4_K    65668      1 |  7868.9  7858.3  7858.4
+[optrace] 1398 CONT              (transposed) (cont)         f32         1  65668 |    48.2    48.5    45.4
+[optrace] 1399 FILL              (view)                      f32         1 248320 |  1163.7  1218.6  1190.1
+[optrace] 1400 SET_ROWS          (view) (view)               f32         1 248320 |   297.5   427.7   412.6
+[optrace] 1402 CONT             result_output                f32    248320      1 |   247.0   305.6   241.3
+
+[opprof] 17 graphs, 1.140 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q4_K         3179     880.4   77.2%      6.14    820.1ms    276.9
+[opprof] GATED_DELTA_NET        f32           306      92.6    8.1%      0.03     82.3ms    302.7
+[opprof] UNARY                  f32          1326      31.6    2.8%      0.35     30.1ms     23.8
+[opprof] FILL                   f32            17      21.3    1.9%      0.79     19.7ms   1255.4
+[opprof] RMS_NORM               f32          1955      17.8    1.6%      0.71     12.8ms      9.1
+[opprof] GLU                    f32           408      13.2    1.2%      0.44     12.9ms     32.5
+[opprof] SCALE                  f32          1224      12.7    1.1%      3.58     11.7ms     10.4
+[opprof] CONCAT                 f32           306      12.0    1.1%      1.88     10.7ms     39.2
+[opprof] SSM_CONV               f32           306      11.4    1.0%      2.63     11.0ms     37.4
+[opprof] ADD                    f32          1122       8.6    0.8%      0.39      7.3ms      7.7
+[opprof] SET_ROWS               f32           221       8.2    0.7%      0.60      6.3ms     37.0
+[opprof] CPY                    f32           918       6.4    0.6%      4.69      5.0ms      7.0
+[opprof] GET_ROWS               f32           646       6.3    0.5%     54.94      5.5ms      9.7
+[opprof] CONT                   f32           136       5.9    0.5%      3.91      5.5ms     43.1
+[opprof] MUL                    f32           714       4.7    0.4%      0.71      3.5ms      6.6
+[opprof] ROPE                   f32           204       3.3    0.3%      0.32      2.8ms     16.1
+[opprof] FLASH_ATTN_EXT         f32           102       3.0    0.3%      0.28      2.7ms     29.3
+[opprof] GET_ROWS               q4_K           17       0.3    0.0%   7549.43      0.2ms     18.9

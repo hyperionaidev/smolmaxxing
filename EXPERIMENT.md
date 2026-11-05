@@ -484,3 +484,53 @@ Your request: "let's now try 9b models, and do the best in optimizing streaming 
 - Qwen3.5-9B with MTP, about 0.27 tok/s:
   `MODEL=q9-iq2-h65-mtp.gguf BIN=patched16 EXTRA="-nr -ctxcp 0 -cram 0 -ub 16 -b 64 --spec-type draft-mtp --spec-draft-n-max 1" SENV="LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64" tv-llm-ui/start.sh`
 - The default stays the 2B.
+
+## 15. The 0.8B speed push (2026-11-04 → 05)
+
+Your request: "go back to 0.8b models, push to the max speed possible, research the latest and try new things, be creative and don't limit yourself to Qwen". Same rules as before: every TV run goes through `tv-guard.sh`. Speed is `llama-bench` tg64 with 3 threads on frequent tokens (`LLAMA_BENCH_COMMON_TOKENS=4000`, as in E15) plus pp128. Quality is English perplexity on `eval-en.txt` (ctx 128 × 40 chunks), turned into bits per byte with each model's own token count. **Starting point:** Qwen3.5-0.8B Q4_K_M (unsloth), stock head, `patched16`: **7.47 tok/s**, prompt 28.3 (`bench/raw/E55-tv-speed.txt`).
+
+### 15.1 Research: what's new at ~0.3-2B (Nov 2026)
+
+Found on Hugging Face (`api/models`, model cards):
+- **Liquid AI:** LFM2.5 (230M / 350M / 1.2B, with "QAD" Q4_0 files distilled for Q4_0), LFM2-700M, LFM3-1.7B (Oct 2026, "tri-hybrid"), and the d1 decision models (not generative, skipped).
+- **PrismML:** **Ternary-Bonsai-2-2B** (Sep 2026, Qwen3.5-2B made ternary with a folded Hadamard rotation, 0.52-0.55 GB).
+- **Others:** Gemma 3 1B, Llama 3.2 1B, Qwen3-0.6B, Granite 4.0 H 1B (hybrid Mamba-2), Falcon-H1-Tiny (90M-0.6B), Falcon-E-1B (BitNet; only an `i2_s` bitnet.cpp file, skipped), MobileLLM-R1 (reasoning-only, skipped).
+
+Our llama.cpp v0.8.0 already supports every architecture above, including `lfm3`.
+
+### 15.2 Experiments
+
+| # | What | Result |
+|---|---|---|
+| E54 | **Screening of other small models** (`tools/screen-small.sh`: each GGUF streams from Hugging Face straight to the TV, runs speed + perplexity + one greedy answer, then is deleted; stock files, stock full heads, `patched16`) | Generation / prompt tok/s, bits/byte, max RSS: **Qwen3.5-0.8B Q4_0** 8.15 / 31.8, **1.024**, 750 MB · **LFM2.5-350M** QAD-Q4_0 **23.7** / 104, 1.805, 298 MB (answer correct; perplexity climbs on the later code-heavy chunks) · **LFM2-700M** Q4_0 11.5 / 52.8, 1.169, 523 MB · **LFM2.5-1.2B** QAD-Q4_0 8.26 / 31.6, 1.133, 783 MB (answer correct) · **Qwen3-0.6B** Q8_0 9.35 / 50.6, 1.059, 798 MB. Still running when this was written: Gemma 3 1B, Llama 3.2 1B, Granite 4.0 H 1B, Ternary-Bonsai-2-2B, LFM3-1.7B (an adb drop stopped the first attempt at Gemma). Summary: `bench/raw/E54-screen/summary.txt` |
+| E55 | **Qwen3.5-0.8B rebuilt with the 2B recipe** (Mac): unsloth BF16 → `gguf_build.py` 65,668-row head (`data/head-ids-ml60k.txt`, same tokenizer as the 2B) → `llama-quantize --pure` with unsloth's 0.8B imatrix, one type everywhere | English PPL (Mac, head positions, 1.31 % misses): BF16 12.358 · Q8_0 12.368 · Q6_K 12.454 · Q5_K 12.626 · **Q4_K 13.241 (+7.1 %)** · Q4_0 14.168 (+14.6 %). TV gen / prompt tok/s: **Q4_K 12.14 / 33.1** (RSS 566 MB) · Q4_0 12.50 / 35.6 · Q5_K 9.21 / 26.1 · Q6_K 6.78 / 20.8 · Q8_0 8.23 / 29.4 (RSS 925 MB). **7.47 → 12.14 tok/s (+63 %)**: the stock file spent 43 % of each token on Q6_K matmuls, mostly the 248K-row head. Small models lose more to 4 bits than the 2B did (+7 % vs +2.3 %). Q4_K stays the format: Q4_0 is 3 % faster for twice the loss. Raw: `bench/raw/E55-*` |
+| E56 | **DeltaNet reads its state from the cache by id** (patch, `patched17`): stock llama.cpp gathers each layer's 1 MB recurrent state into a temporary with GET_ROWS before the GDN op, every token. Now `build_rs` returns a view of the cache, and the GDN op gets the row ids (`src[7]`) and the cache (`src[8]`), reading row `s_copy[seq]` at compute time and updating it in place (row j of the state only needs its own row). `LLAMA_GDN_GATHER=1` = stock | **11.94 → 12.88 tok/s (+8 %)**; stock gather on the same binary 11.86. Perplexity and greedy text identical on the Mac (13.2409). Raw: `bench/raw/E56-byid.txt` |
+| E57 | **Where the remaining time goes**: a node-by-node trace (`GGML_OPPROF=2`: per-thread compute time and start time of every node of one graph, `tools/optrace.py`), `LLAMA_UBATCH_PROF=1` (graph build / inputs / compute), `GGML_CPU_PROF=1` (plan vs node loop), and a barrier microbenchmark (`tools/kbench/barrier.c`) | Per token, ~73 ms: **Q4_K matmuls ~71 %** (52 ms; FFN and QKV at ~7 GB/s, the 65K head 7.7 ms at 4.9 GB/s, `z` 4 GB/s because it runs right after DeltaNet's 1 MB state write-back), DeltaNet 7 %, ~830 small nodes 12 %. Overheads are small: graph build 0.25-0.33 ms (the graph is reused), inputs 0.02 ms, plan 0.39 ms, barrier 0.25 µs idle (2.5 µs under load), start skew + gaps between nodes 1.8 ms. Two fixes: the head scatter's `FILL` of 248,320 logits ran one 1-element row at a time (1.2 ms), now one flat range per thread; for a single output row the scatter skips both transposes. **12.88 → 13.2-13.6 tok/s.** Run-to-run noise on this box is ±0.2-0.8 tok/s. Raw: `bench/raw/E56-trace17.txt`, `E57-*` |
+| E58 | **Activation sparsity, simulated** (TEAL / CATS style, training-free: `LLAMA_SPARSE_SIM=a,d,g` zeroes the smallest-magnitude fraction `a` of every layer mat-mul input, `d` for `ffn_down`, in groups of `g` dims). Skipping the matching weight columns would cut bytes read | Q8_0 + H65, Mac PPL 12.368 → 25 %: 12.760 (+3.2 %) · 40 %: 14.772 (+19 %) · 50 %: 19.10 · 30 % / 60 % down: 14.06. **Grouped skipping, which a fast int8 kernel needs, collapses:** groups of 4 at 40 %: 44.4; groups of 16: 230. ✗ Not worth a kernel: at most ~15 % fewer bytes for +3 % perplexity. Raw: `bench/raw/E58-sparse-sim.txt` |
+| E59 | **fp16 DeltaNet state, simulated** (`GGML_GDN_F16SIM=1`: the fused kernel rounds the stored state to fp16) | PPL ctx 128: 12.7040 → 12.7051; ctx 512: 12.7887 → 12.8018 (+0.1 %). Raw: `bench/raw/E59-gdn-f16-sim.txt` |
+| E60 | **Approximate LM head** (`tools/head_approx.py`, hidden states dumped with `LLAMA_DUMP_HIDDEN`): score all tokens with a rank-r SVD of the head, re-score the top K exactly | The exact head reproduces the perplexity (12.707), so the setup is right. **Low rank can't find the token:** rank 128 / K 64 has the true top-1 in its candidates 52 % of the time (PPL 722); rank 384 / K 256, 83 % (PPL 71). ✗ The head is genuinely high-rank; the pruned head stays. Raw: `bench/raw/E60-head-lowrank-h65.txt` |
+| E61 | **fp16 DeltaNet state, real** (`LLAMA_STATE_F16=1`, `patched18`): fp16 recurrent cache, a NEON fp16 path in the fused GDN kernel (read by id, convert in registers, write back in place), F16 `scale` for the state clear | Mac PPL ctx 512 12.7887 → 12.8058 (+0.13 %); greedy text stays fluent but diverges after ~2 sentences. TV: GDN 314 → 262 µs/call (−17 %), but a whole token only −0.7 % (72.7 → 72.2 ms over 65 graphs). Plain tg64 runs can't separate it from noise (f32 12.64 / 13.18, f16 13.41 / 12.92). Kept as an option, off by default. Raw: `bench/raw/E61-state-f16.txt` |
+
+### 15.3 Where the 0.8B stands (so far)
+
+| Qwen3.5-0.8B on this TV | Generation (tok/s) | Prompt (tok/s) | English PPL |
+|---|---|---|---|
+| Stock unsloth Q4_K_M, full head | 7.47 | 28.3 | not measured* |
+| All-Q4_K + 65K head (E55), `patched16` | 12.14 | 33.1 | 13.24** |
+| + state read by id (E56), `patched17` | 12.88 | | 13.24** |
+| **+ flat FILL, transpose-free scatter (E57)** | **13.2-13.6** | ~33 | 13.24** |
+| + fp16 state (E61, optional) | +0.7 % | | 13.26** |
+
+\* the stock unsloth Q4_0 file (full vocabulary, TV) has PPL 14.14 = 1.024 bits/byte (E54); \*\* 65K-head positions (1.31 % misses), Mac; not comparable with full-vocabulary numbers.
+
+**What limits it now:** about 71 % of each token is Q4_K matmuls, already at ~7 GB/s on the big matrices (the kernel's DRAM ceiling measured in E27 is 6.7-8.3 GB/s). The remaining small ops and sync are ~15 % together. A big step past ~14 tok/s needs fewer weight bytes per token: a smaller or ternary model, which is what E54 is screening.
+
+**Not done yet:** a real-chat run through llama-server (sampling over the full 248K vocabulary is not in the llama-bench numbers), and the remaining E54 models.
+
+**New environment switches** (all off by default; the patch is `patches/llama.cpp-v0.8.0-tvbox.patch`):
+- `LLAMA_GDN_GATHER=1`: stock state gather instead of the by-id read (E56).
+- `LLAMA_STATE_F16=1`: fp16 recurrent state, Qwen3.5 only, no MTP (E61).
+- `GGML_OPPROF=2` (+ `GGML_OPPROF_GRAPH=n`): node-by-node trace of one graph; `LLAMA_UBATCH_PROF=1`, `GGML_CPU_PROF=1`: phase timings (E57).
+- `LLAMA_SPARSE_SIM=a,d,g`, `GGML_GDN_F16SIM=1`, `LLAMA_DUMP_HIDDEN=<file>`: quality simulations (E58-E60).
+
+**To use it:** `tools/rebuild-models.sh 08` builds `q08-q4k-h65.gguf` (SHA-256 `901f3838…8523a6b`), then `MODEL=q08-q4k-h65.gguf BIN=patched18 tv-llm-ui/start.sh`. The default stays the 2B.

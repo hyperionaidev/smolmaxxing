@@ -1,0 +1,15 @@
+== lfm25-350m (LiquidAI/LFM2.5-350M-GGUF/LFM2.5-350M-QAD-Q4_0.gguf) 21:09:08
+lfm25-350m     tg  23.71 pp 104.11  PPL  92.6534  tokens  6085  bits/byte 1.805  maxRSS 298 MB
+== lfm2-700m (LiquidAI/LFM2-700M-GGUF/LFM2-700M-Q4_0.gguf) 21:12:10
+lfm2-700m      tg  11.51 pp  52.75  PPL  18.8074  tokens  6085  bits/byte 1.169  maxRSS 523 MB
+== lfm25-1.2b (LiquidAI/LFM2.5-1.2B-Instruct-GGUF/LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf) 21:18:02
+lfm25-1.2b     tg   8.26 pp  31.63  PPL  17.1808  tokens  6085  bits/byte 1.133  maxRSS 783 MB
+== qwen3-06b (Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf) 21:26:22
+== qwen3-06b (Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf) 21:37:23
+qwen3-06b      tg   9.35 pp  50.58  PPL  16.5844  tokens  5756  bits/byte 1.059  maxRSS 798 MB
+== gemma3-1b (ggml-org/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf) 21:44:41
+error: closed
+download failed
+== llama32-1b (bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q4_0.gguf) 21:48:34
+== gemma3-1b (ggml-org/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf) 09:59:15
+== gemma3-1b (ggml-org/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf) 11:09:47

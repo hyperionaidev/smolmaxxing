@@ -1,0 +1,17 @@
+vocab (248320, 1024) hidden rows (2944, 1024) chunks 46
+exact: PPL 12.7070 on 2855 positions (43 misses)
+rank  64 K  16: top-1 in candidates 0.2378, greedy agreement 0.2378, PPL 4037.3921, cost 4.3 M weights
+rank  64 K  64: top-1 in candidates 0.3885, greedy agreement 0.3885, PPL 2469.9744, cost 4.3 M weights
+rank  64 K 256: top-1 in candidates 0.5773, greedy agreement 0.5773, PPL 1011.1825, cost 4.5 M weights
+rank 128 K  16: top-1 in candidates 0.3395, greedy agreement 0.3395, PPL 1314.2980, cost 8.6 M weights
+rank 128 K  64: top-1 in candidates 0.5221, greedy agreement 0.5221, PPL 722.3433, cost 8.6 M weights
+rank 128 K 256: top-1 in candidates 0.6960, greedy agreement 0.6960, PPL 286.3599, cost 8.8 M weights
+rank 192 K  16: top-1 in candidates 0.4141, greedy agreement 0.4141, PPL 708.0251, cost 12.8 M weights
+rank 192 K  64: top-1 in candidates 0.5828, greedy agreement 0.5828, PPL 426.1909, cost 12.9 M weights
+rank 192 K 256: top-1 in candidates 0.7453, greedy agreement 0.7453, PPL 167.4745, cost 13.1 M weights
+rank 256 K  16: top-1 in candidates 0.4586, greedy agreement 0.4586, PPL 495.3590, cost 17.1 M weights
+rank 256 K  64: top-1 in candidates 0.6287, greedy agreement 0.6287, PPL 287.7324, cost 17.1 M weights
+rank 256 K 256: top-1 in candidates 0.7867, greedy agreement 0.7867, PPL 108.8122, cost 17.3 M weights
+rank 384 K  16: top-1 in candidates 0.5276, greedy agreement 0.5276, PPL 295.3533, cost 25.6 M weights
+rank 384 K  64: top-1 in candidates 0.6912, greedy agreement 0.6912, PPL 158.1019, cost 25.7 M weights
+rank 384 K 256: top-1 in candidates 0.8268, greedy agreement 0.8268, PPL 70.9461, cost 25.9 M weights

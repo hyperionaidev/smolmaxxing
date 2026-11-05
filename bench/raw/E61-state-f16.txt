@@ -1,0 +1,14 @@
+X=1 12.64 ± 0.73
+LLAMA_STATE_F16=1 13.41 ± 0.05
+X=2 13.18 ± 0.11
+LLAMA_STATE_F16=2 12.92 ± 0.76
+X=1 [opprof] 65 graphs, 4.726 s total
+X=1 [opprof] MUL_MAT                q4_K        12155    3658.1   77.4%      5.65   3282.9ms    301.0
+X=1 [opprof] GATED_DELTA_NET        f32          1170     367.3    7.8%      0.03    309.2ms    313.9
+X=1 [opprof] GET_ROWS               f32          2470      21.7    0.5%     60.44     19.0ms      8.8
+X=1 [opprof] GET_ROWS               q4_K           65       8.4    0.2%   1110.67      0.4ms    128.8
+LLAMA_STATE_F16=1 [opprof] 65 graphs, 4.695 s total
+LLAMA_STATE_F16=1 [opprof] MUL_MAT                q4_K        12155    3617.7   77.0%      5.71   3251.1ms    297.6
+LLAMA_STATE_F16=1 [opprof] GATED_DELTA_NET        f32          1170     306.5    6.5%      0.03    272.7ms    262.0
+LLAMA_STATE_F16=1 [opprof] GET_ROWS               f32          1300      23.6    0.5%      3.67     20.7ms     18.2
+LLAMA_STATE_F16=1 [opprof] GET_ROWS               q4_K           65       0.8    0.0%  12162.26      0.4ms     11.8

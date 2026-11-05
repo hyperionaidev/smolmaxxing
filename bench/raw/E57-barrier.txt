@@ -1,0 +1,5 @@
+threads 2 rounds 200000 work 0 ns: 0.17 us per round (0.17 us over the work)
+threads 3 rounds 200000 work 0 ns: 0.25 us per round (0.25 us over the work)
+threads 4 rounds 200000 work 0 ns: 0.94 us per round (0.94 us over the work)
+threads 3 rounds 50000 work 5000 ns: 7.49 us per round (2.49 us over the work)
+threads 3 rounds 20000 work 50000 ns: 51.52 us per round (1.52 us over the work)
