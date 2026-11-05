@@ -536,4 +536,35 @@ Our llama.cpp v0.8.0 already supports every architecture above, including `lfm3`
 - `GGML_OPPROF=2` (+ `GGML_OPPROF_GRAPH=n`): node-by-node trace of one graph; `LLAMA_UBATCH_PROF=1`, `GGML_CPU_PROF=1`: phase timings (E57).
 - `LLAMA_SPARSE_SIM=a,d,g`, `GGML_GDN_F16SIM=1`, `LLAMA_DUMP_HIDDEN=<file>`: quality simulations (E58-E60).
 
-**To use it:** `tools/rebuild-models.sh 08` builds `q08-q4k-h65.gguf` (SHA-256 `901f3838…8523a6b`), then `MODEL=q08-q4k-h65.gguf BIN=patched18 tv-llm-ui/start.sh`. The default stays the 2B.
+**To use it:** `tools/rebuild-models.sh 08` builds `q08-q4k-h65.gguf` (SHA-256 `901f3838…8523a6b`), then `MODEL=q08-q4k-h65.gguf tv-llm-ui/start.sh` (default build `patched23` since §16: 14.2 tok/s). The default model stays the 2B.
+
+## 16. The 2B, round 3: scheduling and the last small ops (2026-11-05)
+
+**Goal (your call):** push the default model, Qwen3.5-2B (`w-q4k-h65.gguf`), to the maximum. Starting point: the UI still ran `patched5` (§11.8). All numbers below are back-to-back A/B runs on the same day (llama-bench tg64/tg128, 3 threads, `LLAMA_BENCH_COMMON_TOKENS=4000`), because the box itself was slower than on 11-04: `patched5` measured 5.79 tok/s in llama-bench today vs 6.69 then (the audio HAL uses ~19 % of a core all the time). Before this, the TV was cleaned up: Granite, the stock 0.8B, Gemma 270M, the four `o-*` screening files and `tb4-TQ1_0-h8` were deleted (TV free flash 0.56 → 4.9 GB); the models in the README table, `w-m2-h65` and the 2B BF16 work file stay.
+
+### 16.1 Experiments
+
+| # | What | Result |
+|---|---|---|
+| E63 | **Re-baseline and trace.** `patched5` vs `patched19` (everything from §15), op profile, GGML_OPPROF=2 node trace (`tools/optrace.py`, parser fixed for the newer trace columns) | llama-bench 5.79 → **6.25** (+8 %); chat (`tools/mtp-bench.sh`) 5.65 → 5.81 with one outlier answer (server eval time matches the client, so sampling and HTTP cost nothing measurable). Per token 166 ms: Q4_K matmuls 137 ms (82 %, 6.2 GB/s), DeltaNet 5.6, embedding GET_ROWS 4.9 (page faults on the lazily mapped `token_embd`: with a 1-token pool it drops to 0.75 ms/call, but tg64 doesn't move, so ≤ 2 %), small ops ~20. **The trace's finding:** in matmuls the slowest thread sums to 166 ms vs a 138 ms mean, i.e. ~28 ms per token of idle threads waiting for a straggler (thread 1: 157 ms vs ~129 ms for the others). Tried and closed: more, smaller chunks (`GGML_CHUNK_MULT` 16 / 32 per thread: 6.12-6.25 / 5.70 vs 6.37 at the stock 4: short chunks break the prefetcher's sequential streams); pinning to cores 1-3 or 0-2 (`taskset`: 5.7-5.9 vs 6.2 unpinned); a 4th core (`KB_SWEEP=1 kbench`, Q4_K gemv from DRAM, best of 3 runs: 3.7 / 5.7 / 6.6 / 7.3 GB/s for 1-4 threads, so at most ~10 % more bandwidth). Also found: single-row element-wise ops run on thread 0 only (ggml splits them by rows): SWIGLU 97 µs on thread 0 vs 3.6 µs on the others. Raw: `bench/raw/E63-*` |
+| E63b | **Single-row ops split by columns** (`patched21`): SWIGLU, SILU, the generic unary ops (SIGMOID, …) and same-shape binary ops (ADD, …) split their columns between threads when there is one row of ≥ 1,024 values | Greedy text identical to `patched20`. llama-bench tg128 ×5, three alternating rounds: **6.26 → 6.39 (+2.0 %)**, 3/3 wins. Raw: `bench/raw/E63-colsplit-ab.txt` |
+| E64 | **Guided self-scheduling of matmul rows** (`patched22`, default since `patched23`): for 1-4-row matmuls each grab takes remaining / (2 × threads) row groups (at least 1/48 of the matrix), so the first chunks are long sequential streams and only the last ones are short | Mac PPL bit-identical (19.2111 both ways). 2B: **6.39 → 6.54 (+2.4 %)**, 3/3 wins. Trace: matmul time per thread **124.4 / 123.7 / 124.9 ms** (was 130 / 157 / 128); total imbalance 33.5 → 6.5 ms. 0.8B: +1.4 %. Prompt batches stay on the stock scheduler (pp128 was too noisy to call, ±2). `GGML_CHUNK_GUIDED=0` = stock. Raw: `bench/raw/E64-*` |
+| E65 | **fp16 DeltaNet state on the 2B** (`LLAMA_STATE_F16=1`, E61) | **6.43 → 6.59 (+2.5 %)**, 3/3 wins (the 2B moves 18 MB of state per token). English PPL (TV, 65K-head positions): 9.9374 → **9.9523 (+0.15 %)**, same 1.31 % misses. Raw: `bench/raw/E65-*` |
+| E66 | **4 threads again**, now with guided scheduling | 5.09 / 5.18 vs 6.53 / 6.52 with 3: still much worse. The straggler problem isn't only inside matmuls: ~850 nodes per token each end in a barrier, and a preempted 4th thread stalls every one of them. Closed. Raw: `bench/raw/E66-threads-guided.txt` |
+| E67 | **Real chat, final** (`tools/mtp-bench.sh`, now with `SENV`): `patched5` vs `patched23` + `LLAMA_STATE_F16=1`, two rounds each | **2B chat: 5.83 / 5.96 → 6.57 / 6.53 tok/s (+11 %)**, prompt 15.4 → 16.1; server eval 149-159 ms/token. **0.8B** (tg128, `patched18` vs `patched23` + fp16 state, 3 rounds): **13.45 → 14.20 (+5.6 %)**. Raw: `bench/raw/E67-*` |
+
+### 16.2 Where the 2B stands
+
+| Qwen3.5-2B, same day, back to back | llama-bench tok/s | Chat tok/s |
+|---|---|---|
+| `patched5` (UI default until now) | 5.79 | 5.90 |
+| `patched19` (§15: state by id, flat FILL, transpose-free scatter) | 6.25 | 5.81* |
+| + column-split single-row ops (`patched21`) | 6.39 | |
+| + guided matmul scheduling (`patched22/23`) | 6.54 | |
+| **+ fp16 DeltaNet state (new default)** | **6.59** | **6.55** |
+
+\* one slow answer (5.18) pulled this run down.
+
+**What limits it now:** with the tail gone, each thread streams Q4_K weights at ~6.85 GB/s, the RAM ceiling `kbench` measures for 3 threads; matmuls are 90 % of the critical path, the rest is ~14 ms of small ops. Every format we have runs at ~11-13 G weights/s on these cores (E26), so fewer bits don't help either. What's left is a few % each, and none of them is free: (1) a smaller head (`data/head-ids-ml40k.txt`: ~52 M fewer weights per token, about +3 %, more tokens outside the head: a quality trade); (2) embedding rows taken from the resident head instead of faulting them in from flash (≤ 2 %; needs an inverse of the 8-row repack, since `output.weight` is repacked); (3) fusing the remaining small ops (DeltaNet conv concat + SSM_CONV, norms: ~2-3 ms).
+
+**New environment switches:** `GGML_CHUNK_GUIDED=0` (stock matmul scheduling), `GGML_CHUNK_MULT=n` (stock scheduler, n chunks per thread). `tv-llm-ui/start.sh` now defaults to `BIN=patched23` with `SENV=LLAMA_STATE_F16=1` (an explicit `BIN` gets no default environment; `SENV=` turns fp16 state off).

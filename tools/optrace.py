@@ -5,7 +5,7 @@ L = [l for l in open(sys.argv[1], errors="replace") if l.startswith("[optrace]")
 print(L[0].strip())
 rows = []
 for l in L[1:]:
-    a, b = l.split("|"); f = a.split(); us = list(map(float, b.split()))
+    p = l.split("|"); a, b = p[0], p[1]; f = a.split(); us = list(map(float, b.split()))   # later columns: start skew, t offset
     rows.append((int(f[1]), f[2], " ".join(f[3:-3]), f[-3], int(f[-2]), int(f[-1]), us))
 mx = sum(max(r[6]) for r in rows); mean = sum(sum(r[6]) / len(r[6]) for r in rows)
 print("nodes %d | critical path (sum of slowest thread per node) %.0f us | sum of mean %.0f us | imbalance %.0f us" % (len(rows), mx, mean, mx - mean))

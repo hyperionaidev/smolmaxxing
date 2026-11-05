@@ -1,0 +1,8 @@
+2B pp128 guided off         15.14 ± 0.31 
+0.8B tg64 guided off         13.93 ± 0.03 
+2B pp128 guided on         13.74 ± 1.51 
+0.8B tg64 guided on         14.17 ± 0.05 
+2B pp128 guided off         14.09 ± 1.71 
+0.8B tg64 guided off         13.83 ± 0.52 
+2B pp128 guided on         14.07 ± 2.21 
+0.8B tg64 guided on         13.96 ± 0.43 

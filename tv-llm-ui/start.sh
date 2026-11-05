@@ -5,6 +5,7 @@
 #   MODEL=file.gguf BIN=patched THREADS=3 EXTRA="..." ./start.sh
 #   TV=1 ./start.sh                    also open the page in the TV browser (only fits next to small models)
 #   SENV="LLAMA_STREAM_RESIDENT_MB=800 ..." ./start.sh   environment for the server (weight streaming, EXPERIMENT.md §14)
+#   (default BIN=patched23 with SENV=LLAMA_STATE_F16=1; fp16 state is Qwen3.5-only and asserts with MTP speculation)
 #   ./start.sh stop
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -13,12 +14,17 @@ IP="${S%%:*}"
 D=/data/local/tmp/llm
 PORT=8090
 MODEL="${MODEL:-w-q4k-h65.gguf}"     # final config (EXPERIMENT.md §11.8): all-Q4_K + 65K multilingual head + MTP block
-BIN="${BIN:-patched5}"                 # fused DeltaNet + padded small batches (E28, E32)
+if [ -z "${BIN:-}" ]; then
+  # default build (EXPERIMENT.md §16): state read by id, guided matmul scheduling, single-row ops split across
+  # threads, fp16 DeltaNet state (+11 % in chat vs patched5). SENV= (empty) turns the fp16 state off.
+  BIN=patched23
+  SENV="${SENV-LLAMA_STATE_F16=1}"
+fi
 THREADS="${THREADS:-3}"
 CTX="${CTX:-1024}"
 TEMP="${TEMP:-0.7}"
 EXTRA="${EXTRA:--ub 128 -b 128}"
-SENV="${SENV:-}"
+SENV="${SENV:-}"                       # an explicit BIN gets no default environment
 A(){ adb -s "$S" shell "$@"; }
 
 stop_all() {

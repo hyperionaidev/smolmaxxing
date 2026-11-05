@@ -1,0 +1,2 @@
+state f32 6.55.864.523 I Final estimate: PPL = 9.9374 +/- 0.55860 6.55.864.602 I pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab)  tv-guard: exit 0
+state f16 6.44.096.627 I Final estimate: PPL = 9.9523 +/- 0.55947 6.44.096.695 I pruned-head misses: 33 of 2520 scored tokens (1.310%) skipped (target outside kept vocab)  tv-guard: exit 0

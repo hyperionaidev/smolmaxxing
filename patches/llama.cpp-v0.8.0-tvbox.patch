@@ -13,6 +13,32 @@ index dc6453c..22ced90 100644
      GGML_BACKEND_API void    ggml_numa_init(enum ggml_numa_strategy numa); // call once for better performance on NUMA systems
      GGML_BACKEND_API bool    ggml_is_numa(void); // true if init detected that system has >1 NUMA node
  
+diff --git a/ggml/src/ggml-cpu/binary-ops.cpp b/ggml/src/ggml-cpu/binary-ops.cpp
+index 75e3829..8b49957 100644
+--- a/ggml/src/ggml-cpu/binary-ops.cpp
++++ b/ggml/src/ggml-cpu/binary-ops.cpp
+@@ -58,9 +58,20 @@ static void apply_binary_op(const ggml_compute_params * params, ggml_tensor * ds
+     GGML_ASSERT( nb0 == sizeof(dst_t));
+     GGML_ASSERT(nb00 == sizeof(src0_t));
+ 
+-    const auto [ir0, ir1] = get_thread_range(params, src0);
+     const bool is_src1_contiguous_rows = ggml_is_contiguous_rows(src1);
+ 
++    // tvbox: one row, same-shape operands (token generation) -> split the columns between threads
++    if (ggml_nrows(src0) == 1 && params->nth > 1 && ne00 >= 1024 && ne10 == ne00 && is_src1_contiguous_rows) {
++        const int64_t per = ((ne00 + params->nth - 1)/params->nth + 15) & ~15;
++        const int64_t c0 = std::min<int64_t>(per*params->ith, ne00), c1 = std::min<int64_t>(c0 + per, ne00);
++        if (c0 < c1) {
++            vec_binary_op_contiguous<op>(c1 - c0, (dst_t *) dst->data + c0, (const src0_t *) src0->data + c0, (const src1_t *) src1->data + c0);
++        }
++        return;
++    }
++
++    const auto [ir0, ir1] = get_thread_range(params, src0);
++
+ #ifdef GGML_USE_ACCELERATE
+     vDSP_fn_t vDSP_op = nullptr;
+     // TODO - avoid the f32-only check using type 'trait' lookup tables and row-based src-to-float conversion functions
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
 index 53d39d2..e46af0c 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
@@ -189,7 +215,7 @@ index 81ff5d7..71c82c6 100644
  
  static const struct ggml_backend_i ggml_backend_cpu_i = {
 diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
-index 85e1701..0be795c 100644
+index 85e1701..ee53bae 100644
 --- a/ggml/src/ggml-cpu/ops.cpp
 +++ b/ggml/src/ggml-cpu/ops.cpp
 @@ -2172,6 +2172,16 @@ static void ggml_compute_forward_gelu(
@@ -209,7 +235,48 @@ index 85e1701..0be795c 100644
      GGML_TENSOR_LOCALS(int64_t, ne, dst, ne);
      GGML_TENSOR_LOCALS(size_t,  nb, dst, nb);
  
-@@ -4936,6 +4946,24 @@ static void ggml_compute_forward_scale_bf16(
+@@ -2558,6 +2568,16 @@ static void ggml_compute_forward_silu_f32(
+     const int nc = src0->ne[0];
+     const int nr = ggml_nrows(src0);
+ 
++    // tvbox: one contiguous row -> split the columns between threads
++    if (nr == 1 && nth > 1 && nc >= 1024 && ggml_is_contiguous(src0) && ggml_is_contiguous(dst)) {
++        const int per = ((nc + nth - 1)/nth + 15) & ~15;
++        const int c0 = MIN(per*ith, nc), c1 = MIN(c0 + per, nc);
++        if (c0 < c1) {
++            ggml_vec_silu_f32(c1 - c0, (float *) dst->data + c0, (const float *) src0->data + c0);
++        }
++        return;
++    }
++
+     // rows per thread
+     const int dr = (nr + nth - 1)/nth;
+ 
+@@ -3250,6 +3270,23 @@ static void ggml_compute_forward_swiglu_f32(
+ 
+     const int32_t swapped = ggml_get_op_params_i32(dst, 1);
+ 
++    // tvbox: one row (token generation) -> split the columns between threads instead of leaving
++    // threads 1..n-1 idle while thread 0 does the whole 6144-wide FFN gate
++    if (nr == 1 && nth > 1 && nc >= 1024) {
++        const int per = ((nc + nth - 1)/nth + 15) & ~15;
++        const int c0 = MIN(per*ith, nc), c1 = MIN(c0 + per, nc);
++        float * src0_p = (float *) src0_d;
++        float * src1_p = (float *) src1_d;
++        if (!src1) {
++            src0_p += swapped ? nc : 0;
++            src1_p += swapped ? 0 : nc;
++        }
++        if (c0 < c1) {
++            ggml_vec_swiglu_f32(c1 - c0, (float *) dst->data + c0, src0_p + c0, src1_p + c0);
++        }
++        return;
++    }
++
+     // rows per thread
+     const int dr = (nr + nth - 1)/nth;
+ 
+@@ -4936,6 +4973,24 @@ static void ggml_compute_forward_scale_bf16(
      }
  }
  
@@ -234,7 +301,7 @@ index 85e1701..0be795c 100644
  void ggml_compute_forward_scale(
          const ggml_compute_params * params,
          ggml_tensor * dst) {
-@@ -4947,6 +4975,10 @@ void ggml_compute_forward_scale(
+@@ -4947,6 +5002,10 @@ void ggml_compute_forward_scale(
              {
                  ggml_compute_forward_scale_f32(params, dst);
              } break;
@@ -245,7 +312,7 @@ index 85e1701..0be795c 100644
          case GGML_TYPE_BF16:
              {
                  ggml_compute_forward_scale_bf16(params, dst);
-@@ -11155,6 +11187,20 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+@@ -11155,6 +11214,20 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
      const int64_t state_size_per_snap = S_v * S_v * H * n_seqs;
      float * attn_out_base  = (float *)dst->data;
      float * state_out_base = (float *)dst->data + attn_score_elems;
@@ -266,7 +333,7 @@ index 85e1701..0be795c 100644
  
      // snapshot slot mapping: slot 0 = most recent state, slot s = s tokens back.
      // When n_tokens < K only slots 0..n_tokens-1 are written; older slots are caller-owned.
-@@ -11184,10 +11230,61 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+@@ -11184,10 +11257,61 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
              ? state_work
              : state_out_base + (iv3 * H + iv1) * S_v * S_v;
  
@@ -330,7 +397,7 @@ index 85e1701..0be795c 100644
  
          // attn output pointer for first token of this (head, seq)
          float * attn_data = attn_out_base + (iv3 * n_tokens * H + iv1) * S_v;
-@@ -11203,6 +11300,51 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+@@ -11203,6 +11327,51 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
              // state is stored transposed: s_out[j*S_v + i] = S[i][j]
              // so row j of s_out = column j of S (contiguous access)
  
@@ -382,7 +449,7 @@ index 85e1701..0be795c 100644
              if (kda) {
                  // precompute exp(g) into delta scratch (reused below)
                  for (int64_t i = 0; i < S_v; ++i) {
-@@ -11234,6 +11376,7 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
+@@ -11234,6 +11403,7 @@ static void ggml_compute_forward_gated_delta_net_one_chunk(
                  ggml_vec_dot_f32(S_v, &sum, 0, &s_out[j * S_v], 0, q_d, 0, 1);
                  attn_data[j] = sum * scale;
              }
@@ -1227,7 +1294,7 @@ index 0000000..ab5dc8d
 +static void ggml_gemm_q2_0_tq1g64_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
 +#endif
 diff --git a/ggml/src/ggml-cpu/repack.cpp b/ggml/src/ggml-cpu/repack.cpp
-index 9282ca2..b5606d0 100644
+index 9282ca2..4509dfc 100644
 --- a/ggml/src/ggml-cpu/repack.cpp
 +++ b/ggml/src/ggml-cpu/repack.cpp
 @@ -4262,6 +4262,36 @@ template <> int repack<block_q4_K, 8, 8>(struct ggml_tensor * t, const void * da
@@ -1435,7 +1502,57 @@ index 9282ca2..b5606d0 100644
          // INFO: Quantization is done in planes to avoid extra complexity in chunking.
          // Flattening dimensions not multiple of INTER_SIZE would require extra handling depending on how
          // the planes are broadcast.
-@@ -4912,7 +5047,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4708,10 +4843,12 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+         // disable for NUMA
+         const bool disable_chunking = ggml_is_numa();
+ 
+-        // 4x chunks per thread
++        // 4x chunks per thread (tvbox: GGML_CHUNK_MULT=n sets n chunks per thread; smaller chunks shrink the tail
++        // a slow / preempted thread leaves at the end of every matmul)
+         const int64_t nr0 = ggml_nrows(op->src[0]);
++        static const int chunk_mult = getenv("GGML_CHUNK_MULT") ? atoi(getenv("GGML_CHUNK_MULT")) : 4;
+ 
+-        int     nth_scaled  = nth * 4;
++        int     nth_scaled  = nth * chunk_mult;
+         int64_t chunk_size0 = (nr0 + nth_scaled - 1) / nth_scaled;
+         int64_t nchunk0     = (nr0 + chunk_size0 - 1) / chunk_size0;
+ 
+@@ -4741,6 +4878,34 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+         const int64_t max_nchunk = (nr0 + min_chunk_size - 1) / min_chunk_size;
+         nchunk0                  = MIN(nchunk0, max_nchunk);
+ 
++        // tvbox: guided self-scheduling for single-plane matmuls of up to 4 rows (token generation, small batches):
++        // each grab takes remaining / (2 * nth) row groups (at least ngroups / (16 * nth)), so the first chunks are
++        // long sequential streams and only the last ones are small: a slow / preempted thread leaves a short tail
++        // (E64: 2B +2.4 %, 0.8B +1.4 %). GGML_CHUNK_GUIDED=0 = stock 4 chunks per thread.
++        static const bool guided = getenv("GGML_CHUNK_GUIDED") == nullptr || atoi(getenv("GGML_CHUNK_GUIDED")) != 0;
++        if (guided && nchunk1 == 1 && nth > 1 && ne11 <= 4) {
++            const int64_t ngroups = (nr0 + NB_COLS - 1) / NB_COLS;
++            const int64_t min_g   = MAX(1, ngroups / (16 * nth));
++            if (ith == 0) {
++                ggml_threadpool_chunk_set(params->threadpool, 0);
++            }
++            ggml_barrier(params->threadpool);
++            while (true) {
++                const int64_t seen = ggml_threadpool_chunk_add(params->threadpool, 0);
++                if (seen >= ngroups) {
++                    break;
++                }
++                const int64_t size  = MAX(min_g, (ngroups - seen) / (2 * nth));
++                const int64_t start = ggml_threadpool_chunk_add(params->threadpool, (int) size);
++                if (start >= ngroups) {
++                    break;
++                }
++                const int64_t end = MIN(start + size, ngroups);
++                forward_mul_mat_one_chunk(params, dst, start * NB_COLS, MIN(end * NB_COLS, ne01), 0, ne11);
++            }
++            return;
++        }
++
+         if (ith == 0) {
+             // Every thread starts at ith, so the first unprocessed chunk is nth.  This save a bit of coordination right at the start.
+             ggml_threadpool_chunk_set(params->threadpool, nth);
+@@ -4912,7 +5077,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
  
                  gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
                      ne00, (float *) ((char *) dst->data + (i1 * nb1 + i2 * nb2)) + src0_cur_start, ne01,
@@ -1444,7 +1561,7 @@ index 9282ca2..b5606d0 100644
              }
          }
  #undef MMID_MATRIX_ROW
-@@ -4931,6 +5066,7 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -4931,6 +5096,7 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
      // instance for Q1_0
      static const ggml::cpu::repack::tensor_traits<block_q1_0, 4, 4, GGML_TYPE_Q8_0> q1_0_4x4_q8_0;
      static const ggml::cpu::repack::tensor_traits<block_q1_0, 8, 4, GGML_TYPE_Q8_0> q1_0_4x8_q8_0;
@@ -1452,7 +1569,7 @@ index 9282ca2..b5606d0 100644
  
      // instance for Q4
      static const ggml::cpu::repack::tensor_traits<block_q4_0, 4, 4, GGML_TYPE_Q8_0> q4_0_4x4_q8_0;
-@@ -4951,6 +5087,10 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -4951,6 +5117,10 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
  
      // instance for Q2
      static const ggml::cpu::repack::tensor_traits<block_q2_K, 8, 8, GGML_TYPE_Q8_K> q2_K_8x8_q8_K;
@@ -1463,7 +1580,7 @@ index 9282ca2..b5606d0 100644
  
      // instance for IQ4
      static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 4, 4, GGML_TYPE_Q8_0> iq4_nl_4x4_q8_0;
-@@ -5035,7 +5175,25 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5035,7 +5205,25 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
              }
              #endif
          }
@@ -1489,7 +1606,7 @@ index 9282ca2..b5606d0 100644
          if (ggml_cpu_has_avx512()) {
              if (cur->ne[1] % 8 == 0) {
                  return &q2_K_8x8_q8_K;
-@@ -5130,6 +5288,14 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5130,6 +5318,14 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
              #endif
          }
      } else if (cur->type == GGML_TYPE_Q1_0) {
@@ -1504,7 +1621,7 @@ index 9282ca2..b5606d0 100644
          if (ggml_cpu_has_neon() && ggml_cpu_has_matmul_int8()) {
              if (cur->ne[1] % 4 == 0) {
                  return &q1_0_4x8_q8_0;
-@@ -5145,6 +5311,94 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5145,6 +5341,94 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
      return nullptr;
  }
  
@@ -1599,7 +1716,7 @@ index 9282ca2..b5606d0 100644
  static enum ggml_status ggml_backend_cpu_repack_buffer_init_tensor(ggml_backend_buffer_t buffer, struct ggml_tensor * tensor) {
      tensor->extra = (void *) const_cast<ggml::cpu::tensor_traits *>(ggml_repack_get_optimal_repack_type(tensor));
  
-@@ -5157,10 +5411,22 @@ static void ggml_backend_cpu_repack_buffer_set_tensor(ggml_backend_buffer_t buff
+@@ -5157,10 +5441,22 @@ static void ggml_backend_cpu_repack_buffer_set_tensor(ggml_backend_buffer_t buff
      GGML_ASSERT(offset == 0);
      GGML_ASSERT(size == ggml_nbytes(tensor));
  
@@ -1622,7 +1739,7 @@ index 9282ca2..b5606d0 100644
      GGML_UNUSED(buffer);
  }
  
-@@ -5171,7 +5437,10 @@ static const char * ggml_backend_cpu_repack_buffer_type_get_name(ggml_backend_bu
+@@ -5171,7 +5467,10 @@ static const char * ggml_backend_cpu_repack_buffer_type_get_name(ggml_backend_bu
  }
  
  static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
@@ -1634,7 +1751,7 @@ index 9282ca2..b5606d0 100644
  
      if (buffer == nullptr) {
          return nullptr;
-@@ -5185,6 +5454,19 @@ static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(gg
+@@ -5185,6 +5484,19 @@ static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(gg
      return buffer;
  }
  
@@ -1654,7 +1771,7 @@ index 9282ca2..b5606d0 100644
  static size_t ggml_backend_cpu_repack_buffer_type_get_alignment(ggml_backend_buffer_type_t buft) {
      return TENSOR_ALIGNMENT;
  
-@@ -5248,7 +5530,7 @@ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
+@@ -5248,7 +5560,7 @@ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
                             /* .alloc_buffer_n       = */ nullptr,
                             /* .get_alignment        = */ ggml_backend_cpu_repack_buffer_type_get_alignment,
                             /* .get_max_size         = */ nullptr,  // defaults to SIZE_MAX
@@ -1943,6 +2060,27 @@ index 0000000..3471c83
 +extern "C" void ggml_cpu_stream_hook(const struct ggml_tensor *, int) {}
 +extern "C" void ggml_cpu_stream_stats(void) {}
 +#endif
+diff --git a/ggml/src/ggml-cpu/unary-ops.cpp b/ggml/src/ggml-cpu/unary-ops.cpp
+index f5d57d6..05a9f80 100644
+--- a/ggml/src/ggml-cpu/unary-ops.cpp
++++ b/ggml/src/ggml-cpu/unary-ops.cpp
+@@ -118,6 +118,16 @@ static void apply_unary_op(const ggml_compute_params * params, ggml_tensor * dst
+     GGML_ASSERT( nb0 == sizeof(dst_t));
+     GGML_ASSERT(nb00 == sizeof(src0_t));
+ 
++    // tvbox: one row (token generation) -> split the columns between threads
++    if (ggml_nrows(src0) == 1 && params->nth > 1 && ne0 >= 1024) {
++        const int64_t per = ((ne0 + params->nth - 1)/params->nth + 15) & ~15;
++        const int64_t c0 = std::min<int64_t>(per*params->ith, ne0), c1 = std::min<int64_t>(c0 + per, ne0);
++        if (c0 < c1) {
++            vec_unary_op<op>(c1 - c0, (dst_t *) dst->data + c0, (const src0_t *) src0->data + c0);
++        }
++        return;
++    }
++
+     const auto [ir0, ir1] = get_thread_range(params, src0);
+ 
+     for (int64_t ir = ir0; ir < ir1; ++ir) {
 diff --git a/ggml/src/ggml-vulkan/ggml-vulkan.cpp b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
 index c094368..b6c80db 100644
 --- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp

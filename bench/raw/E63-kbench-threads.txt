@@ -1,0 +1,13 @@
+KB_SWEEP=1 bin/kbench on the TV (Q4_K 8x4 repacked gemv, 27 MB matrix from DRAM, ref kernel, no prefetch; 3 rounds of 1-4 threads)
+DRAM   27648 KB  ref 1T  3.73 GB/s
+DRAM   27648 KB  ref 2T  5.51 GB/s
+DRAM   27648 KB  ref 3T  5.80 GB/s
+DRAM   27648 KB  ref 4T  6.27 GB/s
+DRAM   27648 KB  ref 1T  3.57 GB/s
+DRAM   27648 KB  ref 2T  5.54 GB/s
+DRAM   27648 KB  ref 3T  4.57 GB/s
+DRAM   27648 KB  ref 4T  4.83 GB/s
+DRAM   27648 KB  ref 1T  3.19 GB/s
+DRAM   27648 KB  ref 2T  5.66 GB/s
+DRAM   27648 KB  ref 3T  6.62 GB/s
+DRAM   27648 KB  ref 4T  7.30 GB/s

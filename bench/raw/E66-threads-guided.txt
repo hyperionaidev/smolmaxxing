@@ -1,0 +1,4 @@
+threads 3           6.53 ± 0.20 
+threads 4           5.09 ± 0.14 
+threads 3           6.52 ± 0.15 
+threads 4           5.18 ± 0.13 

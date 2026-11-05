@@ -3,6 +3,7 @@
 // "ref" is llama.cpp's kernel (copied, logic unchanged); "v2" is a variant tuned for the in-order Cortex-A55.
 // Measures GB/s of weight bytes, 1 and 3 threads, for a cache-resident matrix and a DRAM-sized one,
 // and checks v2 against ref.   usage: kbench
+// KB_SWEEP=1 kbench: only the DRAM-sized matrix, ref kernel, no prefetch, 1-4 threads (is a 4th core worth using?)
 #include <arm_neon.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -183,6 +184,16 @@ int main(void) {
     block_q8_K *y = aligned_alloc(64, (sizeof(block_q8_K) * nb + 63) / 64 * 64);
     for (int b = 0; b < nb; b++) { y[b].d = 0.01f; for (int i = 0; i < QK_K; i++) y[b].qs[i] = rand() % 255 - 127;
         for (int i = 0; i < 16; i++) { int t = 0; for (int k = 0; k < 16; k++) t += y[b].qs[i * 16 + k]; y[b].bsums[i] = t; } }
+    if (getenv("KB_SWEEP")) {
+        const int nc = 24576; size_t wb = (size_t) nc / 8 * nb * sizeof(block_q4_Kx8);
+        uint8_t *w = aligned_alloc(64, wb + 65536); for (size_t i = 0; i < wb + 65536; i++) w[i] = rand();
+        block_q4_Kx8 *bw = (block_q4_Kx8 *) w;
+        for (size_t i = 0; i < wb / sizeof(block_q4_Kx8); i++) for (int c = 0; c < 8; c++) { bw[i].d[c] = 0.01f; bw[i].dmin[c] = 0.002f; }
+        float *s1 = calloc(nc, 4);
+        for (int round = 0; round < 3; round++)
+            for (int t = 1; t <= 4; t++) printf("DRAM %7.0f KB  ref %dT %5.2f GB/s\n", wb / 1024.0, t, bench(gemv_ref, n, nc, t, w, y, s1, 8));
+        return 0;
+    }
     int ncs[2] = { 48, 24576 };             // 48 rows = 54 KB (cache-resident), 24576 rows = 27 MB (DRAM, like an FFN matrix x4)
     for (int k = 0; k < 2; k++) {
         int nc = ncs[k];

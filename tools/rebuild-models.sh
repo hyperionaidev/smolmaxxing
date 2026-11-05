@@ -12,7 +12,7 @@
 #                                                  q9      # Qwen3.5-9B UD-IQ2_XXS + 65K head + MTP block (§14)
 #                                                  caches  # repack caches for b8 / tb8 (built on the TV by a 1-token run)
 #
-# Needs: the patched binaries on the TV (bin/patched16 pushed to /data/local/tmp/llm/patched16, bin/gguf_recut to
+# Needs: the patched binaries on the TV (the README's quick-start build in /data/local/tmp/llm/patched23; BIN=... for another, bin/gguf_recut to
 # /data/local/tmp/llm), python3 (+ numpy via `uv run --with numpy` for fetch_mtp.py), curl, adb.
 # Head id lists are in data/ (made by tools/vocab_select.py for Qwen3.5 and tools/head_select_tok.py for Qwen3 / Granite).
 set -euo pipefail
@@ -20,6 +20,7 @@ cd "$(dirname "$0")/.."
 S="${ADB_SERIAL:?set ADB_SERIAL=<tv-ip>:5555}"
 D=/data/local/tmp/llm
 HF=https://huggingface.co
+BIN=${BIN:-patched23}
 A(){ adb -s "$S" shell "$@"; }
 to_tv(){ adb -s "$S" exec-in "cat > $D/$1"; }       # stdin -> file on the TV
 push(){ adb -s "$S" push "$1" "$D/" >/dev/null; }
@@ -93,8 +94,8 @@ q9)
 caches)
   # The repack cache is written by the first run that sets GGML_REPACK_CACHE (one token is enough); later runs map
   # it and skip the repack. The file name gets the buffer size appended (b8c.961840480, tb8.1687042560).
-  A "cd $D && GGML_REPACK_CACHE=$D/cache/b8c sh tv-guard.sh c-b8.log ./patched16/llama-bench -m b8-q1-hml.gguf -t 3 -p 0 -n 1 -r 1"
-  A "cd $D && GGML_REPACK_CACHE=$D/cache/tb8 sh tv-guard.sh c-tb8.log ./patched16/llama-bench -m tb8-q20-hml.gguf -t 3 -p 0 -n 1 -r 1"
+  A "cd $D && GGML_REPACK_CACHE=$D/cache/b8c sh tv-guard.sh c-b8.log ./$BIN/llama-bench -m b8-q1-hml.gguf -t 3 -p 0 -n 1 -r 1"
+  A "cd $D && GGML_REPACK_CACHE=$D/cache/tb8 sh tv-guard.sh c-tb8.log ./$BIN/llama-bench -m tb8-q20-hml.gguf -t 3 -p 0 -n 1 -r 1"
   A "ls -la $D/cache"
   ;;
 *) echo "unknown target $T (2b 08 g1 4b b8 tb8 q9 caches)"; exit 1 ;;

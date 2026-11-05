@@ -1,0 +1,127 @@
+===== 2b-patched5.tg.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          5.79 ± 0.23 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 226 MB, max RSS 909 MB
+===== 2b-patched19.tg.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          6.25 ± 0.08 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 257 MB, max RSS 966 MB
+===== 2b-prof.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg16 |          6.17 ± 0.00 |
+
+[opprof] 17 graphs, 2.829 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q4_K         3179    2325.9   82.2%      6.20   2107.5ms    731.6
+[opprof] GATED_DELTA_NET        f32           306      94.6    3.3%      0.03     80.2ms    309.3
+[opprof] GET_ROWS               q4_K           17      83.0    2.9%     58.63     82.9ms   4879.5
+[opprof] RMS_NORM               f32          1955      59.5    2.1%      0.27     34.1ms     30.5
+[opprof] GLU                    f32           408      50.9    1.8%      0.20     40.5ms    124.7
+[opprof] UNARY                  f32          1326      49.7    1.8%      0.22     29.5ms     37.4
+[opprof] ADD                    f32          1122      43.2    1.5%      0.16     24.6ms     38.5
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 256 MB, max RSS 965 MB
+===== 2b-gr1.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg32 |          6.28 ± 0.00 |
+
+[opprof] 33 graphs, 5.263 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q4_K         6171    4568.9   86.8%      6.12   4104.8ms    740.4
+[opprof] GATED_DELTA_NET        f32           594     177.6    3.4%      0.03    148.4ms    299.0
+[opprof] RMS_NORM               f32          3795      84.2    1.6%      0.37     46.3ms     22.2
+[opprof] GLU                    f32           792      75.7    1.4%      0.26     64.2ms     95.6
+[opprof] UNARY                  f32          2574      74.5    1.4%      0.28     60.4ms     29.0
+[opprof] ADD                    f32          2178      62.9    1.2%      0.21     42.5ms     28.9
+[opprof] GET_ROWS               q4_K           33      24.7    0.5%    382.73     24.2ms    747.4
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 317 MB, max RSS 962 MB
+===== 2b-gr4000.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg32 |          6.28 ± 0.00 |
+
+[opprof] 33 graphs, 5.225 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q4_K         6171    4512.9   86.4%      6.20   4034.3ms    731.3
+[opprof] GATED_DELTA_NET        f32           594     181.4    3.5%      0.03    156.7ms    305.3
+[opprof] RMS_NORM               f32          3795      81.6    1.6%      0.38     47.7ms     21.5
+[opprof] GET_ROWS               q4_K           33      76.3    1.5%    123.77     76.0ms   2311.3
+[opprof] UNARY                  f32          2574      70.9    1.4%      0.30     57.9ms     27.5
+[opprof] GLU                    f32           792      68.2    1.3%      0.29     63.1ms     86.1
+[opprof] ADD                    f32          2178      50.1    1.0%      0.26     42.0ms     23.0
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 294 MB, max RSS 966 MB
+===== cm4.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          6.37 ± 0.04 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 286 MB, max RSS 968 MB
+===== cm8.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          6.17 ± 0.32 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 292 MB, max RSS 968 MB
+===== cm16.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          6.25 ± 0.17 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 285 MB, max RSS 965 MB
+===== cm32.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          5.70 ± 0.37 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 302 MB, max RSS 928 MB
+===== pinnone.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          6.19 ± 0.31 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 262 MB, max RSS 965 MB
+===== pine.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          5.73 ± 0.15 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 257 MB, max RSS 968 MB
+===== pin7.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |            tg64 |          5.71 ± 0.18 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 307 MB, max RSS 964 MB
+===== th3.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       3 |           tg128 |          6.62 ± 0.07 |
+
+build: 8642541 (1)
+===== th4.log
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen35 2B Q4_K - Medium        |   1.09 GiB |     2.08 B | CPU        |       4 |           tg128 |          5.18 ± 0.13 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 301 MB, max RSS 958 MB

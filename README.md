@@ -5,12 +5,12 @@
 **Every device around you is more capable than it looks.** TV boxes, old phones, single-board computers and routers all ship with CPUs, RAM and flash that sit idle most of the day. **smolmaxxing** is about unlocking that capability: finding the biggest language model each device can really run, then pushing it further with custom kernels, smarter memory use and weight streaming. Every claim is measured on the hardware itself.
 
 **Device #1 is a Xiaomi TV Box S (3rd Gen)**: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, **1.9 GB of RAM** (about 1 GB usable), eMMC flash, Android 14, no root. On it, this repo runs models from 260 K to 9 B parameters:
-- **Qwen3.5-0.8B: 13.2-13.6 tok/s** (1.8× the stock 7.5).
-- **Qwen3.5-2B: 6.55 tok/s** in real chat.
+- **Qwen3.5-0.8B: 14.2 tok/s** (1.9× the stock 7.5).
+- **Qwen3.5-2B: 6.55 tok/s** in real chat (+11 % over the previous build, measured back to back on the same day, §16).
 - **A 1-bit 8B model: 1.2 tok/s.**
 - **A 9B model: 0.27 tok/s**, streaming most of its weights from flash.
 
-Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E62).
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E67).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
@@ -32,8 +32,8 @@ Quality is English perplexity on a fixed 22 KB text, converted to **bits per byt
 | stories260K (llama2.c) | 1 MB | n/a | ~650 tok/s | n/a | the first thing that ran (§1-8) |
 | Gemma 3 270M Q4_K_M | 253 MB | n/a | 22 tok/s | 73 tok/s | |
 | Qwen3.5-0.8B Q4_K_M (stock) | 497 MB | n/a | 7.5 bench | 28 tok/s | |
-| **Qwen3.5-0.8B, all-Q4_K + 65K head** | 442 MiB (566 MB RSS) | ≈1.00* | **13.2-13.6 bench** | 33 tok/s | best speed for its quality so far (§15) |
-| **Qwen3.5-2B, all-Q4_K + 65K head** | 0.99 GB | **0.909** | **6.55 chat** | 17.3 | **the default: best overall** (§11) |
+| **Qwen3.5-0.8B, all-Q4_K + 65K head** | 442 MiB (566 MB RSS) | ≈1.00* | **14.2 bench** | 33 tok/s | best speed for its quality so far (§15, §16) |
+| **Qwen3.5-2B, all-Q4_K + 65K head** | 0.99 GB | **0.909** | **6.55 chat** | 16.1 | **the default: best overall** (§11, §16) |
 | Ternary-Bonsai-4B, lossless 1.875-bit | 1.0 GB | 0.964 | 3.07 chat | 7.2 | §13 |
 | Bonsai-8B, 1-bit + compact scales | 0.84 GB + 0.12 GB streamed | 0.991 | **1.21 chat** (2.2 bench) | 4.9 | §14 |
 | Ternary-Bonsai-8B | 0.89 GB + 0.80 GB streamed | 0.919 | 0.31 bench | 3.45 | §14 |
@@ -71,7 +71,8 @@ Granite 4.0 H 1B was the one model close to the 2B's quality. Rebuilt our way (E
 | Ternary Q2_0 → **lossless 1.875 bits/weight** in RAM (base-3 packing that keeps the per-64 scales) | Ternary-Bonsai-4B from "thrashes" to 3.2 tok/s | E39, E42 |
 | **Q1_0 bit planes**: `vtst` turns a bit plane straight into a mask for `vdot`, no table lookups; **8-bit row-affine scales** (−5.6 %, 0.07 % error) | Bonsai-4B 3.02 → 4.22 tok/s; Bonsai-8B fits in 0.96 GB | E44, E52 |
 | Fused Gated-DeltaNet step with direct state write (Qwen3.5) | 2B 6.0 → 6.3-6.7 tok/s | E28 |
-| DeltaNet state **read in place by id** instead of a 1 MB/layer gather every token; optional **fp16 state** (`LLAMA_STATE_F16=1`) | 0.8B 11.9 → 12.9 tok/s; fp16: DeltaNet −17 %, token −0.7 % | E56, E61 |
+| DeltaNet state **read in place by id** instead of a 1 MB/layer gather every token; **fp16 state** (`LLAMA_STATE_F16=1`, on by default in the UI) | 0.8B 11.9 → 12.9 tok/s; 2B +2.5 % for +0.15 % perplexity | E56, E61, E65 |
+| **Guided matmul scheduling**: each thread grabs remaining / (2 × threads) rows, so a slow or preempted thread leaves a short tail instead of ~28 ms per token of idle cores; **single-row element-wise ops split by columns** (ggml left them all on thread 0) | 2B 6.26 → 6.54 tok/s; 0.8B +1.4 % | E63, E64 |
 
 **Memory tricks:**
 - **Pruned LM head:** keep only the ~49-66 K most useful vocabulary rows, chosen by token frequency on English, code and 7 other languages. The other logits are scattered to −inf. Saves 0.2-0.5 GB and misses ~1 % of English tokens.
@@ -110,28 +111,30 @@ cmake -S . -B build-tv -G Ninja -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESS
   -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16 -DGGML_OPENMP=OFF -DLLAMA_OPENSSL=OFF -DLLAMA_BUILD_TESTS=OFF
 ninja -C build-tv llama-server llama-cli llama-bench llama-perplexity llama-quantize
 cd ../..
-adb -s $ADB_SERIAL shell mkdir -p /data/local/tmp/llm/patched16 /data/local/tmp/llm/patched
-adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-{server,cli,bench,perplexity} /data/local/tmp/llm/patched16/
+adb -s $ADB_SERIAL shell mkdir -p /data/local/tmp/llm/patched23 /data/local/tmp/llm/patched
+adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-{server,cli,bench,perplexity} /data/local/tmp/llm/patched23/
 adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-quantize /data/local/tmp/llm/patched/   # used by tools/tv-quant.sh
 zig cc -target aarch64-linux-musl -O2 -static -o gguf_recut tools/gguf-recut/gguf_recut.c && adb -s $ADB_SERIAL push gguf_recut /data/local/tmp/llm/
 
 # 2. models: rebuilt from their Hugging Face sources straight onto the TV (see below)
 tools/rebuild-models.sh 2b          # also: 4b b8 tb8 q9 caches
 
-# 3. the live chat page (default: the 2B), then open http://<tv-ip>:8090 from any device on the network
-BIN=patched16 tv-llm-ui/start.sh
+# 3. the live chat page (default: the 2B on patched23 with fp16 state), then open http://<tv-ip>:8090 from any device on the network
+tv-llm-ui/start.sh
 tv-llm-ui/start.sh stop
 ```
 
 **Other models:**
 ```sh
-# Qwen3.5-0.8B, ~13.5 tok/s (first: `tools/rebuild-models.sh 08`, needs a native Mac build of llama-quantize)
-MODEL=q08-q4k-h65.gguf BIN=patched16 tv-llm-ui/start.sh
+# Qwen3.5-0.8B, ~14 tok/s (first: `tools/rebuild-models.sh 08`, needs a native Mac build of llama-quantize)
+MODEL=q08-q4k-h65.gguf tv-llm-ui/start.sh
+# The 8B / 9B numbers below were measured with the build of that time (patched16); the current build has the same
+# code plus §15-16. GGML_CHUNK_GUIDED=0 in SENV restores the old matmul scheduling. No fp16 state with MTP.
 # Bonsai-8B 1-bit, ~1.2 tok/s (first run: `tools/rebuild-models.sh b8 caches`)
-MODEL=b8-q1-hml.gguf BIN=patched16 EXTRA="-ctk q8_0 -ctv q8_0 -fa on -cram 0" \
+MODEL=b8-q1-hml.gguf BIN=patched23 EXTRA="-ctk q8_0 -ctv q8_0 -fa on -cram 0" \
   SENV="GGML_REPACK_CACHE=/data/local/tmp/llm/cache/b8c GGML_REPACK_RESIDENT_MB=800 GGML_STREAM_MODE=cache GGML_STREAM_WINDOW_MB=64" tv-llm-ui/start.sh
 # Qwen3.5-9B with MTP, ~0.27 tok/s
-MODEL=q9-iq2-h65-mtp.gguf BIN=patched16 EXTRA="-nr -ctxcp 0 -cram 0 -ub 16 -b 64 --spec-type draft-mtp --spec-draft-n-max 1" \
+MODEL=q9-iq2-h65-mtp.gguf BIN=patched23 EXTRA="-nr -ctxcp 0 -cram 0 -ub 16 -b 64 --spec-type draft-mtp --spec-draft-n-max 1" \
   SENV="LLAMA_STREAM_RESIDENT_MB=600 LLAMA_STREAM_PIN=output.,blk.32. GGML_STREAM_WINDOW_MB=64" tv-llm-ui/start.sh
 ```
 
