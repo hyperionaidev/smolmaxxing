@@ -1,0 +1,18 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+tv-guard: killed, MemAvailable 128 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 128 MB, max RSS 1008 MB
+cat: e08/lfm3-17b.pp.log: No such file or directory
+0.16.807.516 I cmn          init: llama threadpool init, n_threads = 4
+0.17.283.083 I 
+0.17.285.223 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | REPACK = 1 | 
+0.17.285.243 I perplexity: tokenizing the input ..
+0.17.360.840 I perplexity: tokenization took 75.582 ms
+0.17.360.865 I perplexity: calculating perplexity over 40 chunks, n_ctx=128, batch_size=128, n_seq=1
+tv-guard: killed, MemAvailable 101 MB < 130 MB
+tv-guard: exit 137, min MemAvailable 101 MB, max RSS 1080 MB
+cat: e08/lfm3-17b.prof.log: No such file or directory
+
+
+Loading model... |-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|tv-guard: killed, MemAvailable 98 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 98 MB, max RSS 1076 MB
+NTOK 5825

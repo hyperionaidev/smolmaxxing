@@ -1,0 +1,83 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| gemma3 1B Q4_K - Medium        | 762.49 MiB |   999.89 M | CPU        |       3 |            tg64 |          5.66 ± 0.07 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 544 MB, max RSS 925 MB
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| gemma3 1B Q4_K - Medium        | 762.49 MiB |   999.89 M | CPU        |       3 |           pp128 |         11.13 ± 0.00 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 564 MB, max RSS 831 MB
+0.01.388.745 W load: control-looking token:    212 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.07.088.877 I cmn          init: llama threadpool init, n_threads = 4
+0.08.346.159 I 
+0.08.346.324 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | REPACK = 1 | 
+0.08.346.382 I perplexity: tokenizing the input ..
+0.08.410.065 I perplexity: tokenization took 63.665 ms
+0.08.410.202 I perplexity: calculating perplexity over 40 chunks, n_ctx=128, batch_size=128, n_seq=1
+0.19.596.598 I perplexity: 11.19 seconds per pass - ETA 7.45 minutes
+[1]22.0975,[2]15.9872,[3]18.9087,[4]15.8777,[5]14.8752,[6]19.7438,[7]22.0603,[8]23.2782,[9]23.0399,[10]22.8757,[11]21.1927,[12]22.4658,[13]22.5852,[14]26.1781,[15]27.6028,[16]28.8468,[17]29.9307,[18]32.8750,[19]34.1690,[20]35.5627,[21]36.5369,[22]36.7875,[23]36.7234,[24]37.7497,[25]36.7146,[26]36.8737,[27]38.0278,[28]37.4104,[29]35.4651,[30]34.9726,[31]33.1535,[32]31.4862,[33]31.4457,[34]30.7566,[35]30.4999,[36]28.7481,[37]28.1968,[38]27.5348,[39]26.9494,[40]25.4592,
+7.21.778.951 I Final estimate: PPL = 25.4592 +/- 1.98446
+7.21.778.968 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab)
+
+tv-guard: exit 0, min MemAvailable 492 MB, max RSS 1027 MB
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| gemma3 1B Q4_K - Medium        | 762.49 MiB |   999.89 M | CPU        |       3 |            tg16 |          5.67 ± 0.00 |
+
+[opprof] 17 graphs, 3.209 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q5_0         1989    1665.5   51.9%      3.20   1551.5ms    837.3
+[opprof] MUL_MAT                q8_0          238     685.8   21.4%      8.05    682.3ms   2881.7
+[opprof] MUL_MAT                q6_K          221     392.7   12.2%      3.68    357.2ms   1776.9
+[opprof] MUL_MAT                q4_K          663     210.1    6.5%      6.11    185.9ms    316.9
+[opprof] RMS_NORM               f32          2669     101.4    3.2%      0.10     85.8ms     38.0
+[opprof] GLU                    f32           442      70.0    2.2%      0.17     67.1ms    158.4
+[opprof] GET_ROWS               q8_0           17      39.0    1.2%    140.02     38.9ms   2291.5
+[opprof] ROPE                   f32           884      15.2    0.5%      0.15     12.3ms     17.2
+[opprof] FLASH_ATTN_EXT         f32           442      14.6    0.5%      0.12     12.7ms     33.1
+[opprof] ADD                    f32           884       9.3    0.3%      0.44      6.7ms     10.5
+[opprof] SET_ROWS               f32           884       2.5    0.1%      0.36      2.0ms      2.9
+[opprof] SCALE                  f32           442       2.1    0.1%      0.88      1.5ms      4.7
+[opprof] MUL                    f32            17       0.5    0.0%      0.16      0.5ms     28.4
+[opprof] GET_ROWS               f32            34       0.2    0.0%      0.88      0.1ms      5.2
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 647 MB, max RSS 997 MB
+
+
+Loading model... |-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\ 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b1-8642541
+model      : s-gemma3-1b.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> What is the capital of Australia, and why was it chosen over Sydney? Answer in two sentences.
+The capital of Australia is Canberra. It was chosen as the capital because it offered a neutral location between Sydney and Melbourne, avoiding the political tensions and logistical challenges of establishing a new city in either location.
+
+[ Prompt: 11.1 t/s | Generation: 5.6 t/s ]
+
+
+Exiting...
+tv-guard: exit 0, min MemAvailable 596 MB, max RSS 1038 MB
+NTOK 5946

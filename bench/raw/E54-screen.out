@@ -13,3 +13,12 @@ download failed
 == llama32-1b (bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q4_0.gguf) 21:48:34
 == gemma3-1b (ggml-org/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf) 09:59:15
 == gemma3-1b (ggml-org/gemma-3-1b-it-GGUF/gemma-3-1b-it-Q4_K_M.gguf) 11:09:47
+gemma3-1b      tg   5.66 pp  11.13  PPL  25.4592  tokens  5946  bits/byte 1.260  maxRSS 1038 MB
+== llama32-1b (bartowski/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-Q4_0.gguf) 11:21:31
+llama32-1b     tg   7.04 pp  29.47  PPL  15.0067  tokens  5625  bits/byte 0.998  maxRSS 979 MB
+== granite-h1b (ibm-granite/granite-4.0-h-1b-GGUF/granite-4.0-h-1b-Q4_0.gguf) 11:29:43
+granite-h1b    tg      - pp      -  PPL  11.9914  tokens  5632  bits/byte 0.916  maxRSS 977 MB
+== tb2-2b (prism-ml/Ternary-Bonsai-2-2B-gguf/Ternary-Bonsai-2-2B-Q2_0.gguf) 11:37:45
+tb2-2b         tg   5.88 pp  15.84  PPL  18.3002  tokens  5905  bits/byte 1.124  maxRSS 718 MB
+== lfm3-17b (LiquidAI/LFM3-1.7B-GGUF/LFM3-1.7B-QAD-Q4_0.gguf) 11:47:20
+lfm3-17b       tg      - pp      -  PPL        -  tokens  5825  bits/byte nan  maxRSS 1080 MB

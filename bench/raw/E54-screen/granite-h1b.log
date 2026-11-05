@@ -1,0 +1,22 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+tv-guard: killed, MemAvailable 166 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 166 MB, max RSS 925 MB
+cat: e08/granite-h1b.pp.log: No such file or directory
+0.10.313.281 I cmn          init: llama threadpool init, n_threads = 4
+0.11.095.981 I 
+0.11.096.086 I system_info: n_threads = 4 (n_threads_batch = 4) / 4 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | REPACK = 1 | 
+0.11.096.100 I perplexity: tokenizing the input ..
+0.11.206.494 I perplexity: tokenization took 110.377 ms
+0.11.206.518 I perplexity: calculating perplexity over 40 chunks, n_ctx=128, batch_size=128, n_seq=1
+0.20.375.408 I perplexity: 9.17 seconds per pass - ETA 6.10 minutes
+[1]7.5648,[2]7.2044,[3]8.6474,[4]8.1474,[5]7.8297,[6]9.5824,[7]9.6320,[8]10.1961,[9]12.5298,[10]12.0757,[11]12.4513,[12]12.0333,[13]13.4146,[14]13.7899,[15]14.5534,[16]14.8400,[17]15.5902,[18]16.0511,[19]16.8982,[20]17.2971,[21]17.6314,[22]17.0138,[23]16.9310,[24]17.8456,[25]17.8894,[26]18.1631,[27]18.2794,[28]17.2162,[29]16.7788,[30]16.2464,[31]15.5330,[32]15.5361,[33]15.2525,[34]15.0355,[35]14.2091,[36]14.0476,[37]13.4986,[38]12.9544,[39]12.2187,[40]11.9914,
+6.17.191.747 I Final estimate: PPL = 11.9914 +/- 0.71636
+6.17.191.790 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab)
+
+tv-guard: exit 0, min MemAvailable 152 MB, max RSS 977 MB
+cat: e08/granite-h1b.prof.log: No such file or directory
+
+
+Loading model... |-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/-\|/ tv-guard: killed, MemAvailable 179 MB < 180 MB
+tv-guard: exit 137, min MemAvailable 179 MB, max RSS 971 MB
+NTOK 5632

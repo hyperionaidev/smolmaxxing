@@ -3,3 +3,8 @@ lfm25-350m     tg  23.71 pp 104.11  PPL  92.6534  tokens  6085  bits/byte 1.805 
 lfm2-700m      tg  11.51 pp  52.75  PPL  18.8074  tokens  6085  bits/byte 1.169  maxRSS 523 MB
 lfm25-1.2b     tg   8.26 pp  31.63  PPL  17.1808  tokens  6085  bits/byte 1.133  maxRSS 783 MB
 qwen3-06b      tg   9.35 pp  50.58  PPL  16.5844  tokens  5756  bits/byte 1.059  maxRSS 798 MB
+gemma3-1b      tg   5.66 pp  11.13  PPL  25.4592  tokens  5946  bits/byte 1.260  maxRSS 1038 MB
+llama32-1b     tg   7.04 pp  29.47  PPL  15.0067  tokens  5625  bits/byte 0.998  maxRSS 979 MB
+granite-h1b    tg      - pp      -  PPL  11.9914  tokens  5632  bits/byte 0.916  maxRSS 977 MB
+tb2-2b         tg   5.88 pp  15.84  PPL  18.3002  tokens  5905  bits/byte 1.124  maxRSS 718 MB
+lfm3-17b       tg      - pp      -  PPL        -  tokens  5825  bits/byte nan  maxRSS 1080 MB

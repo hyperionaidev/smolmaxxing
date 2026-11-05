@@ -41,7 +41,7 @@ Quality is English perplexity on a fixed 22 KB text, converted to **bits per byt
 
 \* measured on the pruned head's positions (1.3 % of tokens fall outside it), so not exactly comparable; the stock full-vocabulary Q4_0 file scores 1.024.
 
-**Other small models, stock files** (screening, §15 E54; still running for Gemma 3 1B, Llama 3.2 1B, Granite 4.0 H 1B, Ternary-Bonsai-2-2B and LFM3-1.7B):
+**Other small models, stock files** (screening, §15 E54):
 
 | Model | Generation (bench) | Prompt | Bits/byte |
 |---|---|---|---|
@@ -49,6 +49,11 @@ Quality is English perplexity on a fixed 22 KB text, converted to **bits per byt
 | LFM2-700M (Q4_0) | 11.5 tok/s | 52.8 tok/s | 1.169 |
 | Qwen3-0.6B (Q8_0) | 9.35 tok/s | 50.6 tok/s | 1.059 |
 | LFM2.5-1.2B (QAD Q4_0) | 8.3 tok/s | 31.6 tok/s | 1.133 |
+| Llama 3.2 1B (Q4_0) | 7.0 tok/s | 29.5 tok/s | 0.998 |
+| Ternary-Bonsai-2-2B (Q2_0) | 5.9 tok/s | 15.8 tok/s | 1.124 |
+| Gemma 3 1B (Q4_K_M) | 5.7 tok/s | 11.1 tok/s | 1.260 |
+| Granite 4.0 H 1B (Q4_0, ~1.5 B) | too big as shipped | | **0.916** |
+| LFM3-1.7B (QAD Q4_0) | doesn't fit | | |
 
 **Physics of the box:** one process can hold ~0.96 GB before Android starts killing things, and flash reads top out at **278 MB/s**. A model that has to stream X MB per token can never beat 278 / X tokens per second. That, not the CPU, is what limits everything above 2B.
 
