@@ -3,6 +3,7 @@
 #   ./start.sh                         default model (best known config)
 #   MODEL=w-m2-h65.gguf ./start.sh      higher-quality mix (~5 % slower)
 #   MODEL=w-q4k-h45.gguf ./start.sh     45K head: ~4 % faster, more non-English tokens it cannot produce (§17, E68)
+#   MODEL=tb4-q20-hml.gguf ./start.sh   Ternary-Bonsai-4B, merged scales + 2-bit fields: 4.3 tok/s in chat, ~0.965 bits/byte (§18, E77)
 #   MODEL=file.gguf BIN=patched THREADS=3 EXTRA="..." ./start.sh
 #   TV=1 ./start.sh                    also open the page in the TV browser (only fits next to small models)
 #   SENV="LLAMA_STREAM_RESIDENT_MB=800 ..." ./start.sh   environment for the server (weight streaming, EXPERIMENT.md §14)
@@ -16,7 +17,11 @@ D=/data/local/tmp/llm
 PORT=8090
 MODEL="${MODEL:-w-q4k-h65p8.gguf}"   # final config (EXPERIMENT.md §11.8, §17): all-Q4_K + 65K multilingual head (padded to a
                                      # multiple of 8 rows so it is repacked, E71) + MTP block
-if [ -z "${BIN:-}" ]; then
+if [ -z "${BIN:-}" ] && [ "$MODEL" = tb4-q20-hml.gguf ]; then
+  # Ternary-Bonsai-4B (EXPERIMENT.md §18, E77): one averaged scale per 128 weights, all layers in 2-bit fields.
+  BIN=patched29
+  SENV="${SENV-GGML_Q2_0_SCALES=128 GGML_Q2_0_SCALES_AVG=1 GGML_Q2_0_F2_LAYERS=0-35}"
+elif [ -z "${BIN:-}" ]; then
   # default build (EXPERIMENT.md §16): state read by id, guided matmul scheduling, single-row ops split across
   # threads, fp16 DeltaNet state (+11 % in chat vs patched5), fused one-token conv step, embedding rows read
   # from the resident (repacked) head (§17). SENV= (empty) turns the fp16 state off.

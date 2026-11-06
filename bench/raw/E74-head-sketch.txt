@@ -1,0 +1,14 @@
+head (65668, 1024)
+exact: PPL 12.3708 on 2487 positions (33 misses)
+sign          K   16: top-1 0.8294 top-10 share 0.5379 target kept 0.6574 PPL 163577.641, 8.4 MB read vs 37.8
+sign          K   64: top-1 0.9294 top-10 share 0.7902 target kept 0.7849 PPL 3805.649, 8.4 MB read vs 37.8
+sign          K  256: top-1 0.9821 top-10 share 0.9281 target kept 0.8890 PPL 201.591, 8.6 MB read vs 37.8
+sign          K 1024: top-1 0.9988 top-10 share 0.9865 target kept 0.9489 PPL 42.326, 9.0 MB read vs 37.8
+sign*rownorm  K   16: top-1 0.9385 top-10 share 0.6417 target kept 0.7274 PPL 19630.598, 8.5 MB read vs 37.8
+sign*rownorm  K   64: top-1 0.9889 top-10 share 0.8845 target kept 0.8263 PPL 1108.003, 8.5 MB read vs 37.8
+sign*rownorm  K  256: top-1 0.9992 top-10 share 0.9758 target kept 0.9007 PPL 146.163, 8.6 MB read vs 37.8
+sign*rownorm  K 1024: top-1 1.0000 top-10 share 0.9981 target kept 0.9578 PPL 33.238, 9.1 MB read vs 37.8
+2-bit         K   16: top-1 0.9901 top-10 share 0.8456 target kept 0.7869 PPL 3333.437, 16.9 MB read vs 37.8
+2-bit         K   64: top-1 0.9996 top-10 share 0.9862 target kept 0.8729 PPL 295.705, 16.9 MB read vs 37.8
+2-bit         K  256: top-1 1.0000 top-10 share 0.9994 target kept 0.9288 PPL 67.864, 17.0 MB read vs 37.8
+2-bit         K 1024: top-1 1.0000 top-10 share 1.0000 target kept 0.9755 PPL 21.282, 17.5 MB read vs 37.8

@@ -598,3 +598,65 @@ Chained, the round is worth about **+7 % in llama-bench and in chat over §16's 
 **Notes on method** (they cost time this round): `tv-guard.sh` writes the command's output to its log file, not stdout, so a pipe after it gets nothing; Android's `mksh` has a built-in alias `r` (history re-run), so a shell function named `r` silently never runs; `ps -A` there shows the process name (`sh`), not the script, so watchers must use `ps -A -o ARGS`; `llama-perplexity` on the 2B needs the guard at `LIMIT_MB=130` (its 127 MB logits buffer takes MemAvailable to ~150-170 MB), the 180 MB default stops it.
 
 **New environment switches:** `LLAMA_EMBD_FROM_HEAD=0` (stock embedding GET_ROWS), `LLAMA_CONV_FUSED=0` (stock conv nodes). `tv-llm-ui/start.sh` now defaults to `BIN=patched25` and `MODEL=w-q4k-h65p8.gguf`.
+
+## 18. The 4B, round 2: arXiv and GitHub, then a kernel that spends RAM on decode time (2026-11-06)
+
+**Goal (your call):** "a round very aggressive and deeper search especially around latest arXiv papers and GitHub to optimize the 4B, then trickle down learnings to the 2B and 0.8B". Same rules: TV runs through `tv-guard.sh` with `am kill-all` first, llama-bench tg64 × 3 with 3 threads and `LLAMA_BENCH_COMMON_TOKENS=4000`, three alternating rounds, then real chat with `tools/mtp-bench.sh`. **Starting point:** Ternary-Bonsai-4B (`tb4-q20-hml.gguf`), 0.964 bits/byte, **3.40 tok/s** in llama-bench and **3.17-3.28** in chat on today's build.
+
+### 18.1 Research
+
+Four scans: post-training compression at 1-3 bits, inference tricks that touch fewer weight bytes, GitHub (llama.cpp upstream, PrismML, Arm, MNN, torchao) and new models. Numbers below are as reported by the papers or PRs, except where marked measured; nothing in this list was reproduced unless an experiment below says so.
+
+| Lead | What it reports | Verdict for this box |
+|---|---|---|
+| **GSQ** (arXiv 2604.18556), refines an existing GGUF's codes in place | Qwen3-4B Q2_K: 48.3 vs Unsloth's 35.0 (task score; bits not stated); Llama-3.1-8B 2.13 bits 68.6 vs 73.7 full precision | Most promising quality lead (no kernel change), but about 40 GPU-hours for a 4B by the scan's estimate, and Q2_K doesn't fit. **Not run:** this Mac is an 8 GB M1, and renting GPUs is your call |
+| ICLR 2026 "QAT for ultra-low-bit reasoning LLMs" (`yasu0001/ReasoningQAT`), Double Binary Factorization (2505.11076), AF1 (2609.06161), GAMMA (2605.18475), D²Quant (2602.02546) | 2-bit results well above GPTQ / AWQ | Same: all need a GPU. DBF would also need a new graph op |
+| **R2R** token routing (2505.21600), ECHO (2609.17241) | 11-15 % of tokens go to the large model; 2.4-2.9× on GPU | Both models must fit in RAM at once; here they don't. Not tried |
+| Olica FFN pruning (2506.08436), Prox channel sparsity (2607.27591), HNSW head (2608.27460) | Olica: PPL 12.63 → 15.35 at 20 % pruned; Prox needs a low-bit proxy copy | Costs more quality than the bytes are worth here; the head idea became E74 |
+| llama.cpp PRs: #27478 / #22022 huge pages, #30715 JQ3_K / JQ4_K, #15550 `--target-bpw`, #22836 Sherry 1.31-bit | JQ4_K cuts KLD 15-20 % at Q4_K's size; #15550 allocates bits per tensor | Huge pages tested (E73). **JQ4_K is the best open lead for the 2B and 0.8B's quality** (needs a new 8×4 kernel, speed on the A55 unknown). Sherry has no 4B model |
+| New models | Ternary-Bonsai-2-4B, Falcon-E-3B ternary, LFM3-1.7B, Granite-SWASH 3B (mixture of experts, 20 % of weights active per token) | Measured in E75 |
+
+Dead ends the scans flagged, so they aren't retried: LMTLS5's ternary Qwen3.5-4B (+0.8 % perplexity, but 6.4 GB, it decomposes each matrix at 3.5× rank: no compression), QTIP / Proteus / CurveTQ (per-weight decode, too slow), EAGLE-3 and other speculation (verification is still a full pass, as E31 found), layer skipping (no CPU results, no results on DeltaNet state).
+
+### 18.2 Experiments
+
+| # | What | Result |
+|---|---|---|
+| E73 | **Transparent huge pages** for the resident weights (`madvise(MADV_HUGEPAGE)` on 2 MiB aligned buffers; never tried here, and the kernel allows it). `tools/kbench/thpcheck.c` | **✗ Unobtainable.** With 1.07 GB free: **0 of 128** huge pages, 8 of 128 on a second run. In a real 2B load: 2 MiB of ~900 MB, compaction failing 839 of 842 times, and without root it can't be forced. The patch was removed. Raw: `bench/raw/E73-thp.txt` |
+| E74 | **1-bit sketch of the LM head** (`tools/head_sketch.py`): score all rows with sign(W) × row norm, re-score the top K exactly | Simulated on the 0.8B: K = 256 has the exact top-1 **99.92 %** of the time and 97.6 % of the top 10, reading 8.6 MB instead of 37.8 (the low-rank attempt of E60 reached 83 %). **Parked:** with the 1-bit kernel's measured 24.5 G weights/s it saves about 2 ms per token at most (~3.7 % on the 0.8B, 1.7 % on the 2B, under 1 % on the 4B), and it changes which tokens can be sampled. Raw: `bench/raw/E74-head-sketch.txt` |
+| E75 | **New models**, quality on the Mac (English, full vocabulary, bits/byte) | **Ternary-Bonsai-2-4B Q2_0 0.987** (PPL 12.84; SHA-256 `64a5183b…33d4`), Falcon-E-3B DPO TQ2_0 **1.394** (PPL 19.87, 7,121 tokens), LFM3-1.7B QAD-Q4_0 **1.258** (PPL 27.06), Granite-SWASH 3B Q4_K 1.119 (1.7 GB) / Q2_K 1.878 (no imatrix; its GGUF needed a small loader fix for split shared-expert tensors, and it's a base model with no chat template). Only the first is competitive, and it's slightly below Ternary-Bonsai-4B's 0.964. Pruned head ported to tied Hadamard models (`src/llama-model.cpp`): English PPL 12.07 with the same 1.31 % misses as the 2B's head, multilingual 11.88 (12.58 % misses). TV: 3.25-3.32 tok/s vs Ternary-Bonsai-4B's 3.29-3.49 in the same block. Raw: `bench/raw/E75-*` |
+| E76 | **Where the ternary kernel's time goes, and two new in-RAM layouts** (`ggml-cpu/repack-q20c-tv.inc`). Kernel benches show the base-3 kernel is **compute-bound**, unlike Q4_K: TQ1_0 does 23 G weights/s cache-resident and 13.5 from DRAM, and its 3.1 weights/cycle is what ~5 NEON ops per 16 weights predicts on an in-order core that issues about one Q-form op per cycle (mul, ushr, uhadd, ushr, sdot). Five decode variants (`tools/kbench/kbench_t3.c`) all tie, since each still takes ~5 ops. A 2-bit field takes 2 (and, sdot). So: **g128** keeps the base-3 packing but one scale per 128 weights (Ternary-Bonsai-2's adjacent scales are identical in all 202 tensors, `tools/q20_stats.py`): 1.75 bits/weight. **f2** stores ternary values in 2-bit fields with the same scales: 2.125 bits/weight | Ternary-Bonsai-2-4B, TV, mean of 3 rounds: g64 **3.27** → g128 **3.44** → 11 layers f2 3.75 → 16 layers 3.83 → 21 layers 3.98-4.03 → 26 layers 4.13 → all 32 **4.33** → + head **4.46 tok/s (+36 %)**. Exact: Mac PPL 12.0733 for g128 and every f2 mix (12.0690 for the per-64 layouts; merging scales changes float rounding). **But real chat collapsed:** 0.28 tok/s, prompt 3.7, and the next run ended with a closed connection and the box unreachable (§18.4). Rejected. Raw: `bench/raw/E76-*` |
+| E77 | **The same on Ternary-Bonsai-4B.** Its adjacent scales differ, so two options. **f2g64** keeps all 4 scales per 256 weights (2.25 bits/weight, lossless). **Merged scales** (`GGML_Q2_0_SCALES_AVG=1`): one averaged scale per 128 weights, then g128 / f2 as above | **Merging costs almost nothing: Mac PPL 12.3711 → 12.3939 (+0.18 %), multilingual 14.3536 → 14.3729 (+0.13 %), bits/byte on the head's positions 0.9481 → 0.9488.** TV, mean of 3 rounds: g64 **3.40** · f2g64 9 layers 3.60, 18 layers 3.81, 27 layers killed by the guard in 2 of 3 runs · merged g128 **3.68** · merged f2 18 layers 4.18, 27 layers 4.49, **all 36 layers 4.81 (+41 %)**, + head 4.81 (no gain, so left out). **Real chat, 2 runs each: 3.17 / 3.28 → 4.29 / 4.33 tok/s (+33 %), prompt 6.9-7.0 → 9.2-10.0**, RSS 1.01-1.04 GB. Answers: 2 of 4 byte-identical, the other 2 differ in wording (the same two in both runs). **New best 4B.** Raw: `bench/raw/E77-*`, `bench/results.jsonl` |
+| E78 | **Trickle-down** | **Doesn't reach the 2B or 0.8B.** The gain comes from the base-3 kernel being compute-bound; their Q4_K kernel is RAM-bound (E27: 6.7 of 8.3 GB/s, with rescheduling gaining nothing). Ternary-Bonsai-2-2B would get the layouts (all 152 tensors share scales), but its PPL 17.09 is far behind the 0.8B's 13.24, and the 0.8B is already faster, so it wasn't run on the TV. Raw: `bench/raw/E78-tb22-ppl.txt` |
+
+### 18.3 Where the 4B stands
+
+| Ternary-Bonsai-4B on this TV | Bits/weight in RAM | Bits/byte | llama-bench | Chat | Prompt |
+|---|---|---|---|---|---|
+| Lossless, §13 (`patched11`) | 1.875 | 0.964 | 3.21 | 3.07 | 7.2 |
+| Same, today's build (`patched29`) | 1.875 | 0.964 | 3.40 | 3.17-3.28 | 7.0 |
+| **Merged scales + 2-bit fields (`patched29`), new best 4B** | **2.125** | **≈0.965*** | **4.81** | **4.29-4.33** | **9.2-10.0** |
+| Lossless, 18 of 36 layers in 2-bit fields (no text change) | 2.06 | 0.964 | 3.81 | not run | |
+| *for comparison:* Qwen3.5-2B, the default | 4.5 | 0.909 | 7.7 | 7.7 | 17.8 |
+
+\* 0.964 plus the +0.0007 measured on the head's positions; the full-vocabulary run wasn't repeated.
+
+**Verdict.** The 4B is **33 % faster in real chat at almost the same quality**. The 2B stays the default, with better quality and more speed: 7.7 tok/s in chat yesterday evening, 6.65-6.89 in today's llama-bench against the 4B's 4.81 (about 1.4×). A same-day chat run of the 2B wasn't possible before the box went down. The research's main lesson for this model size: no published method beats a model trained for ternary at under 2 bits, and the good fine-tuning recipes need GPUs. The gain came from measuring where the kernel's time goes.
+
+**The lesson:** on an in-order core, count NEON ops as well as bytes. Packing a weight tighter (1.6 instead of 2 bits) saves 20 % of the bytes but costs 2.5× the ops, and at this bit width compute is the larger cost. This is a mirror image of Q4_K, where RAM is the limit.
+
+**Left open:** JQ4_K (quality for the 2B and 0.8B), GSQ or the ICLR fine-tune on rented GPUs, and a chat run of the lossless 18-layer mix.
+
+**To use it:** `MODEL=tb4-q20-hml.gguf tv-llm-ui/start.sh` (it picks `patched29` and the settings below). Same model file as §13.
+
+**New environment switches:**
+- `GGML_Q2_0_SCALES=128`: one scale per 128 weights (aborts if adjacent scales differ), `GGML_Q2_0_SCALES_AVG=1`: average them instead (lossy).
+- `GGML_Q2_0_F2_LAYERS=a-b`: 2-bit fields for `blk.a`..`blk.b`, `GGML_Q2_0_F2_HEAD=1`: also the pruned head.
+- `GGML_Q2_0_F2G64_LAYERS=a-b`: 2-bit fields that keep the per-64 scales (lossless), without `GGML_Q2_0_SCALES`.
+
+### 18.4 What went wrong this round
+
+- **The box went down at the end.** After the second E76 chat attempt, `ping` to the TV answered "Host is down" with the Mac's network fine. It hadn't come back 10 minutes later, and it was still silent about 6 hours later at 00:36 (ping and the adb and chat ports; a wake attempt over the network failed too), and I can't tell from here whether it crashed, rebooted into a hung state or was switched off. Memory pressure from that test is the obvious suspect, but that's unverified; a memory-driven panic has happened on this box before (`tv-guard.sh` header). The chat runs went through `mtp-bench.sh`, which has no memory guard.
+- **Reverting the huge-page patch with `git checkout -- ggml/src/ggml.c` also removed an older tvbox line in that file,** because the whole patch lives as uncommitted changes on top of upstream. It looked like a crash in the new model (fp16 state assert), and I first told you so. Restored from the committed patch; no other file was affected.
+- **Two Mac exactness checks were weaker than first reported:** zsh doesn't split `env $E`, so the head setting wasn't applied, and one combined run only tested g128. Rerun under bash; the numbers above are from the reruns. TV scripts weren't affected.
+- **Smaller slips:** `pkill -f` killed its own adb command again (already in my notes), and a loose grep downloaded the wrong Bonsai variant twice (wasted time only, checksums verified).

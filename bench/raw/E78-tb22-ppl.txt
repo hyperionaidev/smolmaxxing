@@ -1,0 +1,1 @@
+Ternary-Bonsai-2-2B Q2_0 + 65,672-row head: English PPL 17.0864, misses 1.310 % (Mac). Compare 0.8B Q4_K + same head 13.24. Not run on the TV.

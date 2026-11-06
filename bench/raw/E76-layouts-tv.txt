@@ -1,0 +1,16 @@
+g64                 3.28 ± 0.04  killed=0 rss=985 minavail=228 minswap=143
+g128                3.39 ± 0.07  killed=0 rss=989 minavail=202 minswap=197
+f2 0-10             3.75 ± 0.07  killed=0 rss=1017 minavail=234 minswap=167
+f2 0-15             3.78 ± 0.19  killed=0 rss=1040 minavail=167 minswap=162
+f2 0-20             4.01 ± 0.11  killed=0 rss=978 minavail=199 minswap=132
+g64                 3.26 ± 0.03  killed=0 rss=994 minavail=179 minswap=187
+g128                3.48 ± 0.06  killed=0 rss=987 minavail=244 minswap=178
+f2 0-10             3.74 ± 0.06  killed=0 rss=1044 minavail=178 minswap=197
+f2 0-15             3.82 ± 0.13  killed=0 rss=1042 minavail=180 minswap=123
+f2 0-20             3.98 ± 0.09  killed=0 rss=978 minavail=192 minswap=126
+g64                 3.26 ± 0.05  killed=0 rss=1004 minavail=162 minswap=183
+g128                3.44 ± 0.12  killed=0 rss=941 minavail=265 minswap=179
+f2 0-10             3.75 ± 0.07  killed=0 rss=982 minavail=236 minswap=111
+f2 0-15             3.90 ± 0.01  killed=0 rss=1006 minavail=166 minswap=173
+f2 0-20             3.95 ± 0.14  killed=0 rss=985 minavail=170 minswap=140
+DONE

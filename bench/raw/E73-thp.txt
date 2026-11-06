@@ -1,0 +1,14 @@
+# tools/kbench/thpcheck on the TV (kernel 5.15, THP enabled=madvise, defrag=madvise, no root), after am kill-all
+./thpcheck 256 *.gguf     (evicts the model files from the page cache first)
+MemFree 1068700 kB, MemAvailable 1172604 kB, Cached 158104 kB
+THP: faulted 256 MB in 0.24 s, thp_fault_alloc +0, fallback +128, process AnonHuge 0 kB
+4K : faulted 256 MB in 0.24 s, thp_fault_alloc +0, fallback +0, process AnonHuge 0 kB
+round 0: THP-request buffer 8.36 GB/s, 4K buffer 8.54 GB/s
+round 1: THP-request buffer 8.68 GB/s, 4K buffer 8.13 GB/s
+round 2: THP-request buffer 7.94 GB/s, 4K buffer 7.42 GB/s
+second run: MemFree 977624 kB: thp_fault_alloc +8, fallback +120, AnonHuge 16384 kB
+/proc/vmstat during a real 2B load: thp_fault_alloc 1, thp_fault_fallback 410, compact_stall 842, compact_fail 839, compact_success 3
+llama-bench with the patch: AnonHugePages 2048 kB of ~900 MB
+kbench_t3 (trit decode variants), G weights/s, cache-resident 1T / 3T, DRAM 3T, three repeats: all variants 6.4-7.1 / 17-21 / 15-18, no winner:
+mul+uhadd (current), chained add+shift, compare-based decode, compare + chained, decode-before-dot: each is ~5 NEON ops per 16 weights
+kbench_tq: rows 64 (resident) TQ1_0 r4 3T 23.12, TQ2_0 r4 3T 32.02; rows 29184 (DRAM) TQ1_0 r4 3T 13.48, TQ2_0 r4 3T 16.28 G weights/s

@@ -654,6 +654,483 @@ index 0000000..a021850
 +static void ggml_gemv_q1_0_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("q1 8x4 needs dotprod"); }
 +static void ggml_gemm_q1_0_8x4_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("q1 8x4 needs dotprod"); }
 +#endif
+diff --git a/ggml/src/ggml-cpu/repack-q20c-tv.inc b/ggml/src/ggml-cpu/repack-q20c-tv.inc
+new file mode 100644
+index 0000000..493e0a3
+--- /dev/null
++++ b/ggml/src/ggml-cpu/repack-q20c-tv.inc
+@@ -0,0 +1,471 @@
++// tvbox patch: two more in-RAM layouts for ternary Q2_0 whose adjacent 64-groups share a scale (Ternary-Bonsai-2: true for
++// every tensor, checked at repack). Both keep one fp16 scale per 128 weights and are lossless.
++//  - g128: the 13-chunk base-3 packing of block_tq1g64x8 with half the scales: 448 bytes per 8 rows x 256 = 1.75 bits/weight.
++//  - f2:   TQ2_0's 2-bit fields with the same scales: 544 bytes = 2.125 bits/weight. On the in-order A55 one base-3 digit costs
++//    5 NEON ops per 16 weights (mul, ushr, uhadd, ushr, sdot) and one 2-bit field costs 2 (and, sdot), so spending RAM on
++//    part of the tensors buys speed. GGML_Q2_0_SCALES=128 turns g128 on, GGML_Q2_0_F2_LAYERS=a-b uses f2 for blk.a..blk.b,
++//    GGML_Q2_0_F2_HEAD=1 for the pruned head.
++struct block_q2_0g128 {};
++struct block_q2_0f2 {};
++// f2g64: 2-bit fields that keep all 4 per-64 scales (Ternary-Bonsai-4B, whose adjacent scales differ): 576 bytes = 2.25 bits/weight,
++// the file's own size. GGML_Q2_0_F2G64_LAYERS=a-b (+ GGML_Q2_0_F2_HEAD=1) selects it; other tensors stay in the 1.875-bit layout.
++struct block_q2_0f2g64 {};
++struct block_t2g64x8 { ggml_half d[32]; uint8_t qs[512]; };
++static_assert(sizeof(block_t2g64x8) == 576, "t2g64x8 size");
++struct block_tq1g128x8 { ggml_half d[16]; uint8_t qs[416]; };
++struct block_t2g128x8  { ggml_half d[16]; uint8_t qs[512]; };
++static_assert(sizeof(block_tq1g128x8) == 448, "tq1g128x8 size");
++static_assert(sizeof(block_t2g128x8) == 544, "t2g128x8 size");
++
++// 0 = per-64 scales (block_tq1g64x8), 1 = g128, 2 = f2, 3 = f2g64
++static int q20c_mode(const struct ggml_tensor * t) {
++    static const bool on = getenv("GGML_Q2_0_SCALES") && atoi(getenv("GGML_Q2_0_SCALES")) == 128;
++    if (!on) {
++        const char * e64 = getenv("GGML_Q2_0_F2G64_LAYERS");
++        if (!e64) { return 0; }
++        int a64 = 1, b64 = 0, il64 = -1;
++        sscanf(e64, "%d-%d", &a64, &b64);
++        if (sscanf(t->name, "blk.%d.", &il64) == 1 && il64 >= a64 && il64 <= b64) { return 3; }
++        const char * h64 = getenv("GGML_Q2_0_F2_HEAD");
++        if (h64 && atoi(h64) != 0 && strcmp(t->name, "output.weight") == 0) { return 3; }
++        return 0;
++    }
++    static int a = 1, b = 0;
++    static const bool parsed = [] { const char * e = getenv("GGML_Q2_0_F2_LAYERS"); if (e) { sscanf(e, "%d-%d", &a, &b); } return true; }();
++    GGML_UNUSED(parsed);
++    int il = -1;
++    if (sscanf(t->name, "blk.%d.", &il) == 1 && il >= a && il <= b) { return 2; }
++    static const bool f2_head = getenv("GGML_Q2_0_F2_HEAD") && atoi(getenv("GGML_Q2_0_F2_HEAD")) != 0;
++    if (f2_head && strcmp(t->name, "output.weight") == 0) { return 2; }
++    return 1;
++}
++
++// one scale for a pair of 64-groups: identical in Ternary-Bonsai-2; GGML_Q2_0_SCALES_AVG=1 takes the mean otherwise (lossy)
++static inline ggml_half q20c_pair_scale(const struct ggml_tensor * t, const block_q2_0 * g) {
++    if (g[0].d == g[1].d) { return g[0].d; }
++    static const bool avg = getenv("GGML_Q2_0_SCALES_AVG") && atoi(getenv("GGML_Q2_0_SCALES_AVG")) != 0;
++    if (!avg) { GGML_ABORT("Q2_0 tensor %s: adjacent 64-groups have different scales; unset GGML_Q2_0_SCALES or set GGML_Q2_0_SCALES_AVG=1", t->name); }
++    return GGML_CPU_FP32_TO_FP16(0.5f * (GGML_CPU_FP16_TO_FP32(g[0].d) + GGML_CPU_FP16_TO_FP32(g[1].d)));
++}
++
++static int repack_q2_0_g128_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    GGML_ASSERT(t->type == GGML_TYPE_Q2_0);
++    const int nrow = ggml_nrows(t);
++    const int nb64 = t->ne[0] / 64, nb = t->ne[0] / QK_K;
++    GGML_ASSERT(data_size == (size_t) nrow * nb64 * sizeof(block_q2_0));
++    if (t->ne[1] % 8 != 0 || t->ne[0] % QK_K != 0) { return -1; }
++    const block_q2_0 * src = (const block_q2_0 *) data;
++    block_tq1g128x8 * dst = (block_tq1g128x8 *) t->data;
++    for (int r = 0; r < nrow; r += 8) {
++        for (int b = 0; b < nb; b++) {
++            block_tq1g128x8 o;
++            for (int j = 0; j < 8; j++) {
++                const block_q2_0 * in = &src[(size_t) (r + j) * nb64 + b * 4];
++                o.d[j] = q20c_pair_scale(t, in); o.d[8 + j] = q20c_pair_scale(t, in + 2);
++                uint8_t tr[QK_K];
++                for (int e = 0; e < QK_K; e++) {
++                    const uint8_t q = (in[e / 64].qs[(e % 64) / 4] >> (2 * (e % 4))) & 3;
++                    if (q == 3) { GGML_ABORT("Q2_0 tensor %s is not ternary (value +2 found); run with GGML_Q2_0_TERNARY=0", t->name); }
++                    tr[e] = q;
++                }
++                uint8_t bytes[52];
++                for (int m = 0; m < 32; m++) { unsigned q = 0; for (int k = 0; k < 5; k++) { q = q * 3 + tr[m + 32 * k]; } bytes[m] = (uint8_t) ((q * 256 + 242) / 243); }
++                for (int m = 0; m < 16; m++) { unsigned q = 0; for (int k = 0; k < 5; k++) { q = q * 3 + tr[160 + m + 16 * k]; } bytes[32 + m] = (uint8_t) ((q * 256 + 242) / 243); }
++                for (int m = 0; m < 4; m++) { unsigned q = 0; for (int k = 0; k < 4; k++) { q = q * 3 + tr[240 + m + 4 * k]; } q *= 3; bytes[48 + m] = (uint8_t) ((q * 256 + 242) / 243); }
++                for (int c = 0; c < 13; c++) { memcpy(&o.qs[c * 32 + j * 4], bytes + c * 4, 4); }
++            }
++            *dst++ = o;
++        }
++    }
++    return 0;
++}
++
++// element = h*128 + 32s + 16g + 4*lane + i <-> crumb s of row byte 4*(8h + 4g + lane) + i (block_tq2_0x8's layout)
++static int repack_q2_0_f2_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    GGML_ASSERT(t->type == GGML_TYPE_Q2_0);
++    const int nrow = ggml_nrows(t);
++    const int nb64 = t->ne[0] / 64, nb = t->ne[0] / QK_K;
++    GGML_ASSERT(data_size == (size_t) nrow * nb64 * sizeof(block_q2_0));
++    if (t->ne[1] % 8 != 0 || t->ne[0] % QK_K != 0) { return -1; }
++    const block_q2_0 * src = (const block_q2_0 *) data;
++    block_t2g128x8 * dst = (block_t2g128x8 *) t->data;
++    for (int r = 0; r < nrow; r += 8) {
++        for (int b = 0; b < nb; b++) {
++            block_t2g128x8 o;
++            for (int j = 0; j < 8; j++) {
++                const block_q2_0 * in = &src[(size_t) (r + j) * nb64 + b * 4];
++                o.d[j] = q20c_pair_scale(t, in); o.d[8 + j] = q20c_pair_scale(t, in + 2);
++                uint8_t bytes[64];
++                memset(bytes, 0, sizeof(bytes));
++                for (int e = 0; e < QK_K; e++) {
++                    const uint8_t q = (in[e / 64].qs[(e % 64) / 4] >> (2 * (e % 4))) & 3;
++                    if (q == 3) { GGML_ABORT("Q2_0 tensor %s is not ternary (value +2 found); run with GGML_Q2_0_TERNARY=0", t->name); }
++                    const int h = e >> 7, s = (e >> 5) & 3, g = (e >> 4) & 1, lane = (e >> 2) & 3, i = e & 3;
++                    bytes[4 * (8 * h + 4 * g + lane) + i] |= (uint8_t) (q << (2 * s));
++                }
++                for (int c = 0; c < 16; c++) { memcpy(&o.qs[c * 32 + j * 4], bytes + c * 4, 4); }
++            }
++            *dst++ = o;
++        }
++    }
++    return 0;
++}
++
++static int repack_q2_0_f2g64_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    GGML_ASSERT(t->type == GGML_TYPE_Q2_0);
++    const int nrow = ggml_nrows(t);
++    const int nb64 = t->ne[0] / 64, nb = t->ne[0] / QK_K;
++    GGML_ASSERT(data_size == (size_t) nrow * nb64 * sizeof(block_q2_0));
++    if (t->ne[1] % 8 != 0 || t->ne[0] % QK_K != 0) { return -1; }
++    const block_q2_0 * src = (const block_q2_0 *) data;
++    block_t2g64x8 * dst = (block_t2g64x8 *) t->data;
++    for (int r = 0; r < nrow; r += 8) {
++        for (int b = 0; b < nb; b++) {
++            block_t2g64x8 o;
++            for (int j = 0; j < 8; j++) {
++                const block_q2_0 * in = &src[(size_t) (r + j) * nb64 + b * 4];
++                for (int g = 0; g < 4; g++) { o.d[g * 8 + j] = in[g].d; }
++                uint8_t bytes[64];
++                memset(bytes, 0, sizeof(bytes));
++                for (int e = 0; e < QK_K; e++) {
++                    const uint8_t q = (in[e / 64].qs[(e % 64) / 4] >> (2 * (e % 4))) & 3;
++                    if (q == 3) { GGML_ABORT("Q2_0 tensor %s is not ternary (value +2 found); run with GGML_Q2_0_TERNARY=0", t->name); }
++                    const int h = e >> 7, s = (e >> 5) & 3, g = (e >> 4) & 1, lane = (e >> 2) & 3, i = e & 3;
++                    bytes[4 * (8 * h + 4 * g + lane) + i] |= (uint8_t) (q << (2 * s));
++                }
++                for (int c = 0; c < 16; c++) { memcpy(&o.qs[c * 32 + j * 4], bytes + c * 4, 4); }
++            }
++            *dst++ = o;
++        }
++    }
++    return 0;
++}
++
++#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD)
++#define Q20C_T3(v) vreinterpretq_s8_u8(vshrq_n_u8(vhaddq_u8((v), vshrq_n_u8((v), 1)), 6))
++
++static void ggml_gemv_q2_0_g128_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    GGML_UNUSED(bs); GGML_UNUSED(nr);
++    const int nb = n / QK_K;
++    const block_q8_K * y = (const block_q8_K *) vy;
++    for (int x = 0; x < nc / 8; x++) {
++        const block_tq1g128x8 * w = (const block_tq1g128x8 *) vx + (size_t) x * nb;
++        float32x4_t f0 = vdupq_n_f32(0), f1 = vdupq_n_f32(0);
++        for (int b = 0; b < nb; b++) {
++            const int8_t * q8 = y[b].qs;
++            const uint8_t * qs = w[b].qs;
++            int32x4_t g00 = vdupq_n_s32(0), g01 = g00, g10 = g00, g11 = g00;
++#define Q20C_P(V0, V1, ACC0, ACC1, A, L) ACC0 = vdotq_laneq_s32(ACC0, Q20C_T3(V0), A, L); ACC1 = vdotq_laneq_s32(ACC1, Q20C_T3(V1), A, L);
++#define Q20C_M(U, M) vmulq_u8(U, vdupq_n_u8(M))
++            // chunks 0-7: trits 0-3 are elements < 128, trit 4 is >= 128
++#define Q20C_R1(QC, L) { const uint8x16_t u0 = vld1q_u8(QC), u1 = vld1q_u8((QC) + 16); \
++            Q20C_P(u0, u1, g00, g01, A[0], L) \
++            { const uint8x16_t v0 = Q20C_M(u0, 3),  v1 = Q20C_M(u1, 3);  Q20C_P(v0, v1, g00, g01, A[1], L) } \
++            { const uint8x16_t v0 = Q20C_M(u0, 9),  v1 = Q20C_M(u1, 9);  Q20C_P(v0, v1, g00, g01, A[2], L) } \
++            { const uint8x16_t v0 = Q20C_M(u0, 27), v1 = Q20C_M(u1, 27); Q20C_P(v0, v1, g00, g01, A[3], L) } \
++            { const uint8x16_t v0 = Q20C_M(u0, 81), v1 = Q20C_M(u1, 81); Q20C_P(v0, v1, g10, g11, A[4], L) } }
++#define Q20C_R2(QC, L) { const uint8x16_t u0 = vld1q_u8(QC), u1 = vld1q_u8((QC) + 16); \
++            Q20C_P(u0, u1, g10, g11, A[0], L) \
++            { const uint8x16_t v0 = Q20C_M(u0, 3),  v1 = Q20C_M(u1, 3);  Q20C_P(v0, v1, g10, g11, A[1], L) } \
++            { const uint8x16_t v0 = Q20C_M(u0, 9),  v1 = Q20C_M(u1, 9);  Q20C_P(v0, v1, g10, g11, A[2], L) } \
++            { const uint8x16_t v0 = Q20C_M(u0, 27), v1 = Q20C_M(u1, 27); Q20C_P(v0, v1, g10, g11, A[3], L) } \
++            { const uint8x16_t v0 = Q20C_M(u0, 81), v1 = Q20C_M(u1, 81); Q20C_P(v0, v1, g10, g11, A[4], L) } }
++            for (int h = 0; h < 2; h++) {
++                int8x16_t A[5];
++                for (int k = 0; k < 5; k++) { A[k] = vld1q_s8(q8 + 32 * k + 16 * h); }
++                const uint8_t * qc = qs + h * 4 * 32;
++                Q20C_R1(qc, 0) Q20C_R1(qc + 32, 1) Q20C_R1(qc + 64, 2) Q20C_R1(qc + 96, 3)
++            }
++            {
++                int8x16_t A[5];
++                for (int k = 0; k < 5; k++) { A[k] = vld1q_s8(q8 + 160 + 16 * k); }
++                const uint8_t * qc = qs + 8 * 32;
++                Q20C_R2(qc, 0) Q20C_R2(qc + 32, 1) Q20C_R2(qc + 64, 2) Q20C_R2(qc + 96, 3)
++            }
++            {
++                const int8x16_t A = vld1q_s8(q8 + 240);
++                const uint8x16_t u0 = vld1q_u8(qs + 12 * 32), u1 = vld1q_u8(qs + 12 * 32 + 16);
++                Q20C_P(u0, u1, g10, g11, A, 0)
++                { const uint8x16_t v0 = Q20C_M(u0, 3),  v1 = Q20C_M(u1, 3);  Q20C_P(v0, v1, g10, g11, A, 1) }
++                { const uint8x16_t v0 = Q20C_M(u0, 9),  v1 = Q20C_M(u1, 9);  Q20C_P(v0, v1, g10, g11, A, 2) }
++                { const uint8x16_t v0 = Q20C_M(u0, 27), v1 = Q20C_M(u1, 27); Q20C_P(v0, v1, g10, g11, A, 3) }
++            }
++#undef Q20C_R1
++#undef Q20C_R2
++#undef Q20C_P
++            int32_t ysum[2] = { 0, 0 };
++            for (int g = 0; g < 16; g++) { ysum[g / 8] += y[b].bsums[g]; }
++            const float yd = y[b].d;
++#define Q20C_G(H, A0, A1) { \
++            const float32x4_t d0 = vmulq_n_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (H) * 8)), yd); \
++            const float32x4_t d1 = vmulq_n_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (H) * 8 + 4)), yd); \
++            const int32x4_t ys = vdupq_n_s32(ysum[H]); \
++            f0 = vfmaq_f32(f0, d0, vcvtq_f32_s32(vsubq_s32(A0, ys))); f1 = vfmaq_f32(f1, d1, vcvtq_f32_s32(vsubq_s32(A1, ys))); }
++            Q20C_G(0, g00, g01) Q20C_G(1, g10, g11)
++        }
++        vst1q_f32(s + x * 8, f0);
++        vst1q_f32(s + x * 8 + 4, f1);
++    }
++}
++
++static void ggml_gemv_q2_0_f2_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    GGML_UNUSED(bs); GGML_UNUSED(nr);
++    const int nb = n / QK_K;
++    const block_q8_K * y = (const block_q8_K *) vy;
++    const uint8x16_t m03 = vdupq_n_u8(0x03), m0c = vdupq_n_u8(0x0C), m30 = vdupq_n_u8(0x30);
++    for (int x = 0; x < nc / 8; x++) {
++        const block_t2g128x8 * w = (const block_t2g128x8 *) vx + (size_t) x * nb;
++        float32x4_t f0 = vdupq_n_f32(0), f1 = vdupq_n_f32(0);
++        for (int b = 0; b < nb; b++) {
++            const int8_t * q8 = y[b].qs;
++            const uint8_t * qs = w[b].qs;
++            const float yd = y[b].d;
++            for (int h = 0; h < 2; h++) {
++                int32x4_t c00 = vdupq_n_s32(0), c01 = c00, c10 = c00, c11 = c00, c20 = c00, c21 = c00, c30 = c00, c31 = c00;
++                for (int g = 0; g < 2; g++) {
++                    const int8x16_t a0 = vld1q_s8(q8 + h * 128 + 16 * g),      a1 = vld1q_s8(q8 + h * 128 + 32 + 16 * g),
++                                    a2 = vld1q_s8(q8 + h * 128 + 64 + 16 * g), a3 = vld1q_s8(q8 + h * 128 + 96 + 16 * g);
++                    const uint8_t * qc = qs + (h * 8 + g * 4) * 32;
++#define Q20C_L(L) { const uint8x16_t w0 = vld1q_u8(qc + (L) * 32), w1 = vld1q_u8(qc + (L) * 32 + 16); \
++                    c00 = vdotq_laneq_s32(c00, vreinterpretq_s8_u8(vandq_u8(w0, m03)), a0, L); c01 = vdotq_laneq_s32(c01, vreinterpretq_s8_u8(vandq_u8(w1, m03)), a0, L); \
++                    c10 = vdotq_laneq_s32(c10, vreinterpretq_s8_u8(vandq_u8(w0, m0c)), a1, L); c11 = vdotq_laneq_s32(c11, vreinterpretq_s8_u8(vandq_u8(w1, m0c)), a1, L); \
++                    c20 = vdotq_laneq_s32(c20, vreinterpretq_s8_u8(vandq_u8(w0, m30)), a2, L); c21 = vdotq_laneq_s32(c21, vreinterpretq_s8_u8(vandq_u8(w1, m30)), a2, L); \
++                    c30 = vdotq_laneq_s32(c30, vreinterpretq_s8_u8(vshrq_n_u8(w0, 6)), a3, L); c31 = vdotq_laneq_s32(c31, vreinterpretq_s8_u8(vshrq_n_u8(w1, 6)), a3, L); }
++                    Q20C_L(0) Q20C_L(1) Q20C_L(2) Q20C_L(3)
++#undef Q20C_L
++                }
++                int32_t ysum = 0;
++                for (int g = 0; g < 8; g++) { ysum += y[b].bsums[h * 8 + g]; }
++                const int32x4_t ys = vdupq_n_s32(ysum);
++                const int32x4_t t0 = vsubq_s32(vaddq_s32(vaddq_s32(c00, c30), vaddq_s32(vshrq_n_s32(c10, 2), vshrq_n_s32(c20, 4))), ys);
++                const int32x4_t t1 = vsubq_s32(vaddq_s32(vaddq_s32(c01, c31), vaddq_s32(vshrq_n_s32(c11, 2), vshrq_n_s32(c21, 4))), ys);
++                f0 = vfmaq_f32(f0, vmulq_n_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + h * 8)),     yd), vcvtq_f32_s32(t0));
++                f1 = vfmaq_f32(f1, vmulq_n_f32(vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + h * 8 + 4)), yd), vcvtq_f32_s32(t1));
++            }
++        }
++        vst1q_f32(s + x * 8, f0);
++        vst1q_f32(s + x * 8 + 4, f1);
++    }
++}
++
++// crumbs s = 0, 1 of half h are 64-group 2h; s = 2, 3 are group 2h + 1
++static void ggml_gemv_q2_0_f2g64_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    GGML_UNUSED(bs); GGML_UNUSED(nr);
++    const int nb = n / QK_K;
++    const block_q8_K * y = (const block_q8_K *) vy;
++    const uint8x16_t m03 = vdupq_n_u8(0x03), m0c = vdupq_n_u8(0x0C), m30 = vdupq_n_u8(0x30);
++    for (int x = 0; x < nc / 8; x++) {
++        const block_t2g64x8 * w = (const block_t2g64x8 *) vx + (size_t) x * nb;
++        float32x4_t f0 = vdupq_n_f32(0), f1 = vdupq_n_f32(0);
++        for (int b = 0; b < nb; b++) {
++            const int8_t * q8 = y[b].qs;
++            const uint8_t * qs = w[b].qs;
++            const float yd = y[b].d;
++            for (int h = 0; h < 2; h++) {
++                int32x4_t c00 = vdupq_n_s32(0), c01 = c00, c10 = c00, c11 = c00, c20 = c00, c21 = c00, c30 = c00, c31 = c00;
++                for (int g = 0; g < 2; g++) {
++                    const int8x16_t a0 = vld1q_s8(q8 + h * 128 + 16 * g),      a1 = vld1q_s8(q8 + h * 128 + 32 + 16 * g),
++                                    a2 = vld1q_s8(q8 + h * 128 + 64 + 16 * g), a3 = vld1q_s8(q8 + h * 128 + 96 + 16 * g);
++                    const uint8_t * qc = qs + (h * 8 + g * 4) * 32;
++#define Q20C_L(L) { const uint8x16_t w0 = vld1q_u8(qc + (L) * 32), w1 = vld1q_u8(qc + (L) * 32 + 16); \
++                    c00 = vdotq_laneq_s32(c00, vreinterpretq_s8_u8(vandq_u8(w0, m03)), a0, L); c01 = vdotq_laneq_s32(c01, vreinterpretq_s8_u8(vandq_u8(w1, m03)), a0, L); \
++                    c10 = vdotq_laneq_s32(c10, vreinterpretq_s8_u8(vandq_u8(w0, m0c)), a1, L); c11 = vdotq_laneq_s32(c11, vreinterpretq_s8_u8(vandq_u8(w1, m0c)), a1, L); \
++                    c20 = vdotq_laneq_s32(c20, vreinterpretq_s8_u8(vandq_u8(w0, m30)), a2, L); c21 = vdotq_laneq_s32(c21, vreinterpretq_s8_u8(vandq_u8(w1, m30)), a2, L); \
++                    c30 = vdotq_laneq_s32(c30, vreinterpretq_s8_u8(vshrq_n_u8(w0, 6)), a3, L); c31 = vdotq_laneq_s32(c31, vreinterpretq_s8_u8(vshrq_n_u8(w1, 6)), a3, L); }
++                    Q20C_L(0) Q20C_L(1) Q20C_L(2) Q20C_L(3)
++#undef Q20C_L
++                }
++                int32_t ya = 0, yb = 0;
++                for (int g = 0; g < 4; g++) { ya += y[b].bsums[h * 8 + g]; yb += y[b].bsums[h * 8 + 4 + g]; }
++                const int32x4_t ysa = vdupq_n_s32(ya), ysb = vdupq_n_s32(yb);
++                const int32x4_t ta0 = vsubq_s32(vaddq_s32(c00, vshrq_n_s32(c10, 2)), ysa), ta1 = vsubq_s32(vaddq_s32(c01, vshrq_n_s32(c11, 2)), ysa);
++                const int32x4_t tb0 = vsubq_s32(vaddq_s32(vshrq_n_s32(c20, 4), c30), ysb), tb1 = vsubq_s32(vaddq_s32(vshrq_n_s32(c21, 4), c31), ysb);
++                const __fp16 * wd = (const __fp16 *) w[b].d + h * 16;
++                f0 = vfmaq_f32(f0, vmulq_n_f32(vcvt_f32_f16(vld1_f16(wd)),      yd), vcvtq_f32_s32(ta0));
++                f1 = vfmaq_f32(f1, vmulq_n_f32(vcvt_f32_f16(vld1_f16(wd + 4)),  yd), vcvtq_f32_s32(ta1));
++                f0 = vfmaq_f32(f0, vmulq_n_f32(vcvt_f32_f16(vld1_f16(wd + 8)),  yd), vcvtq_f32_s32(tb0));
++                f1 = vfmaq_f32(f1, vmulq_n_f32(vcvt_f32_f16(vld1_f16(wd + 12)), yd), vcvtq_f32_s32(tb1));
++            }
++        }
++        vst1q_f32(s + x * 8, f0);
++        vst1q_f32(s + x * 8 + 4, f1);
++    }
++}
++
++// gemm: 4 activation rows per decoded vector (block_q8_Kx4: element group e is the 16 bytes at qs + e*4)
++#define Q20C_DOT(D0, D1, E) { const int8x16_t av = vld1q_s8(q8 + (E) * 4); \
++    c[0][0] = vdotq_laneq_s32(c[0][0], D0, av, 0); c[0][1] = vdotq_laneq_s32(c[0][1], D1, av, 0); \
++    c[1][0] = vdotq_laneq_s32(c[1][0], D0, av, 1); c[1][1] = vdotq_laneq_s32(c[1][1], D1, av, 1); \
++    c[2][0] = vdotq_laneq_s32(c[2][0], D0, av, 2); c[2][1] = vdotq_laneq_s32(c[2][1], D1, av, 2); \
++    c[3][0] = vdotq_laneq_s32(c[3][0], D0, av, 3); c[3][1] = vdotq_laneq_s32(c[3][1], D1, av, 3); }
++#define Q20C_ZERO() for (int r = 0; r < 4; r++) { c[r][0] = vdupq_n_s32(0); c[r][1] = vdupq_n_s32(0); }
++// bsums of block_q8_Kx4: 4 per row per 64-group, group G at bsums + G*16 + r*4
++#define Q20C_FINISH(H) { \
++    const float32x4_t wd0 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (H) * 8)); \
++    const float32x4_t wd1 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (H) * 8 + 4)); \
++    for (int r = 0; r < 4; r++) { \
++        int32_t ysum = 0; \
++        for (int G = 2 * (H); G < 2 * (H) + 2; G++) { const int16_t * bsr = a[b].bsums + G * 16 + r * 4; ysum += bsr[0] + bsr[1] + bsr[2] + bsr[3]; } \
++        const int32x4_t ys = vdupq_n_s32(ysum); \
++        f[r][0] = vfmaq_f32(f[r][0], vmulq_n_f32(wd0, a[b].d[r]), vcvtq_f32_s32(vsubq_s32(c[r][0], ys))); \
++        f[r][1] = vfmaq_f32(f[r][1], vmulq_n_f32(wd1, a[b].d[r]), vcvtq_f32_s32(vsubq_s32(c[r][1], ys))); \
++    } }
++
++static void ggml_gemm_q2_0_g128_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    const int nb = n / QK_K;
++    for (int yb = 0; yb < nr / 4; yb++) {
++        const block_q8_Kx4 * a = (const block_q8_Kx4 *) vy + (size_t) yb * nb;
++        for (int x = 0; x < nc / 8; x++) {
++            const block_tq1g128x8 * w = (const block_tq1g128x8 *) vx + (size_t) x * nb;
++            float32x4_t f[4][2];
++            for (int r = 0; r < 4; r++) { f[r][0] = vdupq_n_f32(0); f[r][1] = vdupq_n_f32(0); }
++            for (int b = 0; b < nb; b++) {
++                const int8_t * q8 = a[b].qs;
++                const uint8_t * qs = w[b].qs;
++                int32x4_t c[4][2];
++#define Q20C_T(U, M) Q20C_T3(vmulq_u8(U, vdupq_n_u8(M)))
++                Q20C_ZERO()
++                for (int ch = 0; ch < 8; ch++) {
++                    const uint8x16_t u0 = vld1q_u8(qs + ch * 32), u1 = vld1q_u8(qs + ch * 32 + 16);
++                    { const int8x16_t d0 = Q20C_T3(u0), d1 = Q20C_T3(u1); Q20C_DOT(d0, d1, 4 * ch) }
++                    { const int8x16_t d0 = Q20C_T(u0, 3), d1 = Q20C_T(u1, 3); Q20C_DOT(d0, d1, 32 + 4 * ch) }
++                    { const int8x16_t d0 = Q20C_T(u0, 9), d1 = Q20C_T(u1, 9); Q20C_DOT(d0, d1, 64 + 4 * ch) }
++                    { const int8x16_t d0 = Q20C_T(u0, 27), d1 = Q20C_T(u1, 27); Q20C_DOT(d0, d1, 96 + 4 * ch) }
++                }
++                Q20C_FINISH(0)
++                Q20C_ZERO()
++                for (int ch = 0; ch < 8; ch++) {
++                    const uint8x16_t u0 = vld1q_u8(qs + ch * 32), u1 = vld1q_u8(qs + ch * 32 + 16);
++                    const int8x16_t d0 = Q20C_T(u0, 81), d1 = Q20C_T(u1, 81); Q20C_DOT(d0, d1, 128 + 4 * ch)
++                }
++                for (int ch = 8; ch < 12; ch++) {
++                    const uint8x16_t u0 = vld1q_u8(qs + ch * 32), u1 = vld1q_u8(qs + ch * 32 + 16);
++                    const int e = 4 * (ch - 8);
++                    { const int8x16_t d0 = Q20C_T3(u0), d1 = Q20C_T3(u1); Q20C_DOT(d0, d1, 160 + e) }
++                    { const int8x16_t d0 = Q20C_T(u0, 3), d1 = Q20C_T(u1, 3); Q20C_DOT(d0, d1, 176 + e) }
++                    { const int8x16_t d0 = Q20C_T(u0, 9), d1 = Q20C_T(u1, 9); Q20C_DOT(d0, d1, 192 + e) }
++                    { const int8x16_t d0 = Q20C_T(u0, 27), d1 = Q20C_T(u1, 27); Q20C_DOT(d0, d1, 208 + e) }
++                    { const int8x16_t d0 = Q20C_T(u0, 81), d1 = Q20C_T(u1, 81); Q20C_DOT(d0, d1, 224 + e) }
++                }
++                {
++                    const uint8x16_t u0 = vld1q_u8(qs + 12 * 32), u1 = vld1q_u8(qs + 12 * 32 + 16);
++                    { const int8x16_t d0 = Q20C_T3(u0), d1 = Q20C_T3(u1); Q20C_DOT(d0, d1, 240) }
++                    { const int8x16_t d0 = Q20C_T(u0, 3), d1 = Q20C_T(u1, 3); Q20C_DOT(d0, d1, 244) }
++                    { const int8x16_t d0 = Q20C_T(u0, 9), d1 = Q20C_T(u1, 9); Q20C_DOT(d0, d1, 248) }
++                    { const int8x16_t d0 = Q20C_T(u0, 27), d1 = Q20C_T(u1, 27); Q20C_DOT(d0, d1, 252) }
++                }
++                Q20C_FINISH(1)
++#undef Q20C_T
++            }
++            for (int r = 0; r < 4; r++) {
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8,     f[r][0]);
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8 + 4, f[r][1]);
++            }
++        }
++    }
++}
++
++static void ggml_gemm_q2_0_f2_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    const int nb = n / QK_K;
++    const uint8x16_t m3 = vdupq_n_u8(3);
++    for (int yb = 0; yb < nr / 4; yb++) {
++        const block_q8_Kx4 * a = (const block_q8_Kx4 *) vy + (size_t) yb * nb;
++        for (int x = 0; x < nc / 8; x++) {
++            const block_t2g128x8 * w = (const block_t2g128x8 *) vx + (size_t) x * nb;
++            float32x4_t f[4][2];
++            for (int r = 0; r < 4; r++) { f[r][0] = vdupq_n_f32(0); f[r][1] = vdupq_n_f32(0); }
++            for (int b = 0; b < nb; b++) {
++                const int8_t * q8 = a[b].qs;
++                const uint8_t * qs = w[b].qs;
++                int32x4_t c[4][2];
++                for (int h = 0; h < 2; h++) {
++                    Q20C_ZERO()
++                    for (int ch = 8 * h; ch < 8 * h + 8; ch++) {
++                        const uint8x16_t u0 = vld1q_u8(qs + ch * 32), u1 = vld1q_u8(qs + ch * 32 + 16);
++                        const int g = (ch / 4) % 2, lane = ch % 4;
++                        { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(u0, m3)), d1 = vreinterpretq_s8_u8(vandq_u8(u1, m3));
++                          Q20C_DOT(d0, d1, h * 128 + 16 * g + 4 * lane) }
++                        { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u0, 2), m3)), d1 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u1, 2), m3));
++                          Q20C_DOT(d0, d1, h * 128 + 32 + 16 * g + 4 * lane) }
++                        { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u0, 4), m3)), d1 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u1, 4), m3));
++                          Q20C_DOT(d0, d1, h * 128 + 64 + 16 * g + 4 * lane) }
++                        { const int8x16_t d0 = vreinterpretq_s8_u8(vshrq_n_u8(u0, 6)), d1 = vreinterpretq_s8_u8(vshrq_n_u8(u1, 6));
++                          Q20C_DOT(d0, d1, h * 128 + 96 + 16 * g + 4 * lane) }
++                    }
++                    Q20C_FINISH(h)
++                }
++            }
++            for (int r = 0; r < 4; r++) {
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8,     f[r][0]);
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8 + 4, f[r][1]);
++            }
++        }
++    }
++}
++static void ggml_gemm_q2_0_f2g64_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
++    const int nb = n / QK_K;
++    const uint8x16_t m3 = vdupq_n_u8(3);
++#define Q20C_FIN64(G) { \
++    const float32x4_t wd0 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (G) * 8)); \
++    const float32x4_t wd1 = vcvt_f32_f16(vld1_f16((const __fp16 *) w[b].d + (G) * 8 + 4)); \
++    for (int r = 0; r < 4; r++) { \
++        const int16_t * bsr = a[b].bsums + (G) * 16 + r * 4; \
++        const int32x4_t ys = vdupq_n_s32(bsr[0] + bsr[1] + bsr[2] + bsr[3]); \
++        f[r][0] = vfmaq_f32(f[r][0], vmulq_n_f32(wd0, a[b].d[r]), vcvtq_f32_s32(vsubq_s32(c[r][0], ys))); \
++        f[r][1] = vfmaq_f32(f[r][1], vmulq_n_f32(wd1, a[b].d[r]), vcvtq_f32_s32(vsubq_s32(c[r][1], ys))); \
++    } }
++    for (int yb = 0; yb < nr / 4; yb++) {
++        const block_q8_Kx4 * a = (const block_q8_Kx4 *) vy + (size_t) yb * nb;
++        for (int x = 0; x < nc / 8; x++) {
++            const block_t2g64x8 * w = (const block_t2g64x8 *) vx + (size_t) x * nb;
++            float32x4_t f[4][2];
++            for (int r = 0; r < 4; r++) { f[r][0] = vdupq_n_f32(0); f[r][1] = vdupq_n_f32(0); }
++            for (int b = 0; b < nb; b++) {
++                const int8_t * q8 = a[b].qs;
++                const uint8_t * qs = w[b].qs;
++                int32x4_t c[4][2];
++                for (int h = 0; h < 2; h++) {
++                    Q20C_ZERO()
++                    for (int ch = 8 * h; ch < 8 * h + 8; ch++) {
++                        const uint8x16_t u0 = vld1q_u8(qs + ch * 32), u1 = vld1q_u8(qs + ch * 32 + 16);
++                        const int g = (ch / 4) % 2, lane = ch % 4;
++                        { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(u0, m3)), d1 = vreinterpretq_s8_u8(vandq_u8(u1, m3));
++                          Q20C_DOT(d0, d1, h * 128 + 16 * g + 4 * lane) }
++                        { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u0, 2), m3)), d1 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u1, 2), m3));
++                          Q20C_DOT(d0, d1, h * 128 + 32 + 16 * g + 4 * lane) }
++                    }
++                    Q20C_FIN64(2 * h)
++                    Q20C_ZERO()
++                    for (int ch = 8 * h; ch < 8 * h + 8; ch++) {
++                        const uint8x16_t u0 = vld1q_u8(qs + ch * 32), u1 = vld1q_u8(qs + ch * 32 + 16);
++                        const int g = (ch / 4) % 2, lane = ch % 4;
++                        { const int8x16_t d0 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u0, 4), m3)), d1 = vreinterpretq_s8_u8(vandq_u8(vshrq_n_u8(u1, 4), m3));
++                          Q20C_DOT(d0, d1, h * 128 + 64 + 16 * g + 4 * lane) }
++                        { const int8x16_t d0 = vreinterpretq_s8_u8(vshrq_n_u8(u0, 6)), d1 = vreinterpretq_s8_u8(vshrq_n_u8(u1, 6));
++                          Q20C_DOT(d0, d1, h * 128 + 96 + 16 * g + 4 * lane) }
++                    }
++                    Q20C_FIN64(2 * h + 1)
++                }
++            }
++            for (int r = 0; r < 4; r++) {
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8,     f[r][0]);
++                vst1q_f32(s + (size_t) (yb * 4 + r) * bs + x * 8 + 4, f[r][1]);
++            }
++        }
++    }
++#undef Q20C_FIN64
++}
++#undef Q20C_DOT
++#undef Q20C_ZERO
++#undef Q20C_FINISH
++#undef Q20C_G
++#undef Q20C_M
++#undef Q20C_T3
++#else
++static void ggml_gemv_q2_0_g128_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
++static void ggml_gemv_q2_0_f2_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
++static void ggml_gemm_q2_0_g128_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
++static void ggml_gemm_q2_0_f2_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
++static void ggml_gemv_q2_0_f2g64_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
++static void ggml_gemm_q2_0_f2g64_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
++#endif
 diff --git a/ggml/src/ggml-cpu/repack-q2k-tv.inc b/ggml/src/ggml-cpu/repack-q2k-tv.inc
 new file mode 100644
 index 0000000..b50247e
@@ -1305,15 +1782,16 @@ index 0000000..ab5dc8d
 +static void ggml_gemm_q2_0_tq1g64_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
 +#endif
 diff --git a/ggml/src/ggml-cpu/repack.cpp b/ggml/src/ggml-cpu/repack.cpp
-index 9282ca2..4509dfc 100644
+index 9282ca2..4d0bbbd 100644
 --- a/ggml/src/ggml-cpu/repack.cpp
 +++ b/ggml/src/ggml-cpu/repack.cpp
-@@ -4262,6 +4262,36 @@ template <> int repack<block_q4_K, 8, 8>(struct ggml_tensor * t, const void * da
+@@ -4262,6 +4262,49 @@ template <> int repack<block_q4_K, 8, 8>(struct ggml_tensor * t, const void * da
      return repack_q4_K_to_q4_K_8_bl(t, 8, data, data_size);
  }
  
 +#include "repack-q2k-tv.inc"
 +#include "repack-tq-tv.inc"
++#include "repack-q20c-tv.inc"
 +#include "repack-q1-tv.inc"
 +
 +// tvbox: GGML_Q1_TV=0 restores upstream's Q1_0 4x4 repack (the compact layout changes row offsets and sizes)
@@ -1334,6 +1812,18 @@ index 9282ca2..4509dfc 100644
 +    return repack_q2_0_to_tq1g64_tv(t, data, data_size);
 +}
 +
++template <> int repack<block_q2_0g128, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_q2_0_g128_tv(t, data, data_size);
++}
++
++template <> int repack<block_q2_0f2, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_q2_0_f2_tv(t, data, data_size);
++}
++
++template <> int repack<block_q2_0f2g64, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_q2_0_f2g64_tv(t, data, data_size);
++}
++
 +template <> int repack<block_tq2_0, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
 +    return repack_tq_8x4_tv<block_tq2_0, block_tq2_0x8, 16>(t, data, data_size);
 +}
@@ -1345,7 +1835,7 @@ index 9282ca2..4509dfc 100644
  template <> int repack<block_q4_K, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
      return repack_q4_K_to_q4_K_8_bl(t, 4, data, data_size);
  }
-@@ -4372,6 +4402,26 @@ void gemv<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int          n,
+@@ -4372,6 +4415,38 @@ void gemv<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int          n,
      ggml_gemv_q2_K_8x8_q8_K(n, s, bs, vx, vy, nr, nc);
  }
  
@@ -1355,6 +1845,18 @@ index 9282ca2..4509dfc 100644
 +
 +template <> void gemv<block_q2_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
 +    ggml_gemv_q2_0_tq1g64_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemv<block_q2_0g128, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemv_q2_0_g128_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemv<block_q2_0f2, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemv_q2_0_f2_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemv<block_q2_0f2g64, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemv_q2_0_f2g64_q8_K_tv(n, s, bs, vx, vy, nr, nc);
 +}
 +
 +template <> void gemv<block_tq1_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
@@ -1372,7 +1874,7 @@ index 9282ca2..4509dfc 100644
  template <> void gemv<block_q4_K, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
      ggml_gemv_q4_K_8x4_q8_K(n, s, bs, vx, vy, nr, nc);
  }
-@@ -4477,6 +4527,26 @@ template <> void gemm<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t
+@@ -4477,6 +4552,38 @@ template <> void gemm<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t
      ggml_gemm_q2_K_8x8_q8_K(n, s, bs, vx, vy, nr, nc);
  }
  
@@ -1382,6 +1884,18 @@ index 9282ca2..4509dfc 100644
 +
 +template <> void gemm<block_q2_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
 +    ggml_gemm_q2_0_tq1g64_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemm<block_q2_0g128, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemm_q2_0_g128_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemm<block_q2_0f2, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemm_q2_0_f2_q8_K_tv(n, s, bs, vx, vy, nr, nc);
++}
++
++template <> void gemm<block_q2_0f2g64, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
++    ggml_gemm_q2_0_f2g64_q8_K_tv(n, s, bs, vx, vy, nr, nc);
 +}
 +
 +template <> void gemm<block_tq1_0, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
@@ -1399,7 +1913,7 @@ index 9282ca2..4509dfc 100644
  template <> void gemm<block_q4_K, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
      ggml_gemm_q4_K_8x4_q8_K(n, s, bs, vx, vy, nr, nc);
  }
-@@ -4552,6 +4622,24 @@ class tensor_traits_base : public ggml::cpu::tensor_traits {
+@@ -4552,6 +4659,26 @@ class tensor_traits_base : public ggml::cpu::tensor_traits {
      virtual int repack(struct ggml_tensor * t, const void * data, size_t data_size) = 0;
  };
  
@@ -1416,6 +1930,8 @@ index 9282ca2..4509dfc 100644
 +// tvbox: byte offset of row `rows` inside a repacked tensor (the Q2_0 -> base-3 layout is 5/6 of the source size)
 +template <typename BLOC_TYPE> static inline size_t repack_rows_bytes(int64_t rows, size_t nb01) { return (size_t) rows * nb01; }
 +template <> inline size_t repack_rows_bytes<block_q2_0>(int64_t rows, size_t nb01) { return (size_t) rows * nb01 / 6 * 5; }
++template <> inline size_t repack_rows_bytes<block_q2_0g128>(int64_t rows, size_t nb01) { return (size_t) rows * nb01 / 9 * 7; }
++template <> inline size_t repack_rows_bytes<block_q2_0f2>(int64_t rows, size_t nb01) { return (size_t) rows * nb01 / 18 * 17; }
 +// compact Q1_0 (repack-q1-tv.inc): groups of 8 rows of 32 + K/256 * 272 bytes; K = nb01 / 18 * 128
 +template <> inline size_t repack_rows_bytes<block_q1_0>(int64_t rows, size_t nb01) {
 +    return q1tv_enabled() ? (size_t) (rows / 8) * q1tv_group_bytes((int64_t) (nb01 / sizeof(block_q1_0)) * QK1_0) : (size_t) rows * nb01;
@@ -1424,7 +1940,7 @@ index 9282ca2..4509dfc 100644
  template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PARAM_TYPE> class tensor_traits : public tensor_traits_base {
  
      bool work_size(int /* n_threads */, const struct ggml_tensor * op, size_t & size) override {
-@@ -4560,6 +4648,11 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4560,6 +4687,11 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
              case GGML_OP_MUL_MAT:
                  {
                      size = ggml_row_size(PARAM_TYPE, ggml_nelements(op->src[1]));
@@ -1436,7 +1952,7 @@ index 9282ca2..4509dfc 100644
                      return true;
                  }
              case GGML_OP_MUL_MAT_ID:
-@@ -4625,7 +4718,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4625,7 +4757,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          const int64_t i1 = i11;
          const int64_t i2 = i12;
  
@@ -1445,7 +1961,7 @@ index 9282ca2..4509dfc 100644
          const char * src1_ptr = (const char *) params->wdata + (i11 + i12 * ne11) * src1_col_stride;
          char *       dst_ptr  = ((char *) dst->data + (i1 * nb1 + i2 * nb2));
  
-@@ -4637,16 +4730,53 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4637,16 +4769,53 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          // If there are more than three rows in src1, use gemm; otherwise, use gemv.
          if (nrows > 3) {
              gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(ne00, (float *) (dst_ptr) + src0_start, nb1 / nb0,
@@ -1501,7 +2017,7 @@ index 9282ca2..4509dfc 100644
      void forward_mul_mat(ggml_compute_params * params, ggml_tensor * op) {
          const ggml_tensor * src0 = op->src[0];
          const ggml_tensor * src1 = op->src[1];
-@@ -4687,6 +4817,11 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4687,6 +4856,11 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
  
          const ggml_from_float_t from_float = ggml_get_type_traits_cpu(PARAM_TYPE)->from_float;
  
@@ -1513,7 +2029,7 @@ index 9282ca2..4509dfc 100644
          // INFO: Quantization is done in planes to avoid extra complexity in chunking.
          // Flattening dimensions not multiple of INTER_SIZE would require extra handling depending on how
          // the planes are broadcast.
-@@ -4708,10 +4843,12 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4708,10 +4882,12 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          // disable for NUMA
          const bool disable_chunking = ggml_is_numa();
  
@@ -1528,7 +2044,7 @@ index 9282ca2..4509dfc 100644
          int64_t chunk_size0 = (nr0 + nth_scaled - 1) / nth_scaled;
          int64_t nchunk0     = (nr0 + chunk_size0 - 1) / chunk_size0;
  
-@@ -4741,6 +4878,34 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4741,6 +4917,34 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          const int64_t max_nchunk = (nr0 + min_chunk_size - 1) / min_chunk_size;
          nchunk0                  = MIN(nchunk0, max_nchunk);
  
@@ -1563,7 +2079,7 @@ index 9282ca2..4509dfc 100644
          if (ith == 0) {
              // Every thread starts at ith, so the first unprocessed chunk is nth.  This save a bit of coordination right at the start.
              ggml_threadpool_chunk_set(params->threadpool, nth);
-@@ -4912,7 +5077,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4912,7 +5116,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
  
                  gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
                      ne00, (float *) ((char *) dst->data + (i1 * nb1 + i2 * nb2)) + src0_cur_start, ne01,
@@ -1572,7 +2088,7 @@ index 9282ca2..4509dfc 100644
              }
          }
  #undef MMID_MATRIX_ROW
-@@ -4931,6 +5096,7 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -4931,6 +5135,7 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
      // instance for Q1_0
      static const ggml::cpu::repack::tensor_traits<block_q1_0, 4, 4, GGML_TYPE_Q8_0> q1_0_4x4_q8_0;
      static const ggml::cpu::repack::tensor_traits<block_q1_0, 8, 4, GGML_TYPE_Q8_0> q1_0_4x8_q8_0;
@@ -1580,18 +2096,21 @@ index 9282ca2..4509dfc 100644
  
      // instance for Q4
      static const ggml::cpu::repack::tensor_traits<block_q4_0, 4, 4, GGML_TYPE_Q8_0> q4_0_4x4_q8_0;
-@@ -4951,6 +5117,10 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -4951,6 +5156,13 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
  
      // instance for Q2
      static const ggml::cpu::repack::tensor_traits<block_q2_K, 8, 8, GGML_TYPE_Q8_K> q2_K_8x8_q8_K;
 +    static const ggml::cpu::repack::tensor_traits<block_q2_K, 4, 8, GGML_TYPE_Q8_K> q2_K_8x4_q8_K_tv;
 +    static const ggml::cpu::repack::tensor_traits<block_tq1_0, 4, 8, GGML_TYPE_Q8_K> tq1_0_8x4_q8_K_tv;
 +    static const ggml::cpu::repack::tensor_traits<block_q2_0, 4, 8, GGML_TYPE_Q8_K> q2_0_tq1g64_q8_K_tv;
++    static const ggml::cpu::repack::tensor_traits<ggml::cpu::repack::block_q2_0g128, 4, 8, GGML_TYPE_Q8_K> q2_0_g128_q8_K_tv;
++    static const ggml::cpu::repack::tensor_traits<ggml::cpu::repack::block_q2_0f2, 4, 8, GGML_TYPE_Q8_K> q2_0_f2_q8_K_tv;
++    static const ggml::cpu::repack::tensor_traits<ggml::cpu::repack::block_q2_0f2g64, 4, 8, GGML_TYPE_Q8_K> q2_0_f2g64_q8_K_tv;
 +    static const ggml::cpu::repack::tensor_traits<block_tq2_0, 4, 8, GGML_TYPE_Q8_K> tq2_0_8x4_q8_K_tv;
  
      // instance for IQ4
      static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 4, 4, GGML_TYPE_Q8_0> iq4_nl_4x4_q8_0;
-@@ -5035,7 +5205,25 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5035,7 +5247,30 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
              }
              #endif
          }
@@ -1600,7 +2119,12 @@ index 9282ca2..4509dfc 100644
 +        // (GGML_Q2_0_TERNARY=0 keeps upstream's per-row Q2_0 vec_dot on the mmapped file)
 +        static const bool q20_tv = getenv("GGML_Q2_0_TERNARY") == nullptr || atoi(getenv("GGML_Q2_0_TERNARY")) != 0;
 +        if (q20_tv && ggml_cpu_has_neon() && ggml_cpu_has_dotprod() && cur->ne[1] % 8 == 0 && cur->ne[0] % QK_K == 0) {
-+            return &q2_0_tq1g64_q8_K_tv;
++            switch (ggml::cpu::repack::q20c_mode(cur)) {
++                case 1:  return &q2_0_g128_q8_K_tv;
++                case 2:  return &q2_0_f2_q8_K_tv;
++                case 3:  return &q2_0_f2g64_q8_K_tv;
++                default: return &q2_0_tq1g64_q8_K_tv;
++            }
 +        }
 +    } else if (cur->type == GGML_TYPE_TQ1_0 || cur->type == GGML_TYPE_TQ2_0) {
 +        // tvbox: ARM dotprod repack of the ternary types (GGML_TQ_TV=0 falls back to the per-row vec_dot)
@@ -1617,7 +2141,7 @@ index 9282ca2..4509dfc 100644
          if (ggml_cpu_has_avx512()) {
              if (cur->ne[1] % 8 == 0) {
                  return &q2_K_8x8_q8_K;
-@@ -5130,6 +5318,14 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5130,6 +5365,14 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
              #endif
          }
      } else if (cur->type == GGML_TYPE_Q1_0) {
@@ -1632,7 +2156,7 @@ index 9282ca2..4509dfc 100644
          if (ggml_cpu_has_neon() && ggml_cpu_has_matmul_int8()) {
              if (cur->ne[1] % 4 == 0) {
                  return &q1_0_4x8_q8_0;
-@@ -5145,6 +5341,94 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5145,6 +5388,94 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
      return nullptr;
  }
  
@@ -1727,7 +2251,7 @@ index 9282ca2..4509dfc 100644
  static enum ggml_status ggml_backend_cpu_repack_buffer_init_tensor(ggml_backend_buffer_t buffer, struct ggml_tensor * tensor) {
      tensor->extra = (void *) const_cast<ggml::cpu::tensor_traits *>(ggml_repack_get_optimal_repack_type(tensor));
  
-@@ -5157,10 +5441,22 @@ static void ggml_backend_cpu_repack_buffer_set_tensor(ggml_backend_buffer_t buff
+@@ -5157,10 +5488,22 @@ static void ggml_backend_cpu_repack_buffer_set_tensor(ggml_backend_buffer_t buff
      GGML_ASSERT(offset == 0);
      GGML_ASSERT(size == ggml_nbytes(tensor));
  
@@ -1750,7 +2274,7 @@ index 9282ca2..4509dfc 100644
      GGML_UNUSED(buffer);
  }
  
-@@ -5171,7 +5467,10 @@ static const char * ggml_backend_cpu_repack_buffer_type_get_name(ggml_backend_bu
+@@ -5171,7 +5514,10 @@ static const char * ggml_backend_cpu_repack_buffer_type_get_name(ggml_backend_bu
  }
  
  static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
@@ -1762,7 +2286,7 @@ index 9282ca2..4509dfc 100644
  
      if (buffer == nullptr) {
          return nullptr;
-@@ -5185,6 +5484,19 @@ static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(gg
+@@ -5185,6 +5531,24 @@ static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(gg
      return buffer;
  }
  
@@ -1770,7 +2294,12 @@ index 9282ca2..4509dfc 100644
 +    GGML_UNUSED(buft);
 +    // tvbox: the ternary Q2_0 layout needs only 5/6 of the file bytes
 +    if (tensor->type == GGML_TYPE_Q2_0 && ggml_repack_get_optimal_repack_type(tensor) != nullptr) {
-+        return ggml_nbytes(tensor) / 6 * 5;
++        switch (ggml::cpu::repack::q20c_mode(tensor)) {
++            case 1:  return ggml_nbytes(tensor) / 9 * 7;
++            case 2:  return ggml_nbytes(tensor) / 18 * 17;
++            case 3:  return ggml_nbytes(tensor);
++            default: return ggml_nbytes(tensor) / 6 * 5;
++        }
 +    }
 +    // tvbox: compact Q1_0 (8-bit scales): 17 bytes per 128 weights + 4 bytes per row
 +    if (tensor->type == GGML_TYPE_Q1_0 && ggml::cpu::repack::q1tv_enabled() && ggml_repack_get_optimal_repack_type(tensor) != nullptr) {
@@ -1782,7 +2311,7 @@ index 9282ca2..4509dfc 100644
  static size_t ggml_backend_cpu_repack_buffer_type_get_alignment(ggml_backend_buffer_type_t buft) {
      return TENSOR_ALIGNMENT;
  
-@@ -5248,7 +5560,7 @@ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
+@@ -5248,7 +5612,7 @@ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
                             /* .alloc_buffer_n       = */ nullptr,
                             /* .get_alignment        = */ ggml_backend_cpu_repack_buffer_type_get_alignment,
                             /* .get_max_size         = */ nullptr,  // defaults to SIZE_MAX
@@ -2632,10 +3161,30 @@ index a963f24..797dfd3 100644
          if (progress_callback) {
              // Even though the model is done loading, we still honor
 diff --git a/src/llama-model.cpp b/src/llama-model.cpp
-index 81af890..cb27e34 100644
+index 81af890..b85cd20 100644
 --- a/src/llama-model.cpp
 +++ b/src/llama-model.cpp
-@@ -2940,7 +2940,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+@@ -2079,7 +2079,8 @@ void llama_model_base::load_hparams_hadamard(llama_model_loader & ml) {
+         if ((hadamard_version == 2) != hdmd.tied_output) {
+             throw std::runtime_error("prism.hadamard version 2 requires tied_output=true; version 1 forbids it");
+         }
+-        if (hdmd.tied_output && ml.get_weight("output.weight")) {
++        // tvbox: a pruned head (output.weight + output_ids.weight, rows of the tied table) is still the tied output
++        if (hdmd.tied_output && ml.get_weight("output.weight") && !ml.get_weight("output_ids.weight")) {
+             throw std::runtime_error("prism.hadamard.tied_output requires output.weight to be absent");
+         }
+ 
+@@ -2261,7 +2262,8 @@ void llama_model_base::load_tensors_hadamard() {
+             const ggml_tensor * weight = get_tensor(weight_name.c_str());
+             if (hdmd.tied_output && weight_name == "token_embd.weight") {
+                 weight = target == &hdmd.rot ? output : tok_embd;
+-                if (!weight || strcmp(weight->name, "token_embd.weight") != 0) {
++                const bool pruned_head = output_ids && weight == output; // tvbox: rows of the tied table, same basis
++                if (!weight || (strcmp(weight->name, "token_embd.weight") != 0 && !pruned_head)) {
+                     throw std::runtime_error("prism.hadamard.tied_output is not bound to the token embedding");
+                 }
+             }
+@@ -2940,7 +2942,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
                      /* attn_n_swa        */ hparams.n_swa,
                      /* attn_swa_type     */ hparams.swa_type,
                      /* recurrent_type_r  */ GGML_TYPE_F32,
@@ -2644,7 +3193,7 @@ index 81af890..cb27e34 100644
                      /* recurrent_rs_size */ std::max((uint32_t) 1, cparams.n_seq_max),
                      /* n_seq_max         */ cparams.n_seq_max,
                      /* n_rs_seq          */ cparams.n_rs_seq,
-@@ -3193,7 +3193,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+@@ -3193,7 +3195,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
                              /* attn_kv_size      */ cparams.n_ctx_seq,
                              /* attn_n_ubatch     */ cparams.n_ubatch,
                              /* recurrent_type_r  */ GGML_TYPE_F32,
@@ -2653,7 +3202,7 @@ index 81af890..cb27e34 100644
                              /* recurrent_rs_size */ std::max((uint32_t) 1, cparams.n_seq_max),
                              /* n_seq_max         */ cparams.n_seq_max,
                              /* n_rs_seq          */ cparams.n_rs_seq,
-@@ -3233,7 +3233,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+@@ -3233,7 +3235,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
                              /* attn_n_swa        */ hparams.n_swa,
                              /* attn_swa_type     */ hparams.swa_type,
                              /* recurrent_type_k  */ GGML_TYPE_F32,
@@ -2783,6 +3332,47 @@ index a752a36..47dff21 100644
      cb(cur, "result_output", -1);
      res->t_logits = cur;
  }
+diff --git a/src/models/granite-swa.cpp b/src/models/granite-swa.cpp
+index 60c1eb8..08edf2e 100644
+--- a/src/models/granite-swa.cpp
++++ b/src/models/granite-swa.cpp
+@@ -53,7 +53,7 @@ void llama_model_granite_swa::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key(LLM_KV_EXPERT_SHARED_FEED_FORWARD_LENGTH, hparams.n_ff_shexp, /* required */ false);
+ }
+ 
+-void llama_model_granite_swa::load_arch_tensors(llama_model_loader &) {
++void llama_model_granite_swa::load_arch_tensors(llama_model_loader & ml) {
+     LLAMA_LOAD_LOCALS;
+ 
+     tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, 0);
+@@ -107,7 +107,12 @@ void llama_model_granite_swa::load_arch_tensors(llama_model_loader &) {
+ 
+             // For Granite MoE Shared - gate+up kept fused in ffn_up_shexp (see LLM_FFN_SWIGLU below)
+             if (hparams.n_ff_shexp > 0) {
+-                layer.ffn_up_shexp   = create_tensor(tn(LLM_TENSOR_FFN_UP_SHEXP,   "weight", i), {n_embd, 2*hparams.n_ff_shexp}, 0);
++                // tvbox: some conversions keep gate and up as two tensors; both forms are the same SwiGLU
++                const bool split_shexp = ml.get_tensor_meta(tn(LLM_TENSOR_FFN_GATE_SHEXP, "weight", i).str().c_str()) != nullptr;
++                if (split_shexp) {
++                    layer.ffn_gate_shexp = create_tensor(tn(LLM_TENSOR_FFN_GATE_SHEXP, "weight", i), {n_embd, hparams.n_ff_shexp}, 0);
++                }
++                layer.ffn_up_shexp   = create_tensor(tn(LLM_TENSOR_FFN_UP_SHEXP,   "weight", i), {n_embd, (split_shexp ? 1 : 2)*hparams.n_ff_shexp}, 0);
+                 layer.ffn_down_shexp = create_tensor(tn(LLM_TENSOR_FFN_DOWN_SHEXP, "weight", i), {hparams.n_ff_shexp, n_embd}, 0);
+             }
+         }
+@@ -290,7 +295,12 @@ ggml_tensor * llama_model_granite_swa::graph::build_layer_ffn(
+ 
+         // For Granite MoE Shared - gate+up kept fused in ffn_up_shexp
+         if (hparams.n_ff_shexp > 0) {
+-            ggml_tensor * ffn_shexp = build_ffn(cur,
++            ggml_tensor * ffn_shexp = model.layers[il].ffn_gate_shexp ? build_ffn(cur,
++                model.layers[il].ffn_up_shexp,   NULL, NULL,
++                model.layers[il].ffn_gate_shexp, NULL, NULL,
++                model.layers[il].ffn_down_shexp, NULL, NULL,
++                NULL,
++                LLM_FFN_SILU, LLM_FFN_PAR, il) : build_ffn(cur,
+                 model.layers[il].ffn_up_shexp,   NULL, NULL,
+                 NULL,                            NULL, NULL,
+                 model.layers[il].ffn_down_shexp, NULL, NULL,
 diff --git a/src/models/qwen3.cpp b/src/models/qwen3.cpp
 index c01f838..978fc06 100644
 --- a/src/models/qwen3.cpp

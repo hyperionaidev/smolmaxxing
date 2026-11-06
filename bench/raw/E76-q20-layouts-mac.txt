@@ -1,0 +1,11 @@
+g64 PPL = 12.0690 |  
+g128 PPL = 12.0733 |  
+g128+f2 all PPL = 12.0733 |  
+g128+f2 0-15 PPL = 12.0733 |  
+f2g64 all+head PPL 12.0690 
+f2g64 0-15 PPL 12.0690 
+g128+f2 all+head PPL 12.0733 
+prompt batches check (ctx 512, gemm path):
+# rerun with bash (zsh does not split $E): earlier 'f2g64 all+head', 'g128+f2 all+head' lines were not what they said
+tb24 g128+f2 all+head en PPL 12.0733 misses 1.310% 
+tb24 f2g64 all+head en PPL 12.0690 misses 1.310% 

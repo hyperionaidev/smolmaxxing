@@ -1,0 +1,5 @@
+g64 en PPL 12.3711 0.952% 
+g64 ml PPL 14.3536 6.667% 
+tb4 f2g64 all+head en PPL 12.3711 misses 0.952% 
+tb4 g128avg en PPL 12.3939 misses 0.952% 
+tb4 g128avg ml PPL 14.3729 misses 6.667% 

@@ -1,0 +1,7 @@
+tb24           3.25 ± 0.07  killed=0 rss=996 minavail=176 minswap=176
+tb4            3.49 ± 0.03  killed=0 rss=1014 minavail=188 minswap=204
+tb24           3.27 ± 0.08  killed=0 rss=1004 minavail=165 minswap=197
+tb4            3.40 ± 0.14  killed=0 rss=1002 minavail=190 minswap=194
+tb24           3.32 ± 0.05  killed=0 rss=1020 minavail=193 minswap=144
+tb4            3.29 ± 0.14  killed=0 rss=1005 minavail=182 minswap=200
+DONE

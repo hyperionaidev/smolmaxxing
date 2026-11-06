@@ -1,0 +1,11 @@
+0.00.721.128 I cmn          init: llama threadpool init, n_threads = 6
+0.00.860.282 I 
+0.00.860.332 I system_info: n_threads = 6 (n_threads_batch = 6) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | DOTPROD = 1 | LLAMAFILE = 1 | ACCELERATE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.00.860.339 I perplexity: tokenizing the input ..
+0.00.864.001 I perplexity: tokenization took 3.66 ms
+0.00.864.011 I perplexity: calculating perplexity over 40 chunks, n_ctx=128, batch_size=128, n_seq=1
+0.01.892.648 I perplexity: 1.03 seconds per pass - ETA 0.68 minutes
+[1]11.0291,[2]9.7345,[3]13.3011,[4]15.4691,[5]13.1013,[6]13.3004,[7]17.4327,[8]17.2602,[9]17.0538,[10]16.8352,[11]18.3046,[12]16.3355,[13]16.4727,[14]16.1009,[15]16.7601,[16]18.4138,[17]19.1739,[18]20.0994,[19]21.0623,[20]23.0850,[21]24.2049,[22]25.6773,[23]26.2540,[24]27.1054,[25]26.8814,[26]27.0829,[27]27.6008,[28]27.4582,[29]27.3640,[30]27.7394,[31]28.2820,[32]26.7817,[33]25.5162,[34]24.6537,[35]23.4536,[36]22.6825,[37]21.5729,[38]20.9872,[39]20.1418,[40]19.8707,
+0.41.779.224 I Final estimate: PPL = 19.8707 +/- 1.23058
+0.41.779.225 I pruned-head misses: 0 of 2520 scored tokens (0.000%) skipped (target outside kept vocab)
+

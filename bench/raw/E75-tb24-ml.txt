@@ -1,0 +1,2 @@
+1.13.088.806 I Final estimate: PPL = 11.8757 +/- 0.71849
+1.13.088.807 I pruned-head misses: 317 of 2520 scored tokens (12.579%) skipped (target outside kept vocab)

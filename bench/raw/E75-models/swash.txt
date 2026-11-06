@@ -1,0 +1,6 @@
+tokens 6083
+Q4_K size=1708697888 failed to load model 'models/r5/swash-Q4_K.gguf'
+Q2_K size=1001216288 failed to load model 'models/r5/swash-Q2_K.gguf'
+Q2_K error loading model: check_tensor_dims: tensor 'blk.0.ffn_up_shexp.weight' has wrong shape; expected   1280,   2560, got   1280,   1280,      1,      1
+Q2_K PPL 111.6236
+Q4_K PPL 16.5980 bits/byte 1.119
