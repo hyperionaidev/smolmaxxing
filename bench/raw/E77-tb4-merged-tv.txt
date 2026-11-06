@@ -14,3 +14,6 @@ f2 0-26              4.52 ± 0.10  killed=0 rss=1040 minavail=130 minswap=227
 f2 0-35              4.78 ± 0.10  killed=0 rss=1046 minavail=194 minswap=146
 f2 all+hd            4.82 ± 0.10  killed=0 rss=1018 minavail=156 minswap=121
 DONE
+# r5base.txt: first tb4 baseline, under swap pressure before am force-stop
+tb4 p11           2.08 ± 0.11  0 rss 899
+tb4 p25           2.31 ± 0.36  0 rss 907

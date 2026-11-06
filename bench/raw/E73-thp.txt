@@ -12,3 +12,6 @@ llama-bench with the patch: AnonHugePages 2048 kB of ~900 MB
 kbench_t3 (trit decode variants), G weights/s, cache-resident 1T / 3T, DRAM 3T, three repeats: all variants 6.4-7.1 / 17-21 / 15-18, no winner:
 mul+uhadd (current), chained add+shift, compare-based decode, compare + chained, decode-before-dot: each is ~5 NEON ops per 16 weights
 kbench_tq: rows 64 (resident) TQ1_0 r4 3T 23.12, TQ2_0 r4 3T 32.02; rows 29184 (DRAM) TQ1_0 r4 3T 13.48, TQ2_0 r4 3T 16.28 G weights/s
+# r5thp.txt: llama-bench on the TV, 4K pages vs THP patch
+2B  4K            6.65 ± 0.24  killed=0 rss=944 minswap=131 AnonHugePages:         0 kB
+2B  THP           6.89 ± 0.08  killed=0 rss=955 minswap=259 AnonHugePages:      2048 kB

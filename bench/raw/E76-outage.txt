@@ -1,0 +1,30 @@
+# Outage after the last E76 chat test (tb24-q20-h65p8.gguf, mtp-bench chat run). Saved from the TV after the power-cycle on 2026-11-07.
+# ui/box.json, last sample before the reboot. t = 2026-11-07 00:44:46 +04, the file itself was written at 00:51 (boxstats.sh loops once per second).
+{"t":1793997886,"memtotal_mb":1910,"memavail_mb":28,"swapfree_mb":0,"server_rss_mb":780,"flash_read_mb_s":92971,"cpu0_mhz":2508,"cpu3_mhz":2508,"load1":11.84}
+# boot: uptime 81 s at 01:00:12 +04, sys.boot.reason = cold
+# tail of mtp-server-0.log (timestamps are min.sec.ms since server start; last write 2026-11-06 18:36 +04)
+0.57.165.532 I slot print_timing: id  0 | task 64 | prompt processing, n_tokens =     28, progress = 0.88, t =   3.25 s / 8.62 tokens per second
+1.14.905.332 I slot print_timing: id  0 | task 64 | prompt eval time =    3989.43 ms /    32 tokens (  124.67 ms per token,     8.02 tokens per second)
+1.14.905.356 I slot print_timing: id  0 | task 64 |        eval time =   16997.67 ms /    79 tokens (  217.92 ms per token,     4.59 tokens per second)
+1.14.905.359 I slot print_timing: id  0 | task 64 |       total time =   20987.09 ms /   111 tokens
+1.14.905.362 I slot print_timing: id  0 | task 64 |    graphs reused =        133
+1.14.905.364 I slot print_timing: id  0 | task 64 |   graph reallocs =          0    /     0        (same size) / (changed size)
+1.14.905.655 I slot      release: id  0 | task 64 | stop processing: n_tokens = 110, truncated = 0
+1.15.036.683 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 110, t_last = 227403831444
+1.15.111.524 I slot launch_slot_: id  0 | task 145 | processing task, is_child = 0
+1.22.807.426 I slot print_timing: id  0 | task 145 | prompt processing, n_tokens =     26, progress = 0.87, t =   7.66 s / 3.39 tokens per second
+16.54.511.464 I slot print_timing: id  0 | task 145 | n_gen =    100, tg =   0.11 t/s, tg_3s =   0.11 t/s
+16.57.814.043 I slot print_timing: id  0 | task 145 | n_gen =    109, tg =   0.12 t/s, tg_3s =   2.73 t/s
+17.01.232.301 I slot print_timing: id  0 | task 145 | n_gen =    115, tg =   0.12 t/s, tg_3s =   1.75 t/s
+17.05.060.667 I slot print_timing: id  0 | task 145 | n_gen =    120, tg =   0.13 t/s, tg_3s =   1.30 t/s
+17.09.093.435 I slot print_timing: id  0 | task 145 | n_gen =    123, tg =   0.13 t/s, tg_3s =   0.74 t/s
+17.13.804.642 I slot print_timing: id  0 | task 145 | n_gen =    124, tg =   0.13 t/s, tg_3s =   0.21 t/s
+17.17.938.794 I slot print_timing: id  0 | task 145 | n_gen =    125, tg =   0.13 t/s, tg_3s =   0.24 t/s
+17.23.115.762 I slot print_timing: id  0 | task 145 | n_gen =    126, tg =   0.13 t/s, tg_3s =   0.19 t/s
+17.27.963.528 I slot print_timing: id  0 | task 145 | n_gen =    127, tg =   0.13 t/s, tg_3s =   0.21 t/s
+17.33.648.476 I slot print_timing: id  0 | task 145 | prompt eval time =   12799.55 ms /    30 tokens (  426.65 ms per token,     2.34 tokens per second)
+17.33.648.875 I slot print_timing: id  0 | task 145 |        eval time =  965710.72 ms /   128 tokens ( 7604.02 ms per token,     0.13 tokens per second)
+17.33.651.306 I slot print_timing: id  0 | task 145 |       total time =  978510.27 ms /   158 tokens
+17.33.653.084 I slot print_timing: id  0 | task 145 |    graphs reused =        259
+17.33.653.093 I slot print_timing: id  0 | task 145 |   graph reallocs =          0    /     0        (same size) / (changed size)
+17.33.668.830 I slot      release: id  0 | task 145 | stop processing: n_tokens = 157, truncated = 0
