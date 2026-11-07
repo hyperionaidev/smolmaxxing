@@ -1,0 +1,16 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.001.490 I srv  llama_server: initializing ...
+0.00.001.497 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.001.992 W srv  server_setup: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.004.059 I srv    load_model: loading model 'models/moe/mb-q2-h60.gguf'
+0.00.186.833 W load: special_eos_id is not in special_eog_ids - the tokenizer config may be incorrect
+0.01.883.335 I cmn          init: llama threadpool init, n_threads = 4
+0.03.332.043 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 1024, kv_unified = 'false'
+0.03.332.117 W srv          init: --cache-idle-slots requires --cache-ram, disabling
+0.03.335.260 W srv          init: chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)
+0.03.335.271 I srv  server_run_i: model loaded
+0.03.335.273 I srv  server_on_li: listening on http://127.0.0.1:8092
+0.06.221.692 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.000: hits 260 misses 460, miss rate 63.89 %

@@ -1,0 +1,3 @@
+used 6 pool 33 bias 0.2: PPL = 11.1448 +/- 0.64743  head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept voc pool 33 per layer, bias 0.200: hits 660892 misses 30578, miss rate 4.42 % 
+used 5 pool 33 bias 0.2: PPL = 11.8563 +/- 0.69651  head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept voc pool 33 per layer, bias 0.200: hits 550859 misses 25366, miss rate 4.40 % 
+used 4 pool 33 bias 0.2: PPL = 14.4039 +/- 0.87644  head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept voc pool 33 per layer, bias 0.200: hits 441092 misses 19888, miss rate 4.31 % 

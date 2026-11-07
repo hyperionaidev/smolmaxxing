@@ -1,0 +1,20 @@
+layers 23, tokens 2561, experts per token per layer 8.00
+reuse from the previous token: 45.2 %
+distinct experts used per layer: min 104 max 127 of 128
+experts per token 184.0 = 245 MB touched at 1.33 MB per expert
+pool   200 experts (  266 MB,  6.8 % of all): LRU miss  55.1 % = 135.0 MB/token   Belady  36.4 % =  89.1 MB/token
+pool   300 experts (  399 MB, 10.2 % of all): LRU miss  48.4 % = 118.5 MB/token   Belady  27.3 % =  66.7 MB/token
+pool   400 experts (  532 MB, 13.6 % of all): LRU miss  40.5 % =  99.1 MB/token   Belady  21.2 % =  51.9 MB/token
+pool   525 experts (  698 MB, 17.8 % of all): LRU miss  32.4 % =  79.3 MB/token   Belady  15.9 % =  38.9 MB/token
+pool   700 experts (  931 MB, 23.8 % of all): LRU miss  24.3 % =  59.5 MB/token   Belady  10.7 % =  26.2 MB/token
+pool   900 experts ( 1197 MB, 30.6 % of all): LRU miss  17.0 % =  41.7 MB/token   Belady   6.8 % =  16.7 MB/token
+pool  1200 experts ( 1596 MB, 40.8 % of all): LRU miss   8.8 % =  21.5 MB/token   Belady   3.4 % =   8.2 MB/token
+
+second half only (calibrated on the first half):
+pool   200 (  266 MB): static pin  72.8 % | pin 50 %+LRU  84.5 % | pin 75 %+LRU  77.9 % | LRU-2 admit  59.7 % -> best 146.0 MB/token
+pool   300 (  399 MB): static pin  64.1 % | pin 50 %+LRU  61.7 % | pin 75 %+LRU  70.4 % | LRU-2 admit  49.8 % -> best 121.9 MB/token
+pool   400 (  532 MB): static pin  56.5 % | pin 50 %+LRU  44.2 % | pin 75 %+LRU  61.2 % | LRU-2 admit  42.4 % -> best 103.7 MB/token
+pool   525 (  698 MB): static pin  47.9 % | pin 50 %+LRU  35.6 % | pin 75 %+LRU  38.9 % | LRU-2 admit  35.0 % -> best  85.7 MB/token
+pool   700 (  931 MB): static pin  38.8 % | pin 50 %+LRU  26.3 % | pin 75 %+LRU  27.6 % | LRU-2 admit  26.3 % -> best  64.4 MB/token
+pool   900 ( 1197 MB): static pin  28.9 % | pin 50 %+LRU  18.6 % | pin 75 %+LRU  19.3 % | LRU-2 admit  18.0 % -> best  44.1 MB/token
+pool  1200 ( 1596 MB): static pin  18.8 % | pin 50 %+LRU  10.0 % | pin 75 %+LRU  10.7 % | LRU-2 admit   9.3 % -> best  22.7 MB/token

@@ -1,0 +1,150 @@
+12:21:12
+0.22.327.880 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = -1
+0.22.330.675 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+tv-guard: killed, MemAvailable 147 MB < 150 MB
+tv-guard: exit 137, min MemAvailable 147 MB, max RSS 1010 MB
+MEMLOW 08:21:10 147 24 994
+MEMLAST 08:21:10 147 24 994
+
+12:21:33
+0.00.040.497 I srv    load_model: loading model 'mb-q2-h60.gguf'
+0.01.336.563 W load: special_eos_id is not in special_eog_ids - the tokenizer config may be incorrect
+0.10.963.354 I cmn          init: llama threadpool init, n_threads = 3
+tv-guard: killed, MemAvailable 134 MB < 150 MB
+MEMLOW 08:21:33 134 152 1126
+MEMLAST 08:21:33 134 152 1126
+15179      0 tv-watch server.log ./patched40/llama-server -m
+15180      0 [llama-server]
+
+12:22:05
+0.01.336.563 W load: special_eos_id is not in special_eog_ids - the tokenizer config may be incorrect
+0.10.963.354 I cmn          init: llama threadpool init, n_threads = 3
+tv-guard: killed, MemAvailable 134 MB < 150 MB
+tv-guard: exit 137, min MemAvailable 134 MB, max RSS 1126 MB
+MEMLOW 08:21:33 134 152 1126
+MEMLAST 08:21:33 134 152 1126
+
+12:22:10
+0.01.336.563 W load: special_eos_id is not in special_eog_ids - the tokenizer config may be incorrect
+0.10.963.354 I cmn          init: llama threadpool init, n_threads = 3
+tv-guard: killed, MemAvailable 134 MB < 150 MB
+tv-guard: exit 137, min MemAvailable 134 MB, max RSS 1126 MB
+MEMLOW 08:21:33 134 152 1126
+MEMLAST 08:21:33 134 152 1126
+16556   2860 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+12:38:30
+15.47.085.468 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+15.47.194.322 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.000: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 166 MB, max RSS 1133 MB
+MEMLOW 08:23:28 166 225 1132
+MEMLAST 08:38:24 515 242 793
+19062   2592 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+12:38:52
+15.47.085.468 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+15.47.194.322 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.000: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 166 MB, max RSS 1133 MB
+MEMLOW 08:23:28 166 225 1132
+MEMLAST 08:38:24 515 242 793
+19062   2816 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+12:42:14
+3.12.756.737 I slot      release: id  0 | task 172 | stop processing: n_tokens = 1023, truncated = 1
+3.13.153.547 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.200: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 171 MB, max RSS 1143 MB
+MEMLOW 08:39:48 171 250 1142
+MEMLAST 08:42:10 185 234 1108
+20042   2584 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+12:42:40
+3.12.756.737 I slot      release: id  0 | task 172 | stop processing: n_tokens = 1023, truncated = 1
+3.13.153.547 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.200: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 171 MB, max RSS 1143 MB
+MEMLOW 08:39:48 171 250 1142
+MEMLAST 08:42:10 185 234 1108
+20042   2808 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+12:51:27
+8.37.787.325 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+8.37.901.590 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.100: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 169 MB, max RSS 1143 MB
+MEMLOW 08:43:21 169 250 1142
+MEMLAST 08:51:22 902 254 363
+21605   2496 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+12:51:54
+8.37.787.325 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+8.37.901.590 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.100: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 169 MB, max RSS 1143 MB
+MEMLOW 08:43:21 169 250 1142
+MEMLAST 08:51:22 902 254 363
+21605   2704 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+13:01:33
+9.30.845.428 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+9.30.935.270 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.050: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 182 MB, max RSS 1144 MB
+MEMLOW 08:52:43 182 267 1143
+MEMLAST 09:01:27 893 272 392
+23271   2780 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+13:09:12
+7.08.476.798 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+7.08.576.123 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.200: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 183 MB, max RSS 1146 MB
+MEMLOW 09:02:54 183 265 1145
+MEMLAST 09:09:09 1252 296 48
+
+13:09:17
+7.08.476.798 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+7.08.576.123 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.200: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 183 MB, max RSS 1146 MB
+MEMLOW 09:02:54 183 265 1145
+MEMLAST 09:09:09 1252 296 48
+24568   2584 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+13:09:38
+7.08.476.798 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+7.08.576.123 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.200: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 183 MB, max RSS 1146 MB
+MEMLOW 09:02:54 183 265 1145
+MEMLAST 09:09:09 1252 296 48
+24568   2800 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+13:17:28
+7.41.538.793 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+7.41.647.133 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.200: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 177 MB, max RSS 1144 MB
+MEMLOW 09:10:25 177 263 1144
+MEMLAST 09:17:24 1256 275 34
+26030   2564 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+13:17:54
+7.41.538.793 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+7.41.647.133 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.200: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 177 MB, max RSS 1144 MB
+MEMLOW 09:10:25 177 263 1144
+MEMLAST 09:17:24 1256 275 34
+26030   2776 sh -c cd /data/local/tmp/llm; sh tv-llm-mode.sh
+
+13:33:10
+15.09.126.026 I slot      release: id  0 | task 1960 | stop processing: n_tokens = 1023, truncated = 1
+15.09.389.143 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pool 43 per layer, bias 0.000: hits 0 misses 0, miss rate 0.00 %
+tv-guard: exit 0, min MemAvailable 183 MB, max RSS 1138 MB
+MEMLOW 09:18:59 183 263 1136
+MEMLAST 09:33:07 200 222 1121
+

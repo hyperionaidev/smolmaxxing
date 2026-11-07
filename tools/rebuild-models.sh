@@ -11,6 +11,7 @@
 #                                                  b8      # Bonsai-8B 1-bit + 61K head (§14)
 #                                                  tb8     # Ternary-Bonsai-8B + 61K head (§14)
 #                                                  q9      # Qwen3.5-9B UD-IQ2_XXS + 65K head + MTP block (§14)
+#                                                  mb      # Moon-Beam-8B-A1B: Q2_K experts + 60K head, repack cache, GGUF expert bytes punched (§19)
 #                                                  caches  # repack caches for b8 / tb8 (built on the TV by a 1-token run)
 #
 # Needs: the patched binaries on the TV (the README's quick-start build in /data/local/tmp/llm/patched25; BIN=... for another, bin/gguf_recut to
@@ -30,6 +31,19 @@ push data/head-ids-ml60k.txt; push data/head-ids-ml60k-p8.txt; push data/head-id
 push data/eval/eval-en.txt; push data/eval/eval-ml.txt; push tools/tv-guard.sh; push tools/tv-quant.sh
 
 for T in "$@"; do case "$T" in
+mb)
+  # §19: experts Q2_K, everything else Q4_K, requantized from the published Q8_0 (8.4 GB on the Mac for the duration) with an imatrix made
+  # from data/corpus; 60K head; then on the TV the repack cache, after which the GGUF's expert bytes are only taking up flash.
+  B=third_party/llama.cpp/build-mac/bin; M=models/moe; mkdir -p $M
+  curl -sL -o $M/mb-q8.gguf "$HF/tablinum/Moon-Beam-8B-A1B-GGUF-Preview/resolve/main/Moon-Beam-8B-A1B-Q8_0.gguf"
+  cat data/corpus/wiki_topics.txt data/corpus/book_sherlock.txt | head -c 90000 > $M/imx.txt
+  $B/llama-imatrix -m $M/mb-q8.gguf -f $M/imx.txt -o $M/imatrix-mb.gguf -c 256 -b 256 --chunks 40 -t 4 -ngl 0
+  $B/llama-quantize --allow-requantize --pure --imatrix $M/imatrix-mb.gguf --token-embedding-type q4_K --output-tensor-type q4_K --tensor-type "_exps\.=q2_K" $M/mb-q8.gguf $M/mb-q2.gguf q4_K 8
+  python3 -I tools/gguf_build.py $M/mb-q2.gguf $M/mb-q2-h60.gguf --head-ids data/head-ids-ling-60k.txt && rm -f $M/mb-q2.gguf
+  python3 -I tools/gguf_exp_ranges.py $M/mb-q2-h60.gguf $M/mb-q2.ranges
+  adb -s "$S" push $M/mb-q2-h60.gguf $M/mb-q2.ranges bin/gguf-punch bin/tv-watch data/moe-warm-moonbeam.txt "$D/"
+  A "cd $D && chmod 755 gguf-punch tv-watch && GGML_REPACK_CACHE=$D/cache/mbq2 ./tv-watch c-mb.log ./$BIN/llama-bench -m mb-q2-h60.gguf -t 3 -p 0 -n 1 -r 1 -ctk q8_0 -ctv q8_0 -fa on && ./gguf-punch mb-q2-h60.gguf mb-q2.ranges"
+  ;;
 2b)
   # 1. MTP block of Qwen3.5-2B from the original BF16 safetensors (range requests, ~120 MB), kept BF16
   uv run --with numpy python3 -I tools/fetch_mtp.py Qwen/Qwen3.5-2B 24 models/mtp-2b-bf16 --bf16

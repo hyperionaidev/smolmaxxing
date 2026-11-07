@@ -1,0 +1,14 @@
+  340 KB x 1 thr:  122.0 MB/s, 2722.1 us per read
+  340 KB x 2 thr:  156.5 MB/s, 2121.8 us per read
+  340 KB x 4 thr:  171.2 MB/s, 1939.9 us per read
+ 1024 KB x 1 thr:  159.8 MB/s, 6257.1 us per read
+ 1024 KB x 2 thr:  223.3 MB/s, 4478.6 us per read
+ 1024 KB x 4 thr:  231.4 MB/s, 4320.6 us per read
+ 2048 KB x 1 thr:  196.6 MB/s, 10173.8 us per read
+ 2048 KB x 2 thr:  249.7 MB/s, 8009.4 us per read
+ 2048 KB x 4 thr:  252.7 MB/s, 7913.0 us per read
+ 8192 KB x 1 thr:  243.7 MB/s, 32822.2 us per read
+ 8192 KB x 2 thr:  267.1 MB/s, 29948.2 us per read
+ 8192 KB x 4 thr:  262.9 MB/s, 30431.0 us per read
+   64 KB x 4 thr:   94.5 MB/s,  661.2 us per read
+  340 KB x 1 thr:  133.7 MB/s, 2483.3 us per read

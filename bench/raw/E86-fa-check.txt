@@ -1,0 +1,7 @@
+fa-check 37: q rows 512 n_kv 512: NMSE 3.571e-13, max abs diff 2.589e-07
+fa-check 38: q rows 512 n_kv 512: NMSE 9.198e-14, max abs diff 4.396e-07
+fa-check 39: q rows 512 n_kv 512: NMSE 8.226e-14, max abs diff 4.396e-07
+stock t=4: Final estimate: PPL = 14.9644 +/- 1.94411
+stock t=1: Final estimate: PPL = 14.9644 +/- 1.94411
+eps0 t=4: Final estimate: PPL = 15.0190 +/- 1.95297
+eps0 t=1: Final estimate: PPL = 15.0190 +/- 1.95297

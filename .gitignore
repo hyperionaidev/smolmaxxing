@@ -13,3 +13,4 @@ tv-llm-ui/config.json
 __pycache__/
 *.pyc
 .DS_Store
+!data/moe-warm-*.txt

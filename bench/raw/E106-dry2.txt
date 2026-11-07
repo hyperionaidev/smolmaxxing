@@ -1,0 +1,4 @@
+Q2 top-6 b0.25 {"dry_multiplier":0.8,"dry_base":1.75,"dry_allowed_length":2,"dry_penalty_last_n":1024} loops  0/16 | repeats mean   0.8 median   0.7 % | longest run median    1 | loop starts at word - | 61.5 tok/s | 745 words
+Q2 top-6 b0.25 {"dry_multiplier":1.2,"dry_base":1.75,"dry_allowed_length":2,"dry_penalty_last_n":1024} loops  0/16 | repeats mean   0.1 median   0.0 % | longest run median    0 | loop starts at word - | 62.1 tok/s | 556 words
+Q2 top-8 b0 {"dry_multiplier":0.8,"dry_base":1.75,"dry_allowed_length":2,"dry_penalty_last_n":1024} loops  0/16 | repeats mean   0.8 median   0.5 % | longest run median    1 | loop starts at word - | 55.7 tok/s | 727 words
+DRY2 DONE

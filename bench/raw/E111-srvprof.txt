@@ -1,0 +1,33 @@
+server: 400 tokens, 144.0 ms per token (6.93 tok/s)
+[ubprof] 32 ubatches (graph reused 27): build+alloc 2.999 ms, set_inputs 0.017 ms, compute 470.147 ms per ubatch
+[ubprof] 64 ubatches (graph reused 59): build+alloc 1.507 ms, set_inputs 0.016 ms, compute 300.423 ms per ubatch
+[ubprof] 96 ubatches (graph reused 91): build+alloc 1.010 ms, set_inputs 0.015 ms, compute 243.232 ms per ubatch
+[ubprof] 128 ubatches (graph reused 123): build+alloc 0.761 ms, set_inputs 0.015 ms, compute 217.853 ms per ubatch
+[ubprof] 160 ubatches (graph reused 155): build+alloc 0.612 ms, set_inputs 0.015 ms, compute 203.613 ms per ubatch
+[ubprof] 192 ubatches (graph reused 187): build+alloc 0.512 ms, set_inputs 0.015 ms, compute 191.533 ms per ubatch
+[ubprof] 224 ubatches (graph reused 219): build+alloc 0.441 ms, set_inputs 0.015 ms, compute 184.586 ms per ubatch
+[ubprof] 256 ubatches (graph reused 250): build+alloc 0.435 ms, set_inputs 0.015 ms, compute 179.475 ms per ubatch
+[ubprof] 288 ubatches (graph reused 282): build+alloc 0.388 ms, set_inputs 0.015 ms, compute 174.618 ms per ubatch
+[ubprof] 320 ubatches (graph reused 314): build+alloc 0.351 ms, set_inputs 0.015 ms, compute 169.933 ms per ubatch
+[ubprof] 352 ubatches (graph reused 346): build+alloc 0.320 ms, set_inputs 0.015 ms, compute 167.033 ms per ubatch
+[ubprof] 384 ubatches (graph reused 378): build+alloc 0.295 ms, set_inputs 0.015 ms, compute 165.290 ms per ubatch
+[opprof] 409 graphs, 66.222 s total
+moe-pager: 56125 hits, 1875 misses (3.2 %), 0 waited on a read already started; read 2227.6 MB, waited 12.72 s; prefetched 0, 0 of them used
+[opprof] MUL_MAT                q4_K        96115   20276.5   30.6%      6.19  19190.3ms    
+[opprof] ARGSORT                f32         28207   19784.8   29.9%      0.00  19754.7ms    
+[opprof] MUL_MAT_ID             q2_K        28221   10653.2   16.1%     87.50   9221.2ms    
+[opprof] GATED_DELTA_NET        f32          7362    3803.1    5.7%      0.02   3323.2ms    
+[opprof] FLASH_ATTN_EXT         f32          2454    3532.6    5.3%      0.03   3216.4ms   1
+[opprof] MUL_MAT                f32          9407    1300.7    2.0%      5.69   1011.0ms    
+[opprof] UNARY                  f32         56033    1155.5    1.7%      0.28    962.5ms    
+[opprof] RMS_NORM               f32         47035     801.7    1.2%      0.41    720.4ms    
+[opprof] MUL_MAT                q5_0         2454     746.8    1.1%      2.37    702.0ms    
+[opprof] MUL                    f32         26585     634.3    1.0%      0.81    496.9ms    
+[opprof] ADD                    f32         92843     586.0    0.9%      0.99    398.2ms    
+[opprof] GET_ROWS               q4_K          409     558.1    0.8%     99.52    530.8ms   1
+server: 400 tokens, 153.2 ms per token (6.51 tok/s)
+[opprof] 409 graphs, 70.749 s total
+moe-pager: 56948 hits, 1030 misses (1.8 %), 22 waited on a read already started; read 2259.2 MB, waited 7.48 s; prefetched 885, 0 of them used
+server: 400 tokens, 138.5 ms per token (7.20 tok/s)
+[opprof] 409 graphs, 64.142 s total
+moe-pager: 56721 hits, 1050 misses (1.8 %), 229 waited on a read already started; read 2305.2 MB, waited 8.06 s; prefetched 924, 0 of them used

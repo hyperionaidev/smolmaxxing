@@ -1,0 +1,860 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+ggml_cpu_stream_register: cannot stream 0.0 MB zone
+[optrace] graph 20, 1275 nodes, 3 threads: idx op name src0type ne0 ne1 | us per thread
+[optrace]    0 GET_ROWS         embd                         q1_0     4096      1 |     8.8     2.3     2.2 | start     0.3     0.0     0.1 | t -0.3
+[optrace]    4 RMS_NORM         norm-0                       f32      4096      1 |     7.0     7.0     7.4 | start     0.0     0.0     0.1 | t 56.7
+[optrace]    5 MUL              attn_norm-0                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]    6 MUL_MAT          Qcur-0                       q1_0     4096      1 |   431.8   377.8   383.9 | start     0.6     0.0     0.0 | t 64.7
+[optrace]    8 RMS_NORM         norm-0                       f32       128     32 |     9.1    10.0     9.8 | start     0.8     0.0     0.0 | t 498.3
+[optrace]    9 MUL              Qcur_normed-0                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   10 ROPE             Qcur-0                       f32       128     32 |    18.8    19.3    19.0 | start     0.4     0.0     0.0 | t 508.9
+[optrace]   11 MUL_MAT          Vcur-0                       q1_0     1024      1 |    89.0    96.8    94.3 | start     0.5     0.0     0.0 | t 528.5
+[optrace]   13 MUL_MAT          Kcur-0                       q1_0     1024      1 |    95.8    90.9    95.7 | start     0.4     0.0     0.0 | t 626.0
+[optrace]   15 RMS_NORM         norm-0                       f32       128      8 |     4.0     4.7     4.3 | start     0.6     0.0     0.0 | t 723.0
+[optrace]   16 MUL              Kcur_normed-0                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   17 ROPE             Kcur-0                       f32       128      8 |     9.5    10.0     9.7 | start     0.5     0.0     0.0 | t 728.1
+[optrace]   19 SET_ROWS         cache_k_l0 (view)            f32      1024    256 |     3.2     1.8     1.8 | start     0.2     0.1     0.0 | t 738.6
+[optrace]   21 SET_ROWS         cache_v_l0 (view)            f32      1024    256 |     1.6     0.5     0.5 | start     0.4     0.0     0.0 | t 742.4
+[optrace]   28 FLASH_ATTN_EXT   node_28                      f32       128     32 |   148.6   135.5   149.8 | start     0.0     0.1     0.0 | t 745.5
+[optrace]   30 MUL_MAT          node_30                      q1_0     4096      1 |   368.6   360.9   365.3 | start     0.3     0.0     0.0 | t 896.2
+[optrace]   31 ADD              ffn_inp-0                    f32      4096      1 |     8.5     8.6     8.4 | start     0.6     0.0     0.2 | t 1266.0
+[optrace]   32 RMS_NORM         norm-0                       f32      4096      1 |     4.7     5.3     5.4 | start     0.6     0.0     0.0 | t 1275.4
+[optrace]   33 MUL              ffn_norm-0                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   34 MUL_MAT          ffn_gate-0                   q1_0    12288      1 |  1358.2  1366.2  1359.0 | start     0.4     0.0     0.0 | t 1281.0
+[optrace]   35 MUL_MAT          ffn_up-0                     q1_0    12288      1 |  1207.5  1200.0  1216.9 | start     1.4     0.0     0.0 | t 2648.3
+[optrace]   36 SWIGLU           ffn_swiglu-0                 f32     12288      1 |    34.2    35.4    33.0 | start     1.2     0.0     0.1 | t 3866.3
+[optrace]   37 MUL_MAT          ffn_out-0                    q1_0     4096      1 |  1118.0  1105.5  1112.8 | start     0.3     0.0     0.0 | t 3902.1
+[optrace]   38 ADD              l_out-0                      f32      4096      1 |     7.9     9.9     8.9 | start     1.2     0.0     0.0 | t 5021.7
+[optrace]   39 RMS_NORM         norm-1                       f32      4096      1 |     6.0     7.3     6.8 | start     0.5     0.0     0.0 | t 5032.0
+[optrace]   40 MUL              attn_norm-1                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   41 MUL_MAT          Qcur-1                       q1_0     4096      1 |   430.2   435.0   519.3 | start     0.5     0.0     0.1 | t 5039.6
+[optrace]   43 RMS_NORM         norm-1                       f32       128     32 |    10.1    10.9    10.8 | start     0.7     0.0     0.0 | t 5560.1
+[optrace]   44 MUL              Qcur_normed-1                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   45 ROPE             Qcur-1                       f32       128     32 |    20.2    20.9    20.6 | start     0.7     0.0     0.0 | t 5571.3
+[optrace]   46 MUL_MAT          Vcur-1                       q1_0     1024      1 |   108.2   101.4   106.9 | start     0.7     0.0     0.0 | t 5592.7
+[optrace]   48 MUL_MAT          Kcur-1                       q1_0     1024      1 |    99.3    98.5   103.2 | start     0.5     0.0     0.0 | t 5702.4
+[optrace]   50 RMS_NORM         norm-1                       f32       128      8 |     5.0     5.4     4.8 | start     0.4     0.0     0.0 | t 5806.2
+[optrace]   51 MUL              Kcur_normed-1                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   52 ROPE             Kcur-1                       f32       128      8 |     9.8    10.3     9.8 | start     0.7     0.0     0.0 | t 5812.0
+[optrace]   54 SET_ROWS         cache_k_l1 (view)            f32      1024    256 |     3.1     1.5     1.5 | start     0.0     0.0     0.0 | t 5823.4
+[optrace]   56 SET_ROWS         cache_v_l1 (view)            f32      1024    256 |     1.6     0.4     0.4 | start     0.8     0.0     0.0 | t 5827.0
+[optrace]   63 FLASH_ATTN_EXT   node_63                      f32       128     32 |   158.0   166.2   168.7 | start     0.0     0.0     0.0 | t 5831.1
+[optrace]   65 MUL_MAT          node_65                      q1_0     4096      1 |   544.8   399.5   402.3 | start     0.7     0.0     0.0 | t 6000.6
+[optrace]   66 ADD              ffn_inp-1                    f32      4096      1 |     7.8    10.6    10.2 | start     1.6     0.0     0.0 | t 6547.2
+[optrace]   67 RMS_NORM         norm-1                       f32      4096      1 |     5.5     5.9     6.4 | start     0.3     0.0     0.0 | t 6558.2
+[optrace]   68 MUL              ffn_norm-1                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   69 MUL_MAT          ffn_gate-1                   q1_0    12288      1 |  1978.2  1968.9  1974.8 | start     0.2     0.0     0.0 | t 6565.2
+[optrace]   70 MUL_MAT          ffn_up-1                     q1_0    12288      1 |  1131.8  1127.9  1118.7 | start     1.3     0.0     0.0 | t 8545.0
+[optrace]   71 SWIGLU           ffn_swiglu-1                 f32     12288      1 |    31.5    38.7    41.3 | start     1.1     0.0     0.0 | t 9679.3
+[optrace]   72 MUL_MAT          ffn_out-1                    q1_0     4096      1 |  1103.6  1088.5  1084.0 | start     0.4     0.0     0.0 | t 9721.1
+[optrace]   73 ADD              l_out-1                      f32      4096      1 |     8.8     9.9     9.7 | start     0.7     0.0     0.0 | t 10826.1
+[optrace]   74 RMS_NORM         norm-2                       f32      4096      1 |     5.8     6.0     6.1 | start     0.5     0.0     0.0 | t 10836.4
+[optrace]   75 MUL              attn_norm-2                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   76 MUL_MAT          Qcur-2                       q1_0     4096      1 |   348.5   346.0   349.7 | start     0.5     0.0     0.0 | t 10842.9
+[optrace]   78 RMS_NORM         norm-2                       f32       128     32 |     9.2     9.8     9.5 | start     0.5     0.0     0.0 | t 11193.8
+[optrace]   79 MUL              Qcur_normed-2                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   80 ROPE             Qcur-2                       f32       128     32 |    19.6    20.0    19.6 | start     0.4     0.0     0.0 | t 11204.2
+[optrace]   81 MUL_MAT          Vcur-2                       q1_0     1024      1 |    97.1    92.0    96.9 | start     0.6     0.0     0.0 | t 11224.6
+[optrace]   83 MUL_MAT          Kcur-2                       q1_0     1024      1 |    97.2    97.6    92.5 | start     0.5     0.0     0.0 | t 11323.2
+[optrace]   85 RMS_NORM         norm-2                       f32       128      8 |     4.8     4.7     4.4 | start     0.1     0.0     0.0 | t 11421.6
+[optrace]   86 MUL              Kcur_normed-2                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]   87 ROPE             Kcur-2                       f32       128      8 |     9.7    10.1     9.5 | start     0.5     0.0     0.0 | t 11426.7
+[optrace]   89 SET_ROWS         cache_k_l2 (view)            f32      1024    256 |     3.0     1.7     2.0 | start     0.1     0.0     0.0 | t 11437.9
+[optrace]   91 SET_ROWS         cache_v_l2 (view)            f32      1024    256 |     1.5     0.5     0.4 | start     0.3     0.0     0.0 | t 11441.7
+[optrace]   98 FLASH_ATTN_EXT   node_98                      f32       128     32 |   156.8   143.0   140.7 | start     0.0     0.0     0.0 | t 11444.7
+[optrace]  100 MUL_MAT          node_100                     q1_0     4096      1 |   428.8   417.7   416.3 | start     0.5     0.0     0.1 | t 11602.7
+[optrace]  101 ADD              ffn_inp-2                    f32      4096      1 |     8.4     8.7     9.3 | start     0.8     0.0     0.0 | t 12033.0
+[optrace]  102 RMS_NORM         norm-2                       f32      4096      1 |     4.9     5.3     5.3 | start     0.4     0.0     0.0 | t 12042.9
+[optrace]  103 MUL              ffn_norm-2                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  104 MUL_MAT          ffn_gate-2                   q1_0    12288      1 |  1104.8  1103.7  1100.9 | start     0.7     0.0     0.0 | t 12048.7
+[optrace]  105 MUL_MAT          ffn_up-2                     q1_0    12288      1 |  1164.9  1132.8  1118.2 | start     0.9     0.0     0.0 | t 13155.2
+[optrace]  106 SWIGLU           ffn_swiglu-2                 f32     12288      1 |    31.7    38.7    32.5 | start     0.8     0.0     0.1 | t 14321.9
+[optrace]  107 MUL_MAT          ffn_out-2                    q1_0     4096      1 |  1046.5  1056.5  1060.1 | start     0.5     0.0     0.0 | t 14361.1
+[optrace]  108 ADD              l_out-2                      f32      4096      1 |     6.7     8.6     8.7 | start    27.4     0.0     0.0 | t 15422.5
+[optrace]  109 RMS_NORM         norm-3                       f32      4096      1 |    17.8    18.4     4.7 | start     0.4     0.0    13.5 | t 15457.0
+[optrace]  110 MUL              attn_norm-3                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  111 MUL_MAT          Qcur-3                       q1_0     4096      1 |   339.0   343.5   339.8 | start     0.4     0.0     0.0 | t 15475.8
+[optrace]  113 RMS_NORM         norm-3                       f32       128     32 |    39.0     9.4     8.7 | start     0.2     0.0     0.0 | t 15820.4
+[optrace]  114 MUL              Qcur_normed-3                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  115 ROPE             Qcur-3                       f32       128     32 |    17.8    18.3    18.1 | start     0.6     0.0     0.0 | t 15860.0
+[optrace]  116 MUL_MAT          Vcur-3                       q1_0     1024      1 |   106.9   106.9   112.8 | start     0.5     0.0     0.0 | t 15878.8
+[optrace]  118 MUL_MAT          Kcur-3                       q1_0     1024      1 |   100.7   104.4   100.5 | start     0.5     0.0     0.1 | t 15992.5
+[optrace]  120 RMS_NORM         norm-3                       f32       128      8 |     4.3     4.8     4.0 | start     0.3     0.0     0.0 | t 16097.5
+[optrace]  121 MUL              Kcur_normed-3                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  122 ROPE             Kcur-3                       f32       128      8 |    12.1     9.8     9.4 | start     0.4     0.0     0.0 | t 16102.6
+[optrace]  124 SET_ROWS         cache_k_l3 (view)            f32      1024    256 |     3.4     1.8     1.9 | start     0.1     0.0     0.0 | t 16115.6
+[optrace]  126 SET_ROWS         cache_v_l3 (view)            f32      1024    256 |     2.1     0.5     0.5 | start     0.0     0.0     0.0 | t 16119.8
+[optrace]  133 FLASH_ATTN_EXT   node_133                     f32       128     32 |   116.3   117.7   109.6 | start     0.0     0.0     0.0 | t 16123.1
+[optrace]  135 MUL_MAT          node_135                     q1_0     4096      1 |   396.4   390.6   405.7 | start     0.5     0.0     0.0 | t 16241.5
+[optrace]  136 ADD              ffn_inp-3                    f32      4096      1 |     7.6     8.1     8.0 | start     0.7     0.0     0.0 | t 16648.8
+[optrace]  137 RMS_NORM         norm-3                       f32      4096      1 |     4.7     5.2     5.3 | start     0.2     0.0     0.0 | t 16657.5
+[optrace]  138 MUL              ffn_norm-3                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  139 MUL_MAT          ffn_gate-3                   q1_0    12288      1 |   989.2  1014.3  1129.5 | start     0.3     0.0     0.0 | t 16663.3
+[optrace]  140 MUL_MAT          ffn_up-3                     q1_0    12288      1 |  1489.9  1475.3  1490.8 | start     1.2     0.0     0.2 | t 17794.1
+[optrace]  141 SWIGLU           ffn_swiglu-3                 f32     12288      1 |    32.4    35.9    36.0 | start     1.1     0.0     0.0 | t 19286.3
+[optrace]  142 MUL_MAT          ffn_out-3                    q1_0     4096      1 |  1138.2  1139.3  1161.9 | start     0.4     0.0     0.0 | t 19322.8
+[optrace]  143 ADD              l_out-3                      f32      4096      1 |     8.3     9.8     9.9 | start     1.3     0.0     0.0 | t 20485.7
+[optrace]  144 RMS_NORM         norm-4                       f32      4096      1 |     6.3     6.8     7.4 | start     0.5     0.0     0.0 | t 20496.2
+[optrace]  145 MUL              attn_norm-4                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  146 MUL_MAT          Qcur-4                       q1_0     4096      1 |   346.5   347.7   339.9 | start     0.6     0.1     0.0 | t 20503.8
+[optrace]  148 RMS_NORM         norm-4                       f32       128     32 |     8.4     9.8     9.1 | start     1.1     0.0     0.0 | t 20852.5
+[optrace]  149 MUL              Qcur_normed-4                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  150 ROPE             Qcur-4                       f32       128     32 |    18.9    19.0    18.8 | start     0.2     0.0     0.0 | t 20863.0
+[optrace]  151 MUL_MAT          Vcur-4                       q1_0     1024      1 |   124.7   119.3   176.6 | start     0.3     0.0     0.0 | t 20882.8
+[optrace]  153 MUL_MAT          Kcur-4                       q1_0     1024      1 |   105.4   112.6   104.7 | start     0.4     0.0     0.1 | t 21060.3
+[optrace]  155 RMS_NORM         norm-4                       f32       128      8 |     4.9     5.4     5.0 | start     0.3     0.0     0.0 | t 21173.8
+[optrace]  156 MUL              Kcur_normed-4                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  157 ROPE             Kcur-4                       f32       128      8 |    10.2    10.6    12.0 | start     0.5     0.0     0.0 | t 21179.6
+[optrace]  159 SET_ROWS         cache_k_l4 (view)            f32      1024    256 |     3.0     1.5     1.6 | start     0.0     0.0     0.0 | t 21192.7
+[optrace]  161 SET_ROWS         cache_v_l4 (view)            f32      1024    256 |     2.0     0.8     0.7 | start     0.5     0.0     0.3 | t 21247.8
+[optrace]  168 FLASH_ATTN_EXT   node_168                     f32       128     32 |   117.3   117.6   107.8 | start     0.0     0.0     0.0 | t 21251.5
+[optrace]  170 MUL_MAT          node_170                     q1_0     4096      1 |   355.9   359.4   354.5 | start     0.3     0.0     0.0 | t 21369.7
+[optrace]  171 ADD              ffn_inp-4                    f32      4096      1 |     8.6     9.4     9.2 | start     0.7     0.0     0.0 | t 21730.1
+[optrace]  172 RMS_NORM         norm-4                       f32      4096      1 |     5.5     5.4     5.4 | start     0.4     0.0     0.0 | t 21739.9
+[optrace]  173 MUL              ffn_norm-4                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  174 MUL_MAT          ffn_gate-4                   q1_0    12288      1 |  1590.5  2479.1  1602.8 | start     0.4     0.0     0.0 | t 21746.2
+[optrace]  175 MUL_MAT          ffn_up-4                     q1_0    12288      1 |  1476.0  1481.5  1194.6 | start     1.8     0.0   294.8 | t 24227.3
+[optrace]  176 SWIGLU           ffn_swiglu-4                 f32     12288      1 |    34.6   183.3    35.5 | start     1.4     0.0     0.0 | t 25717.6
+[optrace]  177 MUL_MAT          ffn_out-4                    q1_0     4096      1 |  1139.0  1139.4  1122.5 | start     0.3     0.0    30.8 | t 25901.9
+[optrace]  178 ADD              l_out-4                      f32      4096      1 |     8.0     9.8     9.3 | start     1.2     0.0     0.0 | t 27056.2
+[optrace]  179 RMS_NORM         norm-5                       f32      4096      1 |     6.7     7.5     7.0 | start     0.4     0.0     0.0 | t 27066.5
+[optrace]  180 MUL              attn_norm-5                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  181 MUL_MAT          Qcur-5                       q1_0     4096      1 |   336.2   341.1   336.8 | start     0.4     0.0     0.0 | t 27074.4
+[optrace]  183 RMS_NORM         norm-5                       f32       128     32 |     8.7     9.7     9.0 | start     0.8     0.2     0.0 | t 27416.4
+[optrace]  184 MUL              Qcur_normed-5                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  185 ROPE             Qcur-5                       f32       128     32 |    19.0    19.3    19.2 | start     0.5     0.0     0.0 | t 27426.7
+[optrace]  186 MUL_MAT          Vcur-5                       q1_0     1024      1 |    94.4    95.8    88.5 | start     0.5     0.0     0.0 | t 27446.5
+[optrace]  188 MUL_MAT          Kcur-5                       q1_0     1024      1 |    99.8   161.5   102.2 | start     0.5     0.0     0.0 | t 27542.8
+[optrace]  190 RMS_NORM         norm-5                       f32       128      8 |    40.7     4.5     4.0 | start     0.3     0.1     0.0 | t 27705.8
+[optrace]  191 MUL              Kcur_normed-5                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  192 ROPE             Kcur-5                       f32       128      8 |    11.7     8.7     9.5 | start     0.4    13.2     0.0 | t 27747.4
+[optrace]  194 SET_ROWS         cache_k_l5 (view)            f32      1024    256 |     2.8     1.5     1.4 | start     0.1     0.0     0.0 | t 27769.8
+[optrace]  196 SET_ROWS         cache_v_l5 (view)            f32      1024    256 |     1.8     0.6     0.6 | start     0.5     0.0     0.0 | t 27773.0
+[optrace]  203 FLASH_ATTN_EXT   node_203                     f32       128     32 |   114.3   114.9   104.6 | start     0.0     0.0     0.0 | t 27776.4
+[optrace]  205 MUL_MAT          node_205                     q1_0     4096      1 |   385.5   385.2   385.2 | start     0.9     0.0     0.0 | t 27891.9
+[optrace]  206 ADD              ffn_inp-5                    f32      4096      1 |     8.2     9.0     8.4 | start     0.6     0.0     0.0 | t 28279.4
+[optrace]  207 RMS_NORM         norm-5                       f32      4096      1 |     4.3     5.5     5.4 | start     1.1     0.0     0.0 | t 28288.7
+[optrace]  208 MUL              ffn_norm-5                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  209 MUL_MAT          ffn_gate-5                   q1_0    12288      1 |  1243.5  1232.3  1223.7 | start     0.6     0.0     0.1 | t 28294.5
+[optrace]  210 MUL_MAT          ffn_up-5                     q1_0    12288      1 |  1137.8  1156.0  1154.5 | start     1.0     0.0     0.0 | t 29540.0
+[optrace]  211 SWIGLU           ffn_swiglu-5                 f32     12288      1 |    32.0    35.3    34.2 | start     1.1     0.0     0.0 | t 30696.9
+[optrace]  212 MUL_MAT          ffn_out-5                    q1_0     4096      1 |  1078.0  1070.6  1067.7 | start     0.5     0.0     0.0 | t 30732.7
+[optrace]  213 ADD              l_out-5                      f32      4096      1 |     8.1     9.0     8.9 | start     0.9     0.0     0.0 | t 31812.1
+[optrace]  214 RMS_NORM         norm-6                       f32      4096      1 |     6.1     6.1     6.5 | start     0.3     0.0     0.0 | t 31821.7
+[optrace]  215 MUL              attn_norm-6                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  216 MUL_MAT          Qcur-6                       q1_0     4096      1 |   375.9   370.9   373.5 | start     0.5     0.0     0.0 | t 31828.7
+[optrace]  218 RMS_NORM         norm-6                       f32       128     32 |     9.0     9.8     9.1 | start     0.7     0.0     0.0 | t 32206.5
+[optrace]  219 MUL              Qcur_normed-6                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  220 ROPE             Qcur-6                       f32       128     32 |    19.0    19.3    18.7 | start     0.3     0.0     0.0 | t 32216.6
+[optrace]  221 MUL_MAT          Vcur-6                       q1_0     1024      1 |   108.0   103.1   104.0 | start     0.5     0.0     0.0 | t 32236.3
+[optrace]  223 MUL_MAT          Kcur-6                       q1_0     1024      1 |    93.8    87.5    94.5 | start     0.8     0.0     0.0 | t 32345.7
+[optrace]  225 RMS_NORM         norm-6                       f32       128      8 |     4.4     4.7     4.2 | start     0.3     0.0     0.1 | t 32441.0
+[optrace]  226 MUL              Kcur_normed-6                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  227 ROPE             Kcur-6                       f32       128      8 |    11.9    10.2     9.6 | start     0.5     0.0     0.0 | t 32446.0
+[optrace]  229 SET_ROWS         cache_k_l6 (view)            f32      1024    256 |     2.7     1.4     1.5 | start     0.1     0.0     0.0 | t 32459.0
+[optrace]  231 SET_ROWS         cache_v_l6 (view)            f32      1024    256 |     1.5     0.7     0.6 | start     0.3     0.0     0.0 | t 32462.4
+[optrace]  238 FLASH_ATTN_EXT   node_238                     f32       128     32 |   116.2   196.8   106.4 | start     0.0     0.0     0.0 | t 32465.5
+[optrace]  240 MUL_MAT          node_240                     q1_0     4096      1 |   366.5   372.2   366.2 | start     0.4     0.0     0.0 | t 32663.2
+[optrace]  241 ADD              ffn_inp-6                    f32      4096      1 |     8.4     8.6     8.6 | start     0.9     0.0     0.0 | t 33036.5
+[optrace]  242 RMS_NORM         norm-6                       f32      4096      1 |     4.8     5.5     5.4 | start     0.6     0.0     0.0 | t 33046.3
+[optrace]  243 MUL              ffn_norm-6                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  244 MUL_MAT          ffn_gate-6                   q1_0    12288      1 |  1091.9  1085.5  1076.3 | start     0.4     0.0     0.1 | t 33052.0
+[optrace]  245 MUL_MAT          ffn_up-6                     q1_0    12288      1 |  1348.3  1349.4  1349.0 | start     1.0     0.0     0.0 | t 34145.5
+[optrace]  246 SWIGLU           ffn_swiglu-6                 f32     12288      1 |    32.5    34.3    36.9 | start     1.2     0.0     0.0 | t 35496.2
+[optrace]  247 MUL_MAT          ffn_out-6                    q1_0     4096      1 |  1134.0  1127.4  1143.8 | start     0.3     0.0     0.0 | t 35533.7
+[optrace]  248 ADD              l_out-6                      f32      4096      1 |     7.8     8.7     8.8 | start     1.1     0.0     0.0 | t 36678.4
+[optrace]  249 RMS_NORM         norm-7                       f32      4096      1 |     5.8     6.3     6.5 | start     1.0     0.0     0.0 | t 36687.7
+[optrace]  250 MUL              attn_norm-7                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  251 MUL_MAT          Qcur-7                       q1_0     4096      1 |   406.4   403.9   409.5 | start     0.2     0.0     0.0 | t 36694.9
+[optrace]  253 RMS_NORM         norm-7                       f32       128     32 |     9.9    10.5    10.3 | start     0.4     0.0     0.0 | t 37105.5
+[optrace]  254 MUL              Qcur_normed-7                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  255 ROPE             Qcur-7                       f32       128     32 |    19.1    19.4    19.0 | start     0.1     0.0     0.0 | t 37116.7
+[optrace]  256 MUL_MAT          Vcur-7                       q1_0     1024      1 |    95.9   100.3    94.0 | start     1.1     0.0     0.0 | t 37136.6
+[optrace]  258 MUL_MAT          Kcur-7                       q1_0     1024      1 |    91.7    98.8    99.0 | start     0.5     0.0     0.0 | t 37237.5
+[optrace]  260 RMS_NORM         norm-7                       f32       128      8 |     4.1     4.8     4.3 | start     0.6     0.0     0.0 | t 37337.2
+[optrace]  261 MUL              Kcur_normed-7                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  262 ROPE             Kcur-7                       f32       128      8 |     9.4     9.8     9.6 | start     0.3     0.0     0.0 | t 37342.5
+[optrace]  264 SET_ROWS         cache_k_l7 (view)            f32      1024    256 |     2.8     1.4     1.3 | start     0.3     0.0     0.0 | t 37352.8
+[optrace]  266 SET_ROWS         cache_v_l7 (view)            f32      1024    256 |     1.7     0.4     0.3 | start     0.6     0.0     0.0 | t 37356.2
+[optrace]  273 FLASH_ATTN_EXT   node_273                     f32       128     32 |   116.9   117.2   107.6 | start     0.0     0.0     0.0 | t 37359.5
+[optrace]  275 MUL_MAT          node_275                     q1_0     4096      1 |   451.6   457.5   457.4 | start     0.6     0.0     0.0 | t 37477.2
+[optrace]  276 ADD              ffn_inp-7                    f32      4096      1 |     8.3     9.3     9.0 | start     0.9     0.0     0.0 | t 37936.2
+[optrace]  277 RMS_NORM         norm-7                       f32      4096      1 |     4.8     6.2     5.7 | start     0.8     0.0     0.0 | t 37945.8
+[optrace]  278 MUL              ffn_norm-7                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  279 MUL_MAT          ffn_gate-7                   q1_0    12288      1 |  2992.6  1199.0  1192.3 | start     0.3     0.0     0.0 | t 37952.4
+[optrace]  280 MUL_MAT          ffn_up-7                     q1_0    12288      1 |  1470.3  1185.9  1180.1 | start     1.8     0.0     0.1 | t 40947.0
+[optrace]  281 SWIGLU           ffn_swiglu-7                 f32     12288      1 |    33.6    30.6    35.1 | start     1.2     4.8     0.0 | t 42420.3
+[optrace]  282 MUL_MAT          ffn_out-7                    q1_0     4096      1 |  1291.6  1304.2  1301.6 | start     0.5     0.0     0.0 | t 42456.5
+[optrace]  283 ADD              l_out-7                      f32      4096      1 |     8.5     9.9     9.7 | start     1.6     0.0     0.0 | t 43761.8
+[optrace]  284 RMS_NORM         norm-8                       f32      4096      1 |     6.1     7.2     6.8 | start     0.5     0.0     0.0 | t 43772.4
+[optrace]  285 MUL              attn_norm-8                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  286 MUL_MAT          Qcur-8                       q1_0     4096      1 |   357.9   344.5   351.7 | start     0.3     0.0     0.0 | t 43780.1
+[optrace]  288 RMS_NORM         norm-8                       f32       128     32 |    40.4    10.2    10.1 | start     0.6     0.0     0.1 | t 44139.4
+[optrace]  289 MUL              Qcur_normed-8                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  290 ROPE             Qcur-8                       f32       128     32 |    19.0    19.4    19.2 | start     0.4     0.0     0.0 | t 44180.8
+[optrace]  291 MUL_MAT          Vcur-8                       q1_0     1024      1 |   104.0   111.0   108.1 | start     0.5     0.0     0.0 | t 44200.7
+[optrace]  293 MUL_MAT          Kcur-8                       q1_0     1024      1 |   113.9   143.7   118.5 | start     0.2     0.0     0.0 | t 44312.5
+[optrace]  295 RMS_NORM         norm-8                       f32       128      8 |     4.7     5.0     4.4 | start     0.3     0.0     0.0 | t 44457.2
+[optrace]  296 MUL              Kcur_normed-8                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  297 ROPE             Kcur-8                       f32       128      8 |    29.3    12.9    10.4 | start     0.3     0.0     0.0 | t 44462.8
+[optrace]  299 SET_ROWS         cache_k_l8 (view)            f32      1024    256 |     2.7     0.5     1.6 | start     0.5     7.8     0.0 | t 44492.7
+[optrace]  301 SET_ROWS         cache_v_l8 (view)            f32      1024    256 |     1.7     0.5     0.5 | start     0.3     0.0     0.0 | t 44501.4
+[optrace]  308 FLASH_ATTN_EXT   node_308                     f32       128     32 |   111.9   112.3   103.5 | start     0.0     0.0     0.0 | t 44504.8
+[optrace]  310 MUL_MAT          node_310                     q1_0     4096      1 |   358.3   353.4   359.4 | start     0.3     0.0     0.0 | t 44617.9
+[optrace]  311 ADD              ffn_inp-8                    f32      4096      1 |     7.3     8.0     7.9 | start     0.9     0.0     0.0 | t 44978.2
+[optrace]  312 RMS_NORM         norm-8                       f32      4096      1 |     5.3     6.3     5.8 | start     0.3     0.0     0.0 | t 44986.9
+[optrace]  313 MUL              ffn_norm-8                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  314 MUL_MAT          ffn_gate-8                   q1_0    12288      1 |  1115.4  1162.8  1123.9 | start     0.2     0.0     0.0 | t 44993.6
+[optrace]  315 MUL_MAT          ffn_up-8                     q1_0    12288      1 |  1111.8  1063.4  1090.6 | start     1.2     0.0     0.0 | t 46157.3
+[optrace]  316 SWIGLU           ffn_swiglu-8                 f32     12288      1 |    31.5    35.3    35.6 | start     0.9     0.0     0.0 | t 47271.4
+[optrace]  317 MUL_MAT          ffn_out-8                    q1_0     4096      1 |  1111.8  1110.8  1090.1 | start     0.5     0.0     0.0 | t 47307.6
+[optrace]  318 ADD              l_out-8                      f32      4096      1 |     7.7     9.2     8.5 | start     0.9     0.0     0.0 | t 48421.1
+[optrace]  319 RMS_NORM         norm-9                       f32      4096      1 |     6.0     5.7     6.2 | start     0.4     0.0     0.0 | t 48430.9
+[optrace]  320 MUL              attn_norm-9                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  321 MUL_MAT          Qcur-9                       q1_0     4096      1 |   369.4   376.2   383.3 | start     0.6     0.0     0.0 | t 48437.5
+[optrace]  323 RMS_NORM         norm-9                       f32       128     32 |     8.9     9.8     9.2 | start     1.0     0.1     0.0 | t 48821.8
+[optrace]  324 MUL              Qcur_normed-9                f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  325 ROPE             Qcur-9                       f32       128     32 |    31.4    31.7    31.5 | start     0.7     0.0     0.0 | t 48832.1
+[optrace]  326 MUL_MAT          Vcur-9                       q1_0     1024      1 |    90.2   181.0    96.0 | start     0.3     0.0     0.0 | t 48864.7
+[optrace]  328 MUL_MAT          Kcur-9                       q1_0     1024      1 |   132.2   134.5   137.8 | start     0.5     0.0     0.0 | t 49047.0
+[optrace]  330 RMS_NORM         norm-9                       f32       128      8 |     4.5     4.9     4.9 | start     0.2     0.0     0.0 | t 49185.4
+[optrace]  331 MUL              Kcur_normed-9                f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  332 ROPE             Kcur-9                       f32       128      8 |    11.2    11.8    10.8 | start     0.5     0.0     0.0 | t 49190.8
+[optrace]  334 SET_ROWS         cache_k_l9 (view)            f32      1024    256 |     3.0     1.5     1.5 | start     0.2     0.0     0.0 | t 49203.3
+[optrace]  336 SET_ROWS         cache_v_l9 (view)            f32      1024    256 |     1.7     0.6     0.6 | start     0.5     0.0     0.0 | t 49207.0
+[optrace]  343 FLASH_ATTN_EXT   node_343                     f32       128     32 |   165.6   121.7   122.0 | start     0.0     0.0     0.1 | t 49210.2
+[optrace]  345 MUL_MAT          node_345                     q1_0     4096      1 |   344.5   339.9   343.8 | start     0.4     0.0     0.0 | t 49376.5
+[optrace]  346 ADD              ffn_inp-9                    f32      4096      1 |     7.3     8.6     8.0 | start     1.1     0.0     0.0 | t 49722.6
+[optrace]  347 RMS_NORM         norm-9                       f32      4096      1 |     5.5     6.0     5.8 | start     0.5     0.0     0.0 | t 49731.6
+[optrace]  348 MUL              ffn_norm-9                   f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  349 MUL_MAT          ffn_gate-9                   q1_0    12288      1 |  1152.7  1191.6  1196.8 | start     0.2     0.0     0.0 | t 49738.0
+[optrace]  350 MUL_MAT          ffn_up-9                     q1_0    12288      1 |  1249.5  1251.4  1278.9 | start     1.0     0.0     0.0 | t 50935.9
+[optrace]  351 SWIGLU           ffn_swiglu-9                 f32     12288      1 |    34.3    34.4    33.8 | start     1.1     0.0     0.0 | t 52215.6
+[optrace]  352 MUL_MAT          ffn_out-9                    q1_0     4096      1 |  1091.5  1089.9  1098.9 | start     0.8     0.0     0.0 | t 52251.5
+[optrace]  353 ADD              l_out-9                      f32      4096      1 |     7.8     8.8     9.3 | start     1.6     0.0     0.0 | t 53351.2
+[optrace]  354 RMS_NORM         norm-10                      f32      4096      1 |     5.5     6.0     5.6 | start     0.4     0.0     0.0 | t 53361.0
+[optrace]  355 MUL              attn_norm-10                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  356 MUL_MAT          Qcur-10                      q1_0     4096      1 |   466.8   470.0   465.7 | start     0.7     0.0     0.0 | t 53367.3
+[optrace]  358 RMS_NORM         norm-10                      f32       128     32 |    40.4    49.3    48.3 | start     1.8     0.0     0.0 | t 53838.4
+[optrace]  359 MUL              Qcur_normed-10               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  360 ROPE             Qcur-10                      f32       128     32 |    19.3    19.9    19.1 | start     0.5     0.0     0.0 | t 53888.1
+[optrace]  361 MUL_MAT          Vcur-10                      q1_0     1024      1 |   112.7   105.9   113.7 | start     0.5     0.0     0.0 | t 53908.5
+[optrace]  363 MUL_MAT          Kcur-10                      q1_0     1024      1 |    98.4    90.3    94.5 | start     0.9     0.0     0.0 | t 54022.8
+[optrace]  365 RMS_NORM         norm-10                      f32       128      8 |     5.1     5.4     4.7 | start     0.3     0.0     0.0 | t 54122.8
+[optrace]  366 MUL              Kcur_normed-10               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  367 ROPE             Kcur-10                      f32       128      8 |    11.7    11.4    11.3 | start     0.5     0.0     0.0 | t 54128.6
+[optrace]  369 SET_ROWS         cache_k_l10 (view)           f32      1024    256 |     3.0     1.7     1.7 | start     0.2     0.0     0.0 | t 54141.4
+[optrace]  371 SET_ROWS         cache_v_l10 (view)           f32      1024    256 |     2.2     0.5     0.5 | start     0.3     0.0     0.0 | t 54145.1
+[optrace]  378 FLASH_ATTN_EXT   node_378                     f32       128     32 |   117.3   117.8   109.1 | start     0.0     0.0     0.0 | t 54148.6
+[optrace]  380 MUL_MAT          node_380                     q1_0     4096      1 |   376.3   379.8   376.5 | start     0.3     0.0     0.0 | t 54267.1
+[optrace]  381 ADD              ffn_inp-10                   f32      4096      1 |     8.5     8.9     8.8 | start     0.9     0.0     0.0 | t 54648.1
+[optrace]  382 RMS_NORM         norm-10                      f32      4096      1 |     5.1     6.5     5.7 | start     0.3     0.0     0.0 | t 54658.0
+[optrace]  383 MUL              ffn_norm-10                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  384 MUL_MAT          ffn_gate-10                  q1_0    12288      1 |  1235.7  1245.9  2638.0 | start     0.5     0.0     0.1 | t 54664.7
+[optrace]  385 MUL_MAT          ffn_up-10                    q1_0    12288      1 |  1283.3  1336.2  1254.5 | start     2.2     1.1     0.0 | t 57304.6
+[optrace]  386 SWIGLU           ffn_swiglu-10                f32     12288      1 |    56.9    33.1    37.5 | start     1.0     0.0     0.0 | t 58643.0
+[optrace]  387 MUL_MAT          ffn_out-10                   q1_0     4096      1 |  1214.5  1255.8  1180.8 | start     0.5     0.0     0.0 | t 58701.4
+[optrace]  388 ADD              l_out-10                     f32      4096      1 |    40.3     9.2     9.3 | start     1.2     0.0     0.0 | t 59958.2
+[optrace]  389 RMS_NORM         norm-11                      f32      4096      1 |    15.9     5.0    16.7 | start     0.7    11.5     0.0 | t 60000.3
+[optrace]  390 MUL              attn_norm-11                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  391 MUL_MAT          Qcur-11                      q1_0     4096      1 |   353.5   348.7   356.2 | start     0.3     0.0     0.0 | t 60017.6
+[optrace]  393 RMS_NORM         norm-11                      f32       128     32 |     8.4     9.4     9.0 | start     1.0     0.0     0.0 | t 60375.0
+[optrace]  394 MUL              Qcur_normed-11               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  395 ROPE             Qcur-11                      f32       128     32 |    18.6    19.5    18.9 | start     0.5     0.0     0.0 | t 60384.8
+[optrace]  396 MUL_MAT          Vcur-11                      q1_0     1024      1 |   109.9   106.2   112.4 | start     0.5     0.0     0.2 | t 60404.8
+[optrace]  398 MUL_MAT          Kcur-11                      q1_0     1024      1 |   111.9   108.7   110.5 | start     0.6     0.0     0.0 | t 60518.1
+[optrace]  400 RMS_NORM         norm-11                      f32       128      8 |     4.7     5.0     4.5 | start     0.3     0.0     0.0 | t 60631.6
+[optrace]  401 MUL              Kcur_normed-11               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  402 ROPE             Kcur-11                      f32       128      8 |    11.2     9.6     9.4 | start     0.5     0.0     0.0 | t 60637.0
+[optrace]  404 SET_ROWS         cache_k_l11 (view)           f32      1024    256 |     3.3     1.5     1.5 | start     0.1     0.0     0.0 | t 60649.5
+[optrace]  406 SET_ROWS         cache_v_l11 (view)           f32      1024    256 |     1.5     0.4     0.5 | start     0.3     0.0     0.0 | t 60653.5
+[optrace]  413 FLASH_ATTN_EXT   node_413                     f32       128     32 |   112.8   119.1   119.4 | start     0.1     0.0     0.0 | t 60656.5
+[optrace]  415 MUL_MAT          node_415                     q1_0     4096      1 |   412.5   437.5   415.8 | start     0.4     0.0     0.0 | t 60776.5
+[optrace]  416 ADD              ffn_inp-11                   f32      4096      1 |     7.6     8.2     8.3 | start     0.8     0.0     0.0 | t 61215.1
+[optrace]  417 RMS_NORM         norm-11                      f32      4096      1 |     5.1     5.5     5.5 | start     0.6     0.0     0.0 | t 61224.0
+[optrace]  418 MUL              ffn_norm-11                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  419 MUL_MAT          ffn_gate-11                  q1_0    12288      1 |  1043.1  1144.7  1072.7 | start     0.2     0.0     0.0 | t 61230.2
+[optrace]  420 MUL_MAT          ffn_up-11                    q1_0    12288      1 |  1064.2  1087.1  1062.2 | start     1.1     0.0     0.0 | t 62376.2
+[optrace]  421 SWIGLU           ffn_swiglu-11                f32     12288      1 |    30.1    56.0    34.2 | start    18.2     0.0     0.0 | t 63464.4
+[optrace]  422 MUL_MAT          ffn_out-11                   q1_0     4096      1 |  1102.2  1059.8  1063.5 | start     0.5     0.0     0.0 | t 63521.0
+[optrace]  423 ADD              l_out-11                     f32      4096      1 |    26.7     6.5     8.7 | start     1.0     5.7     0.0 | t 64624.5
+[optrace]  424 RMS_NORM         norm-12                      f32      4096      1 |     5.5     6.0     6.3 | start     0.2     0.0     0.0 | t 64652.7
+[optrace]  425 MUL              attn_norm-12                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  426 MUL_MAT          Qcur-12                      q1_0     4096      1 |   359.4   360.3   363.0 | start     0.8     0.1     0.0 | t 64659.3
+[optrace]  428 RMS_NORM         norm-12                      f32       128     32 |     8.9     9.3     8.8 | start     0.5     0.0     0.0 | t 65023.5
+[optrace]  429 MUL              Qcur_normed-12               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  430 ROPE             Qcur-12                      f32       128     32 |    17.5    17.5    17.4 | start     0.3     0.0     0.0 | t 65033.3
+[optrace]  431 MUL_MAT          Vcur-12                      q1_0     1024      1 |    95.8    95.5    96.3 | start     0.4     0.0     0.0 | t 65051.6
+[optrace]  433 MUL_MAT          Kcur-12                      q1_0     1024      1 |    96.0    93.3    97.3 | start     0.5     0.0     0.0 | t 65148.6
+[optrace]  435 RMS_NORM         norm-12                      f32       128      8 |     4.0     4.3     3.9 | start     0.4     0.0     0.0 | t 65246.4
+[optrace]  436 MUL              Kcur_normed-12               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  437 ROPE             Kcur-12                      f32       128      8 |     9.4     9.7     9.1 | start     0.2     0.0     0.0 | t 65251.3
+[optrace]  439 SET_ROWS         cache_k_l12 (view)           f32      1024    256 |     3.2     1.7     1.6 | start     0.1     0.0     0.0 | t 65261.5
+[optrace]  441 SET_ROWS         cache_v_l12 (view)           f32      1024    256 |     1.5     0.7     0.7 | start     0.3     0.0     0.0 | t 65265.5
+[optrace]  448 FLASH_ATTN_EXT   node_448                     f32       128     32 |   113.7   114.4   103.8 | start     0.0     0.0     0.0 | t 65268.5
+[optrace]  450 MUL_MAT          node_450                     q1_0     4096      1 |   392.2   416.4   393.3 | start     0.5     0.0     0.1 | t 65383.4
+[optrace]  451 ADD              ffn_inp-12                   f32      4096      1 |     7.7     9.2     9.1 | start     1.2     0.0     0.0 | t 65800.8
+[optrace]  452 RMS_NORM         norm-12                      f32      4096      1 |     4.9     5.0     5.3 | start     0.3     0.0     0.0 | t 65810.3
+[optrace]  453 MUL              ffn_norm-12                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  454 MUL_MAT          ffn_gate-12                  q1_0    12288      1 |  1139.0  1137.9  1152.0 | start     0.4     0.0     0.0 | t 65816.0
+[optrace]  455 MUL_MAT          ffn_up-12                    q1_0    12288      1 |  1035.6  1069.5  1034.3 | start     1.7     0.0     0.0 | t 66969.2
+[optrace]  456 SWIGLU           ffn_swiglu-12                f32     12288      1 |    30.0    59.2    32.4 | start     8.1     0.0     0.0 | t 68039.8
+[optrace]  457 MUL_MAT          ffn_out-12                   q1_0     4096      1 |  1448.2  1454.7  1451.7 | start     0.9     0.0     0.2 | t 68099.5
+[optrace]  458 ADD              l_out-12                     f32      4096      1 |     7.7     9.3     9.2 | start     1.5     0.0     0.0 | t 69555.1
+[optrace]  459 RMS_NORM         norm-13                      f32      4096      1 |     5.4     5.7     5.8 | start     0.3     0.0     0.0 | t 69564.9
+[optrace]  460 MUL              attn_norm-13                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  461 MUL_MAT          Qcur-13                      q1_0     4096      1 |   396.4   391.0   396.5 | start     0.5     0.1     0.0 | t 69571.0
+[optrace]  463 RMS_NORM         norm-13                      f32       128     32 |     9.5    10.5     9.8 | start     0.9     0.0     0.0 | t 69968.9
+[optrace]  464 MUL              Qcur_normed-13               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  465 ROPE             Qcur-13                      f32       128     32 |    19.0    19.3    19.3 | start     0.4     0.0     0.0 | t 69979.9
+[optrace]  466 MUL_MAT          Vcur-13                      q1_0     1024      1 |    91.0    95.2    94.5 | start     0.4     0.0     0.0 | t 69999.7
+[optrace]  468 MUL_MAT          Kcur-13                      q1_0     1024      1 |   343.4   300.9   299.0 | start     0.6     0.0     0.0 | t 70095.6
+[optrace]  470 RMS_NORM         norm-13                      f32       128      8 |     5.5     2.8     5.7 | start     0.5    13.5     0.0 | t 70440.9
+[optrace]  471 MUL              Kcur_normed-13               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  472 ROPE             Kcur-13                      f32       128      8 |    14.0    14.8    14.4 | start     1.0     0.0     0.0 | t 70457.5
+[optrace]  474 SET_ROWS         cache_k_l13 (view)           f32      1024    256 |     2.3     1.8     1.7 | start     1.0     0.0     0.0 | t 70472.8
+[optrace]  476 SET_ROWS         cache_v_l13 (view)           f32      1024    256 |     1.6     0.4     0.4 | start     0.3     0.0     0.0 | t 70476.5
+[optrace]  483 FLASH_ATTN_EXT   node_483                     f32       128     32 |   118.8   124.8   125.5 | start     0.0     0.0     0.0 | t 70479.7
+[optrace]  485 MUL_MAT          node_485                     q1_0     4096      1 |   376.8   373.2   367.1 | start     0.3     0.0     0.0 | t 70606.0
+[optrace]  486 ADD              ffn_inp-13                   f32      4096      1 |     7.6     8.7     8.3 | start     1.1     0.0     0.0 | t 70984.3
+[optrace]  487 RMS_NORM         norm-13                      f32      4096      1 |     4.9     5.4     5.6 | start     0.4     0.0     0.0 | t 70993.5
+[optrace]  488 MUL              ffn_norm-13                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  489 MUL_MAT          ffn_gate-13                  q1_0    12288      1 |  1092.3  1106.2  1083.9 | start     0.5     0.1     0.0 | t 70999.3
+[optrace]  490 MUL_MAT          ffn_up-13                    q1_0    12288      1 |  2376.8  2159.2  1647.1 | start     0.7     0.0   181.2 | t 72107.1
+[optrace]  491 SWIGLU           ffn_swiglu-13                f32     12288      1 |    32.0    29.1    36.3 | start     1.1    44.7     0.0 | t 74486.2
+[optrace]  492 MUL_MAT          ffn_out-13                   q1_0     4096      1 |  1388.1  1307.0  1308.8 | start     0.4     0.0     0.0 | t 74560.8
+[optrace]  493 ADD              l_out-13                     f32      4096      1 |    10.4    88.2     6.3 | start     1.2     0.0    35.6 | t 75950.6
+[optrace]  494 RMS_NORM         norm-14                      f32      4096      1 |     7.3     8.0     7.5 | start     0.3     0.0     0.0 | t 76039.4
+[optrace]  495 MUL              attn_norm-14                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  496 MUL_MAT          Qcur-14                      q1_0     4096      1 |   410.6   410.9   411.7 | start     0.3     0.0     0.0 | t 76048.1
+[optrace]  498 RMS_NORM         norm-14                      f32       128     32 |     9.3    11.1    10.3 | start     1.7     0.0     0.0 | t 76461.0
+[optrace]  499 MUL              Qcur_normed-14               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  500 ROPE             Qcur-14                      f32       128     32 |    19.8    20.4    19.8 | start     0.5     0.0     0.0 | t 76472.4
+[optrace]  501 MUL_MAT          Vcur-14                      q1_0     1024      1 |    95.0   101.8   101.1 | start     0.8     0.0     0.0 | t 76493.2
+[optrace]  503 MUL_MAT          Kcur-14                      q1_0     1024      1 |   114.5   184.3   179.4 | start    63.9     0.0     0.0 | t 76595.9
+[optrace]  505 RMS_NORM         norm-14                      f32       128      8 |     4.8     5.2     4.6 | start     0.3     0.0     0.0 | t 76781.0
+[optrace]  506 MUL              Kcur_normed-14               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  507 ROPE             Kcur-14                      f32       128      8 |    12.0    12.5    10.2 | start     0.5     0.0     0.0 | t 76786.6
+[optrace]  509 SET_ROWS         cache_k_l14 (view)           f32      1024    256 |     3.4     1.7     1.8 | start     0.0     0.0     0.0 | t 76799.7
+[optrace]  511 SET_ROWS         cache_v_l14 (view)           f32      1024    256 |     2.2     0.7     0.7 | start     0.2     0.0     0.0 | t 76803.8
+[optrace]  518 FLASH_ATTN_EXT   node_518                     f32       128     32 |   228.8   125.4   111.8 | start     0.0     0.1     0.0 | t 76807.8
+[optrace]  520 MUL_MAT          node_520                     q1_0     4096      1 |   414.9   421.5   417.9 | start     0.5     0.0     0.4 | t 77037.4
+[optrace]  521 ADD              ffn_inp-14                   f32      4096      1 |     8.4     9.6     9.1 | start     1.2     0.0     0.0 | t 77459.7
+[optrace]  522 RMS_NORM         norm-14                      f32      4096      1 |     5.9     6.0     6.2 | start     0.5     0.0     0.0 | t 77469.8
+[optrace]  523 MUL              ffn_norm-14                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  524 MUL_MAT          ffn_gate-14                  q1_0    12288      1 |  1212.9  1155.2  1162.3 | start     0.3     0.0     0.0 | t 77476.5
+[optrace]  525 MUL_MAT          ffn_up-14                    q1_0    12288      1 |  1117.8  1078.1  1118.5 | start     1.2     0.0     0.0 | t 78690.7
+[optrace]  526 SWIGLU           ffn_swiglu-14                f32     12288      1 |    31.3    35.6    34.7 | start     1.1     0.0     0.0 | t 79810.8
+[optrace]  527 MUL_MAT          ffn_out-14                   q1_0     4096      1 |  1123.1  1096.0  1111.9 | start     0.5     0.0     0.0 | t 79847.0
+[optrace]  528 ADD              l_out-14                     f32      4096      1 |     8.4     9.3     9.0 | start     0.8     0.0     0.0 | t 80971.6
+[optrace]  529 RMS_NORM         norm-15                      f32      4096      1 |     5.5     6.4     6.3 | start     0.5     0.0     0.0 | t 80981.3
+[optrace]  530 MUL              attn_norm-15                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  531 MUL_MAT          Qcur-15                      q1_0     4096      1 |   447.2   619.5   688.8 | start     0.3     0.0     0.1 | t 80988.2
+[optrace]  533 RMS_NORM         norm-15                      f32       128     32 |     9.7    11.0    10.5 | start     0.7     0.0     0.0 | t 81678.3
+[optrace]  534 MUL              Qcur_normed-15               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  535 ROPE             Qcur-15                      f32       128     32 |    20.3    20.4    20.0 | start     0.4     0.0     0.0 | t 81689.7
+[optrace]  536 MUL_MAT          Vcur-15                      q1_0     1024      1 |    98.1    94.2   100.2 | start     0.5     0.0     0.0 | t 81711.1
+[optrace]  538 MUL_MAT          Kcur-15                      q1_0     1024      1 |   145.9   147.9   163.2 | start     0.3     0.0     0.0 | t 81812.0
+[optrace]  540 RMS_NORM         norm-15                      f32       128      8 |     2.5     5.7     5.3 | start    24.3     0.0     0.0 | t 81976.2
+[optrace]  541 MUL              Kcur_normed-15               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  542 ROPE             Kcur-15                      f32       128      8 |    13.1    13.1     7.7 | start     0.3     0.0    14.7 | t 82003.5
+[optrace]  544 SET_ROWS         cache_k_l15 (view)           f32      1024    256 |     2.8     1.4     1.4 | start     0.2     0.0     0.0 | t 82026.5
+[optrace]  546 SET_ROWS         cache_v_l15 (view)           f32      1024    256 |     2.2     0.6     0.6 | start     0.1     0.0     0.0 | t 82030.0
+[optrace]  553 FLASH_ATTN_EXT   node_553                     f32       128     32 |   115.0   115.7   104.2 | start     0.0     0.0     0.0 | t 82033.5
+[optrace]  555 MUL_MAT          node_555                     q1_0     4096      1 |   354.6   349.4   341.1 | start     0.6     0.0     0.0 | t 82149.8
+[optrace]  556 ADD              ffn_inp-15                   f32      4096      1 |     7.7     8.7     8.5 | start     0.6     0.0     0.0 | t 82505.8
+[optrace]  557 RMS_NORM         norm-15                      f32      4096      1 |     5.1     5.3     5.9 | start     0.3     0.0     0.0 | t 82514.8
+[optrace]  558 MUL              ffn_norm-15                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  559 MUL_MAT          ffn_gate-15                  q1_0    12288      1 |  1098.6  1078.4  1119.8 | start     0.5     0.1     0.0 | t 82521.0
+[optrace]  560 MUL_MAT          ffn_up-15                    q1_0    12288      1 |  1056.1  1063.1  1052.5 | start     1.4     0.0     0.0 | t 83642.5
+[optrace]  561 SWIGLU           ffn_swiglu-15                f32     12288      1 |    61.2    34.2    38.3 | start     1.0     0.0     0.2 | t 84706.6
+[optrace]  562 MUL_MAT          ffn_out-15                   q1_0     4096      1 |  1448.6  1459.4  1458.1 | start     0.5     0.0     0.0 | t 84769.4
+[optrace]  563 ADD              l_out-15                     f32      4096      1 |     8.7     9.4     9.4 | start     1.2     0.0     0.0 | t 86229.8
+[optrace]  564 RMS_NORM         norm-16                      f32      4096      1 |     6.1     5.8     5.9 | start     0.3     0.0     0.0 | t 86240.2
+[optrace]  565 MUL              attn_norm-16                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  566 MUL_MAT          Qcur-16                      q1_0     4096      1 |   346.7   341.6   347.0 | start     0.3     0.0     0.0 | t 86247.0
+[optrace]  568 RMS_NORM         norm-16                      f32       128     32 |     9.1     9.7    88.9 | start     0.4     0.0     0.0 | t 86595.1
+[optrace]  569 MUL              Qcur_normed-16               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  570 ROPE             Qcur-16                      f32       128     32 |    55.6    19.8    19.5 | start     0.3     0.0     0.2 | t 86684.8
+[optrace]  571 MUL_MAT          Vcur-16                      q1_0     1024      1 |   153.3   252.3   171.3 | start     0.6     0.0     4.2 | t 86741.1
+[optrace]  573 MUL_MAT          Kcur-16                      q1_0     1024      1 |    96.8   105.4   109.8 | start    13.3     0.0     0.0 | t 86994.3
+[optrace]  575 RMS_NORM         norm-16                      f32       128      8 |     4.7     5.3     5.0 | start     0.5     0.1     0.0 | t 87105.3
+[optrace]  576 MUL              Kcur_normed-16               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  577 ROPE             Kcur-16                      f32       128      8 |    13.8    14.6    14.2 | start     0.7     0.0     0.0 | t 87111.0
+[optrace]  579 SET_ROWS         cache_k_l16 (view)           f32      1024    256 |     2.6     1.3     1.3 | start     0.2     0.0     0.0 | t 87126.0
+[optrace]  581 SET_ROWS         cache_v_l16 (view)           f32      1024    256 |     2.1     1.0     1.0 | start     1.0     0.0     0.0 | t 87129.3
+[optrace]  588 FLASH_ATTN_EXT   node_588                     f32       128     32 |   115.7   116.4   105.9 | start     0.0     0.0     0.0 | t 87133.4
+[optrace]  590 MUL_MAT          node_590                     q1_0     4096      1 |   357.6   352.4   360.8 | start     0.4     0.0     0.0 | t 87250.5
+[optrace]  591 ADD              ffn_inp-16                   f32      4096      1 |     7.8     9.1     9.1 | start     0.9     0.0     0.0 | t 87612.2
+[optrace]  592 RMS_NORM         norm-16                      f32      4096      1 |     4.4     5.7     4.9 | start     0.6     0.0     0.0 | t 87621.9
+[optrace]  593 MUL              ffn_norm-16                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  594 MUL_MAT          ffn_gate-16                  q1_0    12288      1 |  1065.7  1054.0  1087.1 | start     0.3     0.0     0.0 | t 87627.9
+[optrace]  595 MUL_MAT          ffn_up-16                    q1_0    12288      1 |  2663.1  2174.3  1832.5 | start     1.0     0.0     0.0 | t 88716.5
+[optrace]  596 SWIGLU           ffn_swiglu-16                f32     12288      1 |    33.6    64.5    28.7 | start     1.0     0.0    92.2 | t 91383.1
+[optrace]  597 MUL_MAT          ffn_out-16                   q1_0     4096      1 |  1233.6  1224.3  1236.4 | start     0.6     0.0     0.0 | t 91504.7
+[optrace]  598 ADD              l_out-16                     f32      4096      1 |     9.0    11.0     9.3 | start     1.1     0.0     0.1 | t 92742.3
+[optrace]  599 RMS_NORM         norm-17                      f32      4096      1 |     6.6     7.5     7.7 | start     0.7     0.0     0.0 | t 92753.8
+[optrace]  600 MUL              attn_norm-17                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  601 MUL_MAT          Qcur-17                      q1_0     4096      1 |   458.7   407.8   405.6 | start     0.7     0.0     0.0 | t 92761.8
+[optrace]  603 RMS_NORM         norm-17                      f32       128     32 |    39.9    10.5    10.1 | start     0.8     0.0     0.0 | t 93222.3
+[optrace]  604 MUL              Qcur_normed-17               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  605 ROPE             Qcur-17                      f32       128     32 |    18.5    18.8    18.6 | start     0.5     0.0     0.0 | t 93263.4
+[optrace]  606 MUL_MAT          Vcur-17                      q1_0     1024      1 |    98.1    90.9    96.2 | start     0.7     0.0     0.0 | t 93283.0
+[optrace]  608 MUL_MAT          Kcur-17                      q1_0     1024      1 |    96.7    98.8    92.9 | start     0.4     0.0     0.0 | t 93382.6
+[optrace]  610 RMS_NORM         norm-17                      f32       128      8 |     4.3     4.3     4.0 | start     0.3     0.0     0.0 | t 93482.0
+[optrace]  611 MUL              Kcur_normed-17               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  612 ROPE             Kcur-17                      f32       128      8 |     9.8     9.9     9.5 | start     0.2     0.0     0.0 | t 93487.2
+[optrace]  614 SET_ROWS         cache_k_l17 (view)           f32      1024    256 |     3.1     1.5     1.6 | start     0.0     0.0     0.0 | t 93497.9
+[optrace]  616 SET_ROWS         cache_v_l17 (view)           f32      1024    256 |     1.5     0.4     0.3 | start     0.3     0.0     0.0 | t 93501.8
+[optrace]  623 FLASH_ATTN_EXT   node_623                     f32       128     32 |   130.7   126.9   158.2 | start     0.0     0.0     0.0 | t 93504.7
+[optrace]  625 MUL_MAT          node_625                     q1_0     4096      1 |   425.4   426.1   428.2 | start     0.6     0.0     0.0 | t 93663.8
+[optrace]  626 ADD              ffn_inp-17                   f32      4096      1 |     7.5     8.8     8.5 | start     1.1     0.0     0.0 | t 94093.0
+[optrace]  627 RMS_NORM         norm-17                      f32      4096      1 |     5.2     5.5     5.2 | start     0.7     0.0     0.0 | t 94102.2
+[optrace]  628 MUL              ffn_norm-17                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  629 MUL_MAT          ffn_gate-17                  q1_0    12288      1 |  1104.2  1085.6  1078.3 | start     0.4     0.0     0.1 | t 94108.3
+[optrace]  630 MUL_MAT          ffn_up-17                    q1_0    12288      1 |  1115.0  1087.0  1130.8 | start     0.9     0.0     0.0 | t 95214.0
+[optrace]  631 SWIGLU           ffn_swiglu-17                f32     12288      1 |    32.3    33.6    33.6 | start     1.0     0.0     0.0 | t 96346.2
+[optrace]  632 MUL_MAT          ffn_out-17                   q1_0     4096      1 |  1102.8  1123.8  1131.9 | start     0.5     0.0     0.0 | t 96380.4
+[optrace]  633 ADD              l_out-17                     f32      4096      1 |     6.8     8.3     8.1 | start     1.1     0.0     0.0 | t 97513.5
+[optrace]  634 RMS_NORM         norm-18                      f32      4096      1 |     4.6     5.2     5.5 | start     0.5     0.0     0.1 | t 97522.0
+[optrace]  635 MUL              attn_norm-18                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  636 MUL_MAT          Qcur-18                      q1_0     4096      1 |   375.5   376.3   375.2 | start     0.8     0.0     0.0 | t 97527.8
+[optrace]  638 RMS_NORM         norm-18                      f32       128     32 |     9.5    10.3     9.9 | start     0.5     0.0     0.0 | t 97905.5
+[optrace]  639 MUL              Qcur_normed-18               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  640 ROPE             Qcur-18                      f32       128     32 |    18.8    19.3    19.0 | start     0.4     0.0     0.0 | t 97916.3
+[optrace]  641 MUL_MAT          Vcur-18                      q1_0     1024      1 |    94.8    95.2    89.1 | start     0.7     0.0     0.0 | t 97936.0
+[optrace]  643 MUL_MAT          Kcur-18                      q1_0     1024      1 |    93.5    97.1    89.4 | start     0.3     0.0     0.0 | t 98032.2
+[optrace]  645 RMS_NORM         norm-18                      f32       128      8 |     4.7     5.0     4.5 | start     0.3     0.0     0.2 | t 98130.1
+[optrace]  646 MUL              Kcur_normed-18               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  647 ROPE             Kcur-18                      f32       128      8 |     9.1     9.3     8.8 | start     0.5     0.0     0.0 | t 98135.5
+[optrace]  649 SET_ROWS         cache_k_l18 (view)           f32      1024    256 |     2.7     1.5     1.4 | start     0.2     0.0     0.0 | t 98145.7
+[optrace]  651 SET_ROWS         cache_v_l18 (view)           f32      1024    256 |     1.6     0.7     0.7 | start     1.0     0.0     0.0 | t 98148.9
+[optrace]  658 FLASH_ATTN_EXT   node_658                     f32       128     32 |   176.4   127.0   127.5 | start     0.0     0.0     0.0 | t 98152.9
+[optrace]  660 MUL_MAT          node_660                     q1_0     4096      1 |   421.2   421.4   418.3 | start     0.4     0.0     0.0 | t 98330.3
+[optrace]  661 ADD              ffn_inp-18                   f32      4096      1 |     7.7     8.5     8.9 | start     1.2     0.0     0.0 | t 98752.9
+[optrace]  662 RMS_NORM         norm-18                      f32      4096      1 |     5.3     6.2     5.7 | start     0.2     0.0     0.0 | t 98762.3
+[optrace]  663 MUL              ffn_norm-18                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  664 MUL_MAT          ffn_gate-18                  q1_0    12288      1 |  1112.3  1116.4  1110.4 | start     0.2     0.0     0.0 | t 98769.0
+[optrace]  665 MUL_MAT          ffn_up-18                    q1_0    12288      1 |  1057.9  1044.6  1075.5 | start     1.2     0.0     0.0 | t 99886.7
+[optrace]  666 SWIGLU           ffn_swiglu-18                f32     12288      1 |    29.9    39.0    32.4 | start    18.5     0.0     0.0 | t 100963.6
+[optrace]  667 MUL_MAT          ffn_out-18                   q1_0     4096      1 |  1369.6  1369.0  1362.5 | start     0.3     0.0     0.0 | t 101012.6
+[optrace]  668 ADD              l_out-18                     f32      4096      1 |     8.4     9.5     9.5 | start     0.9     0.1     0.0 | t 102383.6
+[optrace]  669 RMS_NORM         norm-19                      f32      4096      1 |     5.6     6.3     6.1 | start     1.0     0.0     0.0 | t 102393.4
+[optrace]  670 MUL              attn_norm-19                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  671 MUL_MAT          Qcur-19                      q1_0     4096      1 |   342.6   349.3   349.3 | start     0.2     0.0     0.0 | t 102400.4
+[optrace]  673 RMS_NORM         norm-19                      f32       128     32 |     9.3     9.7     9.5 | start     0.7     0.3     0.0 | t 102799.0
+[optrace]  674 MUL              Qcur_normed-19               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  675 ROPE             Qcur-19                      f32       128     32 |    18.6    19.1    18.9 | start     0.7     0.0     0.0 | t 102809.5
+[optrace]  676 MUL_MAT          Vcur-19                      q1_0     1024      1 |    95.1   100.1    98.4 | start     0.4     0.0     0.0 | t 102829.2
+[optrace]  678 MUL_MAT          Kcur-19                      q1_0     1024      1 |   109.4   187.1   112.9 | start     0.3     0.0     0.0 | t 102930.0
+[optrace]  680 RMS_NORM         norm-19                      f32       128      8 |    39.2     5.0     4.7 | start     0.8     0.0     0.0 | t 103117.9
+[optrace]  681 MUL              Kcur_normed-19               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  682 ROPE             Kcur-19                      f32       128      8 |    12.4     8.5    10.0 | start     0.7    15.9     0.0 | t 103158.2
+[optrace]  684 SET_ROWS         cache_k_l19 (view)           f32      1024    256 |     2.3     1.4     1.3 | start     0.5     0.0     0.0 | t 103182.8
+[optrace]  686 SET_ROWS         cache_v_l19 (view)           f32      1024    256 |     2.1     0.5     0.5 | start     0.2     0.0     0.0 | t 103186.4
+[optrace]  693 FLASH_ATTN_EXT   node_693                     f32       128     32 |   130.6   130.0   114.3 | start     0.0     0.0     0.0 | t 103190.0
+[optrace]  695 MUL_MAT          node_695                     q1_0     4096      1 |   484.0   514.0   487.2 | start     0.5     0.0     0.0 | t 103321.1
+[optrace]  696 ADD              ffn_inp-19                   f32      4096      1 |     8.7     9.6     9.3 | start     0.8     0.0     0.0 | t 103836.0
+[optrace]  697 RMS_NORM         norm-19                      f32      4096      1 |     5.7     5.6     5.6 | start     0.3     0.0     0.0 | t 103846.4
+[optrace]  698 MUL              ffn_norm-19                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  699 MUL_MAT          ffn_gate-19                  q1_0    12288      1 |  1081.0  1071.8  1111.2 | start     0.5     0.0     0.0 | t 103852.7
+[optrace]  700 MUL_MAT          ffn_up-19                    q1_0    12288      1 |  2728.2  1358.0  1360.1 | start     0.9     0.0     0.0 | t 104964.8
+[optrace]  701 SWIGLU           ffn_swiglu-19                f32     12288      1 |    33.1    34.7    35.3 | start     1.4     0.6     0.0 | t 107695.9
+[optrace]  702 MUL_MAT          ffn_out-19                   q1_0     4096      1 |  1201.7  1208.9  1202.0 | start     0.2     0.0     0.0 | t 107732.4
+[optrace]  703 ADD              l_out-19                     f32      4096      1 |     8.7    10.6     9.7 | start     0.9     0.0     0.0 | t 108942.4
+[optrace]  704 RMS_NORM         norm-20                      f32      4096      1 |     7.3     7.8     8.1 | start     0.4     0.0     0.0 | t 108953.5
+[optrace]  705 MUL              attn_norm-20                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  706 MUL_MAT          Qcur-20                      q1_0     4096      1 |   395.1   396.8   396.2 | start     0.7     0.1     0.0 | t 108961.9
+[optrace]  708 RMS_NORM         norm-20                      f32       128     32 |     9.6    10.2    10.3 | start     0.8     0.0     0.0 | t 109360.0
+[optrace]  709 MUL              Qcur_normed-20               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  710 ROPE             Qcur-20                      f32       128     32 |    20.6    20.8    20.7 | start     0.3     0.0     0.0 | t 109371.2
+[optrace]  711 MUL_MAT          Vcur-20                      q1_0     1024      1 |   123.9   116.0   122.9 | start     0.5     0.0     0.0 | t 109392.6
+[optrace]  713 MUL_MAT          Kcur-20                      q1_0     1024      1 |   118.0   115.0   116.4 | start     0.7     0.0     0.0 | t 109517.8
+[optrace]  715 RMS_NORM         norm-20                      f32       128      8 |     5.1     5.5     4.9 | start     0.3     0.0     0.0 | t 109637.3
+[optrace]  716 MUL              Kcur_normed-20               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  717 ROPE             Kcur-20                      f32       128      8 |    11.5    10.7    10.4 | start     0.5     0.0     0.0 | t 109643.2
+[optrace]  719 SET_ROWS         cache_k_l20 (view)           f32      1024    256 |     3.2     1.7     1.7 | start     0.0     0.0     0.0 | t 109656.0
+[optrace]  721 SET_ROWS         cache_v_l20 (view)           f32      1024    256 |     1.5     0.4     0.3 | start     0.5     0.0     0.0 | t 109659.9
+[optrace]  728 FLASH_ATTN_EXT   node_728                     f32       128     32 |   179.1   138.5   151.5 | start     0.0     0.1     0.0 | t 109663.5
+[optrace]  730 MUL_MAT          node_730                     q1_0     4096      1 |   422.2   421.3   404.7 | start     0.7     0.0    22.0 | t 109843.3
+[optrace]  731 ADD              ffn_inp-20                   f32      4096      1 |     8.6     8.9     9.8 | start     1.2     0.0     0.0 | t 110271.2
+[optrace]  732 RMS_NORM         norm-20                      f32      4096      1 |     6.0     6.8     6.7 | start     0.7     0.0     0.0 | t 110281.3
+[optrace]  733 MUL              ffn_norm-20                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  734 MUL_MAT          ffn_gate-20                  q1_0    12288      1 |  1173.5  1184.6  1178.3 | start     0.4     0.0     0.0 | t 110288.5
+[optrace]  735 MUL_MAT          ffn_up-20                    q1_0    12288      1 |  1078.7  1064.9  1066.8 | start     1.5     0.0     0.0 | t 111474.2
+[optrace]  736 SWIGLU           ffn_swiglu-20                f32     12288      1 |    33.1    34.9    32.5 | start     0.9     0.0     0.0 | t 112555.1
+[optrace]  737 MUL_MAT          ffn_out-20                   q1_0     4096      1 |  1123.4  1135.1  1149.3 | start     0.3     0.0     0.0 | t 112590.5
+[optrace]  738 ADD              l_out-20                     f32      4096      1 |     7.5     9.1     8.8 | start     1.3     0.0     0.1 | t 113740.9
+[optrace]  739 RMS_NORM         norm-21                      f32      4096      1 |     5.5     6.0     6.2 | start     0.6     0.0     0.0 | t 113750.6
+[optrace]  740 MUL              attn_norm-21                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  741 MUL_MAT          Qcur-21                      q1_0     4096      1 |   424.5   422.2   419.6 | start     1.0     0.0     0.0 | t 113757.2
+[optrace]  743 RMS_NORM         norm-21                      f32       128     32 |     9.0    10.4    10.0 | start     1.1     0.0     0.0 | t 114183.8
+[optrace]  744 MUL              Qcur_normed-21               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  745 ROPE             Qcur-21                      f32       128     32 |    19.4    19.5    19.1 | start     0.4     0.0     0.0 | t 114194.8
+[optrace]  746 MUL_MAT          Vcur-21                      q1_0     1024      1 |   101.0    94.8    98.7 | start     0.4     0.0     0.0 | t 114215.0
+[optrace]  748 MUL_MAT          Kcur-21                      q1_0     1024      1 |   111.3   107.3   150.6 | start     0.3     0.0     0.0 | t 114317.2
+[optrace]  750 RMS_NORM         norm-21                      f32       128      8 |     2.6     4.8     4.6 | start    33.6     0.0     0.0 | t 114469.3
+[optrace]  751 MUL              Kcur_normed-21               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  752 ROPE             Kcur-21                      f32       128      8 |    10.9    10.8     9.4 | start     0.8     0.0    13.2 | t 114506.0
+[optrace]  754 SET_ROWS         cache_k_l21 (view)           f32      1024    256 |     2.4     1.2     1.2 | start     0.2     0.0     0.0 | t 114529.5
+[optrace]  756 SET_ROWS         cache_v_l21 (view)           f32      1024    256 |     1.3     0.6     0.5 | start     0.3     0.0     0.0 | t 114532.5
+[optrace]  763 FLASH_ATTN_EXT   node_763                     f32       128     32 |   114.5   115.0   103.7 | start     0.0     0.0     0.0 | t 114535.2
+[optrace]  765 MUL_MAT          node_765                     q1_0     4096      1 |   338.8   339.8   341.3 | start     0.4     0.0     0.1 | t 114650.7
+[optrace]  766 ADD              ffn_inp-21                   f32      4096      1 |     7.4     8.7     8.2 | start     0.8     0.0     0.0 | t 114993.3
+[optrace]  767 RMS_NORM         norm-21                      f32      4096      1 |     4.0     4.7     4.8 | start     0.6     0.0     0.0 | t 115002.4
+[optrace]  768 MUL              ffn_norm-21                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  769 MUL_MAT          ffn_gate-21                  q1_0    12288      1 |  1124.8  1085.2  1115.6 | start     0.7     0.1     0.0 | t 115007.5
+[optrace]  770 MUL_MAT          ffn_up-21                    q1_0    12288      1 |  1060.5  1061.5  1064.4 | start     1.0     0.0     0.0 | t 116134.0
+[optrace]  771 SWIGLU           ffn_swiglu-21                f32     12288      1 |    61.5    34.8    35.1 | start     1.0     0.0     0.0 | t 117199.6
+[optrace]  772 MUL_MAT          ffn_out-21                   q1_0     4096      1 |  1630.9  1478.9  1367.0 | start     0.5     0.0     0.0 | t 117262.5
+[optrace]  773 ADD              l_out-21                     f32      4096      1 |     9.7     9.6    10.2 | start     1.2     0.0     0.0 | t 118895.1
+[optrace]  774 RMS_NORM         norm-22                      f32      4096      1 |     6.8     7.5     8.0 | start     0.3     0.0     0.0 | t 118906.6
+[optrace]  775 MUL              attn_norm-22                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  776 MUL_MAT          Qcur-22                      q1_0     4096      1 |   453.0   448.3   456.8 | start    14.9     0.1     0.0 | t 118915.0
+[optrace]  778 RMS_NORM         norm-22                      f32       128     32 |     9.8    10.5    10.2 | start     0.5     0.0     0.1 | t 119384.1
+[optrace]  779 MUL              Qcur_normed-22               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  780 ROPE             Qcur-22                      f32       128     32 |    19.3    19.8    19.2 | start     0.4     0.0     0.0 | t 119395.4
+[optrace]  781 MUL_MAT          Vcur-22                      q1_0     1024      1 |    98.2   103.9   102.8 | start     0.5     0.0     0.0 | t 119415.6
+[optrace]  783 MUL_MAT          Kcur-22                      q1_0     1024      1 |   141.9   109.5   104.2 | start     0.8     0.0     0.0 | t 119520.4
+[optrace]  785 RMS_NORM         norm-22                      f32       128      8 |     3.9     4.7     4.5 | start     1.0     0.0     0.0 | t 119663.8
+[optrace]  786 MUL              Kcur_normed-22               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  787 ROPE             Kcur-22                      f32       128      8 |    11.8    10.4     9.9 | start     0.5     0.0     0.0 | t 119669.1
+[optrace]  789 SET_ROWS         cache_k_l22 (view)           f32      1024    256 |     2.9     1.5     1.5 | start     0.1     0.0     0.0 | t 119681.9
+[optrace]  791 SET_ROWS         cache_v_l22 (view)           f32      1024    256 |     1.8     0.5     0.4 | start     0.3     0.0     0.0 | t 119685.5
+[optrace]  798 FLASH_ATTN_EXT   node_798                     f32       128     32 |   115.2   115.7   108.9 | start     0.0     0.0     0.0 | t 119689.0
+[optrace]  800 MUL_MAT          node_800                     q1_0     4096      1 |   364.7   363.0   438.2 | start     0.4     0.0     0.0 | t 119805.2
+[optrace]  801 ADD              ffn_inp-22                   f32      4096      1 |     8.8     5.7     9.1 | start     0.7    88.5     0.0 | t 120244.9
+[optrace]  802 RMS_NORM         norm-22                      f32      4096      1 |     4.5    32.8    40.5 | start    28.7     0.0     0.1 | t 120339.6
+[optrace]  803 MUL              ffn_norm-22                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  804 MUL_MAT          ffn_gate-22                  q1_0    12288      1 |  1044.4  1053.6  1155.7 | start     0.3     0.0     0.0 | t 120380.7
+[optrace]  805 MUL_MAT          ffn_up-22                    q1_0    12288      1 |  2881.8  1465.1  1443.9 | start     1.2     0.0     0.0 | t 121537.4
+[optrace]  806 SWIGLU           ffn_swiglu-22                f32     12288      1 |    33.3    34.3    34.3 | start     1.4     0.1     0.0 | t 124421.7
+[optrace]  807 MUL_MAT          ffn_out-22                   q1_0     4096      1 |  1294.5  1264.9  1244.2 | start     0.3     0.0     0.0 | t 124457.0
+[optrace]  808 ADD              l_out-22                     f32      4096      1 |     8.5     9.8     9.1 | start     1.0     0.0     0.0 | t 125752.9
+[optrace]  809 RMS_NORM         norm-23                      f32      4096      1 |     5.5     6.2     6.2 | start     0.5     0.0     0.0 | t 125763.0
+[optrace]  810 MUL              attn_norm-23                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  811 MUL_MAT          Qcur-23                      q1_0     4096      1 |   428.3   437.8   433.1 | start     0.4     0.0     0.0 | t 125769.8
+[optrace]  813 RMS_NORM         norm-23                      f32       128     32 |     9.0    10.4    10.0 | start     1.1     0.0     0.0 | t 126208.8
+[optrace]  814 MUL              Qcur_normed-23               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  815 ROPE             Qcur-23                      f32       128     32 |    19.2    19.7    19.5 | start     0.5     0.0     0.0 | t 126219.5
+[optrace]  816 MUL_MAT          Vcur-23                      q1_0     1024      1 |    98.9    91.8    98.3 | start     0.5     0.0     0.0 | t 126239.8
+[optrace]  818 MUL_MAT          Kcur-23                      q1_0     1024      1 |    95.5    98.6    92.4 | start     0.4     0.0     0.0 | t 126340.1
+[optrace]  820 RMS_NORM         norm-23                      f32       128      8 |     4.4     4.8     4.1 | start     0.1     0.0     0.0 | t 126439.7
+[optrace]  821 MUL              Kcur_normed-23               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  822 ROPE             Kcur-23                      f32       128      8 |     9.3     9.7     9.2 | start     0.4     0.0     0.0 | t 126444.7
+[optrace]  824 SET_ROWS         cache_k_l23 (view)           f32      1024    256 |     3.0     1.5     1.4 | start     0.1     0.0     0.0 | t 126455.1
+[optrace]  826 SET_ROWS         cache_v_l23 (view)           f32      1024    256 |     1.4     0.5     0.5 | start     0.3     0.0     0.0 | t 126458.8
+[optrace]  833 FLASH_ATTN_EXT   node_833                     f32       128     32 |   170.7   127.2   136.6 | start     0.0     0.0     0.0 | t 126461.5
+[optrace]  835 MUL_MAT          node_835                     q1_0     4096      1 |   417.5   407.3   388.9 | start     0.8     0.0    25.2 | t 126632.5
+[optrace]  836 ADD              ffn_inp-23                   f32      4096      1 |     8.0     8.5     8.7 | start     0.7     0.0     0.0 | t 127051.7
+[optrace]  837 RMS_NORM         norm-23                      f32      4096      1 |     4.7     5.4     5.0 | start     0.4     0.0     0.0 | t 127061.1
+[optrace]  838 MUL              ffn_norm-23                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  839 MUL_MAT          ffn_gate-23                  q1_0    12288      1 |  1081.9  1080.0  1100.4 | start     0.3     0.0     0.0 | t 127067.0
+[optrace]  840 MUL_MAT          ffn_up-23                    q1_0    12288      1 |  1127.9  1139.5  1144.3 | start     1.3     0.0     0.0 | t 128168.9
+[optrace]  841 SWIGLU           ffn_swiglu-23                f32     12288      1 |    32.1    33.7    33.4 | start     0.8     0.0     0.0 | t 129314.8
+[optrace]  842 MUL_MAT          ffn_out-23                   q1_0     4096      1 |  1253.2  1253.4  1246.2 | start     0.5     0.0     0.0 | t 129348.9
+[optrace]  843 ADD              l_out-23                     f32      4096      1 |     8.2     9.5     9.8 | start     0.9     0.0     0.0 | t 130603.5
+[optrace]  844 RMS_NORM         norm-24                      f32      4096      1 |     5.9     6.4     6.5 | start     0.6     0.0     0.0 | t 130613.6
+[optrace]  845 MUL              attn_norm-24                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  846 MUL_MAT          Qcur-24                      q1_0     4096      1 |   341.2   345.7   343.3 | start     0.2     0.0     0.0 | t 130620.8
+[optrace]  848 RMS_NORM         norm-24                      f32       128     32 |     9.8    10.6    10.1 | start     0.4     0.0     0.0 | t 130967.6
+[optrace]  849 MUL              Qcur_normed-24               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  850 ROPE             Qcur-24                      f32       128     32 |    18.3    18.7    18.6 | start     0.4     0.0     0.0 | t 130978.5
+[optrace]  851 MUL_MAT          Vcur-24                      q1_0     1024      1 |    91.2    99.0    95.1 | start     0.4     0.0     0.1 | t 130997.7
+[optrace]  853 MUL_MAT          Kcur-24                      q1_0     1024      1 |    94.0    94.0    88.8 | start     0.3     0.0     0.0 | t 131097.4
+[optrace]  855 RMS_NORM         norm-24                      f32       128      8 |     4.5     4.6     4.1 | start     0.2     0.0     0.0 | t 131192.5
+[optrace]  856 MUL              Kcur_normed-24               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  857 ROPE             Kcur-24                      f32       128      8 |     9.3     9.8     9.2 | start     0.5     0.0     0.0 | t 131197.7
+[optrace]  859 SET_ROWS         cache_k_l24 (view)           f32      1024    256 |     2.7     1.4     1.5 | start     0.3     0.0     0.0 | t 131208.3
+[optrace]  861 SET_ROWS         cache_v_l24 (view)           f32      1024    256 |     1.8     0.5     0.6 | start     0.3     0.0     0.0 | t 131211.8
+[optrace]  868 FLASH_ATTN_EXT   node_868                     f32       128     32 |   114.9   115.0   107.8 | start     0.0     0.1     0.0 | t 131215.1
+[optrace]  870 MUL_MAT          node_870                     q1_0     4096      1 |   417.5   407.6   410.9 | start     0.3     0.0     0.0 | t 131330.9
+[optrace]  871 ADD              ffn_inp-24                   f32      4096      1 |     8.3     8.9     6.4 | start     0.7     0.0    40.6 | t 131749.7
+[optrace]  872 RMS_NORM         norm-24                      f32      4096      1 |     5.0     5.7     5.1 | start     0.5     0.0     0.0 | t 131797.1
+[optrace]  873 MUL              ffn_norm-24                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  874 MUL_MAT          ffn_gate-24                  q1_0    12288      1 |  1016.8  1040.1  1027.5 | start     0.3     0.0     0.0 | t 131803.3
+[optrace]  875 MUL_MAT          ffn_up-24                    q1_0    12288      1 |  1191.7  1181.2  1204.9 | start     1.0     0.0    72.5 | t 132844.1
+[optrace]  876 SWIGLU           ffn_swiglu-24                f32     12288      1 |    38.0    35.7    32.5 | start     1.4     0.0     0.0 | t 134122.5
+[optrace]  877 MUL_MAT          ffn_out-24                   q1_0     4096      1 |  1280.7  1268.1  1274.1 | start     0.4     0.0     0.0 | t 134162.4
+[optrace]  878 ADD              l_out-24                     f32      4096      1 |     8.0     9.5     8.9 | start     1.2     0.0     0.0 | t 135444.3
+[optrace]  879 RMS_NORM         norm-25                      f32      4096      1 |     5.0     6.5     6.1 | start     0.5     0.0     0.0 | t 135454.3
+[optrace]  880 MUL              attn_norm-25                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  881 MUL_MAT          Qcur-25                      q1_0     4096      1 |  2621.7   435.0   438.5 | start     0.6     0.0     0.1 | t 135461.0
+[optrace]  883 RMS_NORM         norm-25                      f32       128     32 |    10.8    11.8    11.6 | start     0.7     0.1     0.0 | t 138085.5
+[optrace]  884 MUL              Qcur_normed-25               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  885 ROPE             Qcur-25                      f32       128     32 |    20.3    21.1    20.7 | start     0.8     0.0     0.0 | t 138097.9
+[optrace]  886 MUL_MAT          Vcur-25                      q1_0     1024      1 |   113.9   109.8   108.7 | start     0.3     0.0     0.0 | t 138119.5
+[optrace]  888 MUL_MAT          Kcur-25                      q1_0     1024      1 |   392.3   108.7   113.6 | start     0.5     0.0     0.0 | t 138234.7
+[optrace]  890 RMS_NORM         norm-25                      f32       128      8 |     4.8     5.8     5.0 | start     1.1     0.2     0.0 | t 138628.5
+[optrace]  891 MUL              Kcur_normed-25               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  892 ROPE             Kcur-25                      f32       128      8 |    13.3    13.7    12.3 | start     0.5     0.0     0.0 | t 138634.9
+[optrace]  894 SET_ROWS         cache_k_l25 (view)           f32      1024    256 |     3.3     1.7     1.7 | start     0.1     0.0     0.0 | t 138649.7
+[optrace]  896 SET_ROWS         cache_v_l25 (view)           f32      1024    256 |     2.5     0.8     0.8 | start     0.3     0.0     0.0 | t 138653.7
+[optrace]  903 FLASH_ATTN_EXT   node_903                     f32       128     32 |   121.1   123.3   232.4 | start     0.0     0.0     0.0 | t 138657.7
+[optrace]  905 MUL_MAT          node_905                     q1_0     4096      1 |   412.7   641.6   624.6 | start   209.2     0.0     0.0 | t 138891.3
+[optrace]  906 ADD              ffn_inp-25                   f32      4096      1 |     8.0     9.6     9.2 | start     0.9     0.0     0.0 | t 139534.1
+[optrace]  907 RMS_NORM         norm-25                      f32      4096      1 |     6.3     5.9     6.0 | start     0.5     0.0     0.0 | t 139544.1
+[optrace]  908 MUL              ffn_norm-25                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  909 MUL_MAT          ffn_gate-25                  q1_0    12288      1 |  1339.6  1689.8  1355.6 | start     0.5     0.0     0.0 | t 139551.1
+[optrace]  910 MUL_MAT          ffn_up-25                    q1_0    12288      1 |  1227.9  1451.8  1476.0 | start   260.5     0.0     0.1 | t 141243.0
+[optrace]  911 SWIGLU           ffn_swiglu-25                f32     12288      1 |    35.3    35.0    36.2 | start     0.8     0.0     0.0 | t 142732.5
+[optrace]  912 MUL_MAT          ffn_out-25                   q1_0     4096      1 |  1137.7  1120.8  1131.4 | start     0.6     0.0     0.0 | t 142769.1
+[optrace]  913 ADD              l_out-25                     f32      4096      1 |     8.7     9.6     9.3 | start     0.7     0.0     0.0 | t 143908.7
+[optrace]  914 RMS_NORM         norm-26                      f32      4096      1 |     5.5     6.2     6.6 | start     1.0     0.0     0.0 | t 143918.6
+[optrace]  915 MUL              attn_norm-26                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  916 MUL_MAT          Qcur-26                      q1_0     4096      1 |   391.4   384.5   389.2 | start     0.4     0.0     0.0 | t 143925.6
+[optrace]  918 RMS_NORM         norm-26                      f32       128     32 |     8.4     9.5     9.1 | start     1.0     0.0     0.0 | t 144318.5
+[optrace]  919 MUL              Qcur_normed-26               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  920 ROPE             Qcur-26                      f32       128     32 |    18.7    19.3    18.8 | start     0.5     0.0     0.0 | t 144328.5
+[optrace]  921 MUL_MAT          Vcur-26                      q1_0     1024      1 |   106.2   101.4   157.8 | start     0.4     0.0     0.0 | t 144348.2
+[optrace]  923 MUL_MAT          Kcur-26                      q1_0     1024      1 |   124.4   120.4   119.0 | start     0.3     0.0     0.0 | t 144506.8
+[optrace]  925 RMS_NORM         norm-26                      f32       128      8 |     4.0     4.5     4.2 | start     0.5     0.0     0.0 | t 144632.2
+[optrace]  926 MUL              Kcur_normed-26               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  927 ROPE             Kcur-26                      f32       128      8 |    11.9    10.1    11.7 | start     0.3     0.0     0.0 | t 144637.2
+[optrace]  929 SET_ROWS         cache_k_l26 (view)           f32      1024    256 |     2.7     1.4     1.5 | start     0.2     0.0     0.0 | t 144650.0
+[optrace]  931 SET_ROWS         cache_v_l26 (view)           f32      1024    256 |     1.5     0.5     0.5 | start     0.3     0.0     0.0 | t 144653.4
+[optrace]  938 FLASH_ATTN_EXT   node_938                     f32       128     32 |   115.3   115.7   106.4 | start     0.0     0.0     0.0 | t 144656.0
+[optrace]  940 MUL_MAT          node_940                     q1_0     4096      1 |   347.6   351.9   345.7 | start     0.4     0.0     0.0 | t 144772.0
+[optrace]  941 ADD              ffn_inp-26                   f32      4096      1 |     6.6     8.4     8.7 | start   120.5     0.0     0.0 | t 145125.1
+[optrace]  942 RMS_NORM         norm-26                      f32      4096      1 |     5.0     4.9     5.5 | start     0.3     0.0     0.0 | t 145252.8
+[optrace]  943 MUL              ffn_norm-26                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  944 MUL_MAT          ffn_gate-26                  q1_0    12288      1 |  1521.3  1082.3  1097.6 | start     0.5     0.1     0.0 | t 145258.7
+[optrace]  945 MUL_MAT          ffn_up-26                    q1_0    12288      1 |  1101.5  1086.2  1079.0 | start     1.4     0.0    28.7 | t 146781.6
+[optrace]  946 SWIGLU           ffn_swiglu-26                f32     12288      1 |    31.6    32.4   109.6 | start     1.1     0.0     0.0 | t 147890.2
+[optrace]  947 MUL_MAT          ffn_out-26                   q1_0     4096      1 |  1111.8  1094.8  1162.3 | start     0.3     0.0     0.0 | t 148000.4
+[optrace]  948 ADD              l_out-26                     f32      4096      1 |     7.7     9.0    33.8 | start     1.1     0.0     0.0 | t 149163.6
+[optrace]  949 RMS_NORM         norm-27                      f32      4096      1 |     5.7     6.2     6.0 | start     0.4     0.0     0.0 | t 149197.9
+[optrace]  950 MUL              attn_norm-27                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  951 MUL_MAT          Qcur-27                      q1_0     4096      1 |   339.5   344.6   339.2 | start     0.3     0.0     0.0 | t 149204.8
+[optrace]  953 RMS_NORM         norm-27                      f32       128     32 |     8.7     9.6     9.3 | start     0.8     0.0     0.0 | t 149550.3
+[optrace]  954 MUL              Qcur_normed-27               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  955 ROPE             Qcur-27                      f32       128     32 |    17.5    18.0    17.7 | start     0.6     0.0     0.1 | t 149560.1
+[optrace]  956 MUL_MAT          Vcur-27                      q1_0     1024      1 |    95.1    91.4    93.7 | start     0.9     0.4     0.0 | t 149578.7
+[optrace]  958 MUL_MAT          Kcur-27                      q1_0     1024      1 |    95.9    90.6    93.0 | start     0.1     0.0     0.0 | t 149675.5
+[optrace]  960 RMS_NORM         norm-27                      f32       128      8 |     5.0     4.9     4.2 | start     0.1     0.0     0.0 | t 149772.2
+[optrace]  961 MUL              Kcur_normed-27               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  962 ROPE             Kcur-27                      f32       128      8 |     9.4     9.9     9.5 | start     0.3     0.0     0.0 | t 149777.7
+[optrace]  964 SET_ROWS         cache_k_l27 (view)           f32      1024    256 |     2.5     1.5     1.5 | start     0.7     0.0     0.0 | t 149788.0
+[optrace]  966 SET_ROWS         cache_v_l27 (view)           f32      1024    256 |     1.8     0.5     0.5 | start     0.4     0.0     0.0 | t 149791.7
+[optrace]  973 FLASH_ATTN_EXT   node_973                     f32       128     32 |   229.4   151.9   151.8 | start     0.1     0.0     0.1 | t 149795.2
+[optrace]  975 MUL_MAT          node_975                     q1_0     4096      1 |   395.1   397.5   388.7 | start     0.5     0.0     0.1 | t 150025.5
+[optrace]  976 ADD              ffn_inp-27                   f32      4096      1 |     7.6     9.0     8.8 | start     1.2     0.0     0.1 | t 150423.9
+[optrace]  977 RMS_NORM         norm-27                      f32      4096      1 |     4.7     5.1     4.8 | start     0.4     0.0     0.0 | t 150433.3
+[optrace]  978 MUL              ffn_norm-27                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  979 MUL_MAT          ffn_gate-27                  q1_0    12288      1 |  1330.5  1173.5  1188.6 | start     0.3     0.0     0.0 | t 150438.8
+[optrace]  980 MUL_MAT          ffn_up-27                    q1_0    12288      1 |  1165.0  1155.3  1095.3 | start     1.4     0.0    69.0 | t 151771.2
+[optrace]  981 SWIGLU           ffn_swiglu-27                f32     12288      1 |    31.8    34.5    32.9 | start     1.2     0.1     0.0 | t 152938.6
+[optrace]  982 MUL_MAT          ffn_out-27                   q1_0     4096      1 |  1259.0  1237.8  1246.8 | start     0.4     0.0     0.0 | t 152973.8
+[optrace]  983 ADD              l_out-27                     f32      4096      1 |     8.9    10.5    10.3 | start     1.2     0.0     0.0 | t 154234.3
+[optrace]  984 RMS_NORM         norm-28                      f32      4096      1 |     5.9     6.3     7.0 | start     0.5     0.0     0.0 | t 154245.1
+[optrace]  985 MUL              attn_norm-28                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  986 MUL_MAT          Qcur-28                      q1_0     4096      1 |   357.9   361.8   358.1 | start     0.6     0.1     0.0 | t 154252.5
+[optrace]  988 RMS_NORM         norm-28                      f32       128     32 |     9.8    10.5    10.4 | start     0.5     0.0     0.0 | t 154615.5
+[optrace]  989 MUL              Qcur_normed-28               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  990 ROPE             Qcur-28                      f32       128     32 |    18.7    19.1    18.7 | start     0.3     0.0     0.0 | t 154626.4
+[optrace]  991 MUL_MAT          Vcur-28                      q1_0     1024      1 |    96.1    96.8    90.9 | start     0.6     0.0     0.1 | t 154646.0
+[optrace]  993 MUL_MAT          Kcur-28                      q1_0     1024      1 |   197.3   117.0   118.0 | start     0.3     0.0     0.0 | t 154743.4
+[optrace]  995 RMS_NORM         norm-28                      f32       128      8 |     4.6     5.2     4.9 | start     0.4     0.1     0.0 | t 154942.1
+[optrace]  996 MUL              Kcur_normed-28               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace]  997 ROPE             Kcur-28                      f32       128      8 |    12.4    10.3     9.9 | start     0.6     0.0     0.0 | t 154947.6
+[optrace]  999 SET_ROWS         cache_k_l28 (view)           f32      1024    256 |     2.7     1.7     1.7 | start     0.7     0.0     0.0 | t 154961.1
+[optrace] 1001 SET_ROWS         cache_v_l28 (view)           f32      1024    256 |     1.7     0.6     0.5 | start     0.3     0.0     0.0 | t 154965.1
+[optrace] 1008 FLASH_ATTN_EXT   node_1008                    f32       128     32 |   185.5   120.5   108.4 | start     0.0     0.0     0.0 | t 154968.5
+[optrace] 1010 MUL_MAT          node_1010                    q1_0     4096      1 |   416.5   421.9   493.5 | start     0.6     0.0     0.0 | t 155154.7
+[optrace] 1011 ADD              ffn_inp-28                   f32      4096      1 |     7.2     9.8     9.9 | start   344.2     0.0     0.0 | t 155649.2
+[optrace] 1012 RMS_NORM         norm-28                      f32      4096      1 |  1464.4  1236.3     8.4 | start     0.0    16.1  1178.4 | t 156002.4
+[optrace] 1013 MUL              ffn_norm-28                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1014 MUL_MAT          ffn_gate-28                  q1_0    12288      1 |  1199.8  1194.9  1188.5 | start     0.9     0.1     0.0 | t 157467.7
+[optrace] 1015 MUL_MAT          ffn_up-28                    q1_0    12288      1 |  1149.7  1124.9  1154.5 | start     1.4     0.0     0.0 | t 158669.5
+[optrace] 1016 SWIGLU           ffn_swiglu-28                f32     12288      1 |    32.9    32.8    33.4 | start     1.3     0.0     0.0 | t 159825.0
+[optrace] 1017 MUL_MAT          ffn_out-28                   q1_0     4096      1 |  1117.3  1118.7  1115.9 | start     0.3     0.0     0.0 | t 159859.8
+[optrace] 1018 ADD              l_out-28                     f32      4096      1 |     7.3     9.0     8.8 | start     1.8     0.0     0.0 | t 160979.6
+[optrace] 1019 RMS_NORM         norm-29                      f32      4096      1 |     5.7     6.4     6.6 | start     0.3     0.0     0.0 | t 160989.0
+[optrace] 1020 MUL              attn_norm-29                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1021 MUL_MAT          Qcur-29                      q1_0     4096      1 |   339.3   345.0   343.0 | start     0.3     0.0     0.0 | t 160996.2
+[optrace] 1023 RMS_NORM         norm-29                      f32       128     32 |     8.6     9.4     9.2 | start     0.6     0.0     0.0 | t 161342.5
+[optrace] 1024 MUL              Qcur_normed-29               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1025 ROPE             Qcur-29                      f32       128     32 |    19.1    19.5    18.9 | start     0.4     0.0     0.0 | t 161352.4
+[optrace] 1026 MUL_MAT          Vcur-29                      q1_0     1024      1 |    94.3    89.8    97.2 | start     0.8     0.0     0.0 | t 161372.3
+[optrace] 1028 MUL_MAT          Kcur-29                      q1_0     1024      1 |    84.3    92.5    92.1 | start     0.4     0.0     0.0 | t 161470.3
+[optrace] 1030 RMS_NORM         norm-29                      f32       128      8 |     4.4     4.4     4.0 | start     0.2     0.0     0.0 | t 161563.6
+[optrace] 1031 MUL              Kcur_normed-29               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1032 ROPE             Kcur-29                      f32       128      8 |    10.1    10.1     9.9 | start     0.4     0.0     0.0 | t 161568.7
+[optrace] 1034 SET_ROWS         cache_k_l29 (view)           f32      1024    256 |     2.8     1.3     1.4 | start     0.3     0.0     0.0 | t 161579.7
+[optrace] 1036 SET_ROWS         cache_v_l29 (view)           f32      1024    256 |     1.5     0.5     0.5 | start     0.4     0.0     0.0 | t 161583.2
+[optrace] 1043 FLASH_ATTN_EXT   node_1043                    f32       128     32 |   113.0   113.2   102.6 | start     0.0     0.0     0.0 | t 161586.7
+[optrace] 1045 MUL_MAT          node_1045                    q1_0     4096      1 |   748.6   506.2   498.5 | start     0.5     0.0     0.0 | t 161700.7
+[optrace] 1046 ADD              ffn_inp-29                   f32      4096      1 |     7.7     9.5     9.5 | start     1.7     0.0     0.0 | t 162450.7
+[optrace] 1047 RMS_NORM         norm-29                      f32      4096      1 |     4.8     5.2     6.2 | start     0.5     0.0     0.0 | t 162460.6
+[optrace] 1048 MUL              ffn_norm-29                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1049 MUL_MAT          ffn_gate-29                  q1_0    12288      1 |  1078.3  1090.8  1087.2 | start     0.2     0.0     0.0 | t 162467.3
+[optrace] 1050 MUL_MAT          ffn_up-29                    q1_0    12288      1 |  1070.4  1111.1  1118.9 | start     1.1     0.0     0.0 | t 163559.0
+[optrace] 1051 SWIGLU           ffn_swiglu-29                f32     12288      1 |    30.7    33.6    32.3 | start     1.4     0.1     0.0 | t 164679.3
+[optrace] 1052 MUL_MAT          ffn_out-29                   q1_0     4096      1 |  1111.6  1102.2  1166.1 | start     0.3     0.0     0.0 | t 164713.5
+[optrace] 1053 ADD              l_out-29                     f32      4096      1 |     8.5     6.1     8.8 | start     2.4    45.7     0.0 | t 165880.7
+[optrace] 1054 RMS_NORM         norm-30                      f32      4096      1 |     5.9     5.7     6.5 | start     0.4     0.0     0.0 | t 165933.0
+[optrace] 1055 MUL              attn_norm-30                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1056 MUL_MAT          Qcur-30                      q1_0     4096      1 |   360.7   362.3   367.5 | start     0.4     0.0     0.0 | t 165940.0
+[optrace] 1058 RMS_NORM         norm-30                      f32       128     32 |     9.2    10.0     9.8 | start     0.6     0.0     0.0 | t 166308.7
+[optrace] 1059 MUL              Qcur_normed-30               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1060 ROPE             Qcur-30                      f32       128     32 |    17.9    18.3    17.9 | start     0.4     0.0     0.0 | t 166319.0
+[optrace] 1061 MUL_MAT          Vcur-30                      q1_0     1024      1 |    96.0    91.8    95.1 | start     0.3     0.0     0.0 | t 166337.8
+[optrace] 1063 MUL_MAT          Kcur-30                      q1_0     1024      1 |    90.4    97.7    93.5 | start     0.3     0.0     0.0 | t 166435.0
+[optrace] 1065 RMS_NORM         norm-30                      f32       128      8 |     4.8    82.5     4.4 | start     0.2     0.1     0.0 | t 166533.5
+[optrace] 1066 MUL              Kcur_normed-30               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1067 ROPE             Kcur-30                      f32       128      8 |     8.8    12.0     9.3 | start     0.8     0.5     0.0 | t 166616.9
+[optrace] 1069 SET_ROWS         cache_k_l30 (view)           f32      1024    256 |     3.5     1.5     1.5 | start     0.1     0.0     0.0 | t 166629.9
+[optrace] 1071 SET_ROWS         cache_v_l30 (view)           f32      1024    256 |     1.9     0.5     0.5 | start     0.2     0.0     0.0 | t 166634.2
+[optrace] 1078 FLASH_ATTN_EXT   node_1078                    f32       128     32 |  1721.8   143.3   145.7 | start     0.0     0.0     0.0 | t 166637.6
+[optrace] 1080 MUL_MAT          node_1080                    q1_0     4096      1 |   495.6   492.5   395.9 | start     1.5     0.0    97.5 | t 168361.3
+[optrace] 1081 ADD              ffn_inp-30                   f32      4096      1 |     8.3     8.9     8.9 | start     1.1     0.3     0.0 | t 168859.4
+[optrace] 1082 RMS_NORM         norm-30                      f32      4096      1 |     5.6     5.5     5.4 | start     0.5     0.0     0.0 | t 168869.2
+[optrace] 1083 MUL              ffn_norm-30                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1084 MUL_MAT          ffn_gate-30                  q1_0    12288      1 |  1161.7  1165.2  1156.8 | start     0.4     0.0     0.1 | t 168875.5
+[optrace] 1085 MUL_MAT          ffn_up-30                    q1_0    12288      1 |  1191.0  1206.0  1187.0 | start    24.2     0.0     0.0 | t 170041.9
+[optrace] 1086 SWIGLU           ffn_swiglu-30                f32     12288      1 |    31.9    32.9    34.7 | start     1.1     0.0     0.0 | t 171258.8
+[optrace] 1087 MUL_MAT          ffn_out-30                   q1_0     4096      1 |  2782.3  1221.3  1209.1 | start     0.5     0.0     0.0 | t 171294.0
+[optrace] 1088 ADD              l_out-30                     f32      4096      1 |     8.8     5.5    10.7 | start     1.4    36.8     0.0 | t 174078.4
+[optrace] 1089 RMS_NORM         norm-31                      f32      4096      1 |     7.4     7.9     8.0 | start     0.5     0.0     0.0 | t 174121.6
+[optrace] 1090 MUL              attn_norm-31                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1091 MUL_MAT          Qcur-31                      q1_0     4096      1 |   386.7   384.0   384.2 | start     0.3     0.0     0.0 | t 174130.1
+[optrace] 1093 RMS_NORM         norm-31                      f32       128     32 |     9.7    10.3     9.4 | start     0.4     0.0     0.0 | t 174518.4
+[optrace] 1094 MUL              Qcur_normed-31               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1095 ROPE             Qcur-31                      f32       128     32 |    20.8    21.1    21.0 | start     0.5     0.1     0.0 | t 174529.1
+[optrace] 1096 MUL_MAT          Vcur-31                      q1_0     1024      1 |   119.9   114.9   117.3 | start     0.5     0.0     0.0 | t 174551.2
+[optrace] 1098 MUL_MAT          Kcur-31                      q1_0     1024      1 |   119.1   110.8   114.2 | start     0.5     0.0     0.0 | t 174672.9
+[optrace] 1100 RMS_NORM         norm-31                      f32       128      8 |     4.1     4.8     4.4 | start     0.8     0.0     0.0 | t 174793.4
+[optrace] 1101 MUL              Kcur_normed-31               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1102 ROPE             Kcur-31                      f32       128      8 |    12.4    11.1    10.6 | start     0.3     0.0     0.0 | t 174798.8
+[optrace] 1104 SET_ROWS         cache_k_l31 (view)           f32      1024    256 |     3.3     1.7     1.6 | start     0.2     0.0     0.0 | t 174812.3
+[optrace] 1106 SET_ROWS         cache_v_l31 (view)           f32      1024    256 |     1.7     0.5     0.6 | start     0.5     0.0     0.0 | t 174816.0
+[optrace] 1113 FLASH_ATTN_EXT   node_1113                    f32       128     32 |   131.5   122.7   131.0 | start     0.0     0.0     0.0 | t 174819.5
+[optrace] 1115 MUL_MAT          node_1115                    q1_0     4096      1 |   395.6   391.6   393.6 | start     0.4     0.0     0.0 | t 174951.8
+[optrace] 1116 ADD              ffn_inp-31                   f32      4096      1 |     8.5     9.7     9.4 | start     0.8     0.0     0.0 | t 175349.1
+[optrace] 1117 RMS_NORM         norm-31                      f32      4096      1 |     5.1     5.6     5.5 | start     0.5     0.0     0.0 | t 175359.2
+[optrace] 1118 MUL              ffn_norm-31                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1119 MUL_MAT          ffn_gate-31                  q1_0    12288      1 |  1112.3  1120.7  1070.9 | start     0.2     0.0     0.0 | t 175381.9
+[optrace] 1120 MUL_MAT          ffn_up-31                    q1_0    12288      1 |  1095.3  1120.7  1141.5 | start     1.5     0.0     0.0 | t 176503.7
+[optrace] 1121 SWIGLU           ffn_swiglu-31                f32     12288      1 |    31.7    33.3    33.9 | start     0.9     0.3     0.0 | t 177646.3
+[optrace] 1122 MUL_MAT          ffn_out-31                   q1_0     4096      1 |  1178.0  1178.0  1188.3 | start     0.3     0.0     0.0 | t 177680.7
+[optrace] 1123 ADD              l_out-31                     f32      4096      1 |     8.3     9.3     9.3 | start     1.0     0.0     0.0 | t 178869.8
+[optrace] 1124 RMS_NORM         norm-32                      f32      4096      1 |     6.0     6.6     7.3 | start     0.5     0.0     0.0 | t 178879.8
+[optrace] 1125 MUL              attn_norm-32                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1126 MUL_MAT          Qcur-32                      q1_0     4096      1 |   442.1   440.1   443.9 | start     0.5     0.0     0.0 | t 178887.6
+[optrace] 1128 RMS_NORM         norm-32                      f32       128     32 |     9.0     9.9     9.4 | start     0.6     0.0     0.0 | t 179332.9
+[optrace] 1129 MUL              Qcur_normed-32               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1130 ROPE             Qcur-32                      f32       128     32 |    18.6    19.3    19.2 | start     1.1     0.0     0.1 | t 179342.9
+[optrace] 1131 MUL_MAT          Vcur-32                      q1_0     1024      1 |    96.0    97.1    89.5 | start     0.4     0.0     0.0 | t 179363.0
+[optrace] 1133 MUL_MAT          Kcur-32                      q1_0     1024      1 |    87.3    92.8    94.7 | start     0.3     0.0     0.0 | t 179460.8
+[optrace] 1135 RMS_NORM         norm-32                      f32       128      8 |     3.9     4.6     3.5 | start     0.2     0.0     0.0 | t 179556.3
+[optrace] 1136 MUL              Kcur_normed-32               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1137 ROPE             Kcur-32                      f32       128      8 |     9.0     9.4     8.8 | start     0.3     0.0     0.0 | t 179561.4
+[optrace] 1139 SET_ROWS         cache_k_l32 (view)           f32      1024    256 |     3.0     1.5     1.4 | start     0.0     0.0     0.0 | t 179571.5
+[optrace] 1141 SET_ROWS         cache_v_l32 (view)           f32      1024    256 |     1.8     1.2     1.2 | start     0.5     0.0     0.0 | t 179575.0
+[optrace] 1148 FLASH_ATTN_EXT   node_1148                    f32       128     32 |   113.8   114.1   106.7 | start     0.0     0.0     0.0 | t 179578.4
+[optrace] 1150 MUL_MAT          node_1150                    q1_0     4096      1 |   356.2   358.0   354.6 | start     0.3     0.0     0.0 | t 179693.3
+[optrace] 1151 ADD              ffn_inp-32                   f32      4096      1 |     8.0     8.4     8.8 | start     0.8     0.0     0.0 | t 180052.1
+[optrace] 1152 RMS_NORM         norm-32                      f32      4096      1 |     4.3     4.7     4.9 | start     0.4     0.0     0.0 | t 180061.3
+[optrace] 1153 MUL              ffn_norm-32                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1154 MUL_MAT          ffn_gate-32                  q1_0    12288      1 |  1053.1  1074.1  1093.2 | start     0.7     0.1     0.0 | t 180066.3
+[optrace] 1155 MUL_MAT          ffn_up-32                    q1_0    12288      1 |  1084.0  1111.7  1101.0 | start     1.0     0.0     0.0 | t 181160.5
+[optrace] 1156 SWIGLU           ffn_swiglu-32                f32     12288      1 |    33.8    36.2    35.5 | start     1.3     0.0     0.0 | t 182273.3
+[optrace] 1157 MUL_MAT          ffn_out-32                   q1_0     4096      1 |  1071.3  1123.9  1142.0 | start    31.0     0.0     0.0 | t 182310.0
+[optrace] 1158 ADD              l_out-32                     f32      4096      1 |     7.6     8.4     8.8 | start     1.2     0.0     0.0 | t 183453.1
+[optrace] 1159 RMS_NORM         norm-33                      f32      4096      1 |     6.3     7.0     6.1 | start     0.6     0.0     0.0 | t 183462.6
+[optrace] 1160 MUL              attn_norm-33                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1161 MUL_MAT          Qcur-33                      q1_0     4096      1 |   448.0   447.0   451.4 | start     0.5     0.0     0.0 | t 183469.8
+[optrace] 1163 RMS_NORM         norm-33                      f32       128     32 |     8.8     9.8     9.3 | start     1.1     0.0     0.0 | t 183922.2
+[optrace] 1164 MUL              Qcur_normed-33               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1165 ROPE             Qcur-33                      f32       128     32 |    17.6    18.9    18.6 | start     1.1     0.0     0.0 | t 183932.2
+[optrace] 1166 MUL_MAT          Vcur-33                      q1_0     1024      1 |    89.3    94.5    93.8 | start     0.3     0.0     0.0 | t 183951.6
+[optrace] 1168 MUL_MAT          Kcur-33                      q1_0     1024      1 |    86.0    94.3    92.8 | start     0.6     0.0     0.0 | t 184046.8
+[optrace] 1170 RMS_NORM         norm-33                      f32       128      8 |     4.6     4.5     4.0 | start     0.3     0.0     0.0 | t 184141.7
+[optrace] 1171 MUL              Kcur_normed-33               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1172 ROPE             Kcur-33                      f32       128      8 |     9.4     9.8     9.5 | start     0.3     0.0     0.0 | t 184146.9
+[optrace] 1174 SET_ROWS         cache_k_l33 (view)           f32      1024    256 |     2.1     1.2     1.1 | start     0.3     0.0     0.0 | t 184157.7
+[optrace] 1176 SET_ROWS         cache_v_l33 (view)           f32      1024    256 |     1.3     0.6     0.6 | start     0.5     0.0     0.0 | t 184160.5
+[optrace] 1183 FLASH_ATTN_EXT   node_1183                    f32       128     32 |   123.7   126.0   125.7 | start     0.0     0.1     0.0 | t 184163.5
+[optrace] 1185 MUL_MAT          node_1185                    q1_0     4096      1 |   386.7   384.9   385.4 | start     0.6     0.2     0.0 | t 184339.9
+[optrace] 1186 ADD              ffn_inp-33                   f32      4096      1 |     8.3     8.8     8.6 | start     0.9     0.0     0.0 | t 184728.4
+[optrace] 1187 RMS_NORM         norm-33                      f32      4096      1 |     4.7     5.0     5.6 | start     0.5     0.1     0.0 | t 184737.9
+[optrace] 1188 MUL              ffn_norm-33                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1189 MUL_MAT          ffn_gate-33                  q1_0    12288      1 |  1279.2  1271.8  1276.7 | start     0.3     0.0     0.0 | t 184743.8
+[optrace] 1190 MUL_MAT          ffn_up-33                    q1_0    12288      1 |  1229.8  1287.2  1217.0 | start     1.1     0.0     0.0 | t 186024.7
+[optrace] 1191 SWIGLU           ffn_swiglu-33                f32     12288      1 |    29.5    63.6    36.4 | start    23.6     0.0     0.0 | t 187313.0
+[optrace] 1192 MUL_MAT          ffn_out-33                   q1_0     4096      1 |  1156.0  1121.0  1106.8 | start     0.4     0.0     0.0 | t 187377.1
+[optrace] 1193 ADD              l_out-33                     f32      4096      1 |     7.4     8.7     8.8 | start     1.1     0.0     0.0 | t 188534.4
+[optrace] 1194 RMS_NORM         norm-34                      f32      4096      1 |     5.2     6.4     6.2 | start     0.8     0.1     0.0 | t 188543.5
+[optrace] 1195 MUL              attn_norm-34                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1196 MUL_MAT          Qcur-34                      q1_0     4096      1 |  2101.8   415.5   469.8 | start     0.3     0.0     0.0 | t 188550.4
+[optrace] 1198 RMS_NORM         norm-34                      f32       128     32 |    10.3     6.6    11.5 | start     1.8    29.3     0.0 | t 190654.7
+[optrace] 1199 MUL              Qcur_normed-34               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1200 ROPE             Qcur-34                      f32       128     32 |    20.7    20.9    20.3 | start     0.8     0.0     0.1 | t 190691.0
+[optrace] 1201 MUL_MAT          Vcur-34                      q1_0     1024      1 |   109.9   103.7   108.8 | start     0.2     0.0     0.0 | t 190712.8
+[optrace] 1203 MUL_MAT          Kcur-34                      q1_0     1024      1 |    97.3   105.6   102.4 | start     0.3     0.0     0.0 | t 190823.7
+[optrace] 1205 RMS_NORM         norm-34                      f32       128      8 |     5.1     5.4     4.8 | start     0.4     0.0     0.0 | t 190930.0
+[optrace] 1206 MUL              Kcur_normed-34               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1207 ROPE             Kcur-34                      f32       128      8 |    10.4    10.8    10.6 | start     0.8     0.0     0.0 | t 190935.7
+[optrace] 1209 SET_ROWS         cache_k_l34 (view)           f32      1024    256 |     3.1     1.7     1.6 | start     0.3     0.0     0.0 | t 190947.8
+[optrace] 1211 SET_ROWS         cache_v_l34 (view)           f32      1024    256 |     1.6     0.6     0.6 | start     0.5     0.0     0.0 | t 190951.8
+[optrace] 1218 FLASH_ATTN_EXT   node_1218                    f32       128     32 |   122.8   123.1   114.8 | start     0.0     0.0     0.0 | t 190955.5
+[optrace] 1220 MUL_MAT          node_1220                    q1_0     4096      1 |   402.5   407.7   408.2 | start     0.3     0.0     0.0 | t 191079.5
+[optrace] 1221 ADD              ffn_inp-34                   f32      4096      1 |    36.4     9.7     9.7 | start     1.0     0.0     0.0 | t 191488.7
+[optrace] 1222 RMS_NORM         norm-34                      f32      4096      1 |     5.2     6.5     5.6 | start     0.7     0.0     0.0 | t 191526.4
+[optrace] 1223 MUL              ffn_norm-34                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1224 MUL_MAT          ffn_gate-34                  q1_0    12288      1 |  1157.9  1173.7  1179.2 | start     0.3     0.0     0.0 | t 191533.5
+[optrace] 1225 MUL_MAT          ffn_up-34                    q1_0    12288      1 |  1095.5  1171.8  1115.8 | start     1.4     0.0     0.1 | t 192714.1
+[optrace] 1226 SWIGLU           ffn_swiglu-34                f32     12288      1 |    30.8    32.8    29.8 | start     7.6     0.0     8.6 | t 193887.1
+[optrace] 1227 MUL_MAT          ffn_out-34                   q1_0     4096      1 |  1173.7  1170.6  1182.6 | start     0.1     0.0     0.0 | t 193926.3
+[optrace] 1228 ADD              l_out-34                     f32      4096      1 |     7.6     8.5     8.2 | start     1.0     0.0     0.0 | t 195110.3
+[optrace] 1229 RMS_NORM         norm-35                      f32      4096      1 |     6.0     6.1     5.9 | start     0.3     0.0     0.0 | t 195119.3
+[optrace] 1230 MUL              attn_norm-35                 f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1231 MUL_MAT          Qcur-35                      q1_0     4096      1 |   401.0   401.5   399.0 | start     0.4     0.0     0.0 | t 195125.9
+[optrace] 1233 RMS_NORM         norm-35                      f32       128     32 |     8.4     9.4     9.2 | start     0.8     0.0     0.0 | t 195528.8
+[optrace] 1234 MUL              Qcur_normed-35               f32       128     32 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1235 ROPE             Qcur-35                      f32       128     32 |    17.6    18.2    18.2 | start     0.5     0.0     0.0 | t 195538.7
+[optrace] 1236 MUL_MAT          Vcur-35                      q1_0     1024      1 |    98.6    96.8    93.8 | start     0.5     0.0     0.0 | t 195557.4
+[optrace] 1238 MUL_MAT          Kcur-35                      q1_0     1024      1 |    97.7    93.6    94.6 | start     0.6     0.0     0.0 | t 195657.8
+[optrace] 1240 RMS_NORM         norm-35                      f32       128      8 |     4.2     4.3     3.8 | start     0.1     0.0     0.0 | t 195757.1
+[optrace] 1241 MUL              Kcur_normed-35               f32       128      8 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1242 ROPE             Kcur-35                      f32       128      8 |     9.4     9.5     9.2 | start     0.3     0.0     0.0 | t 195761.8
+[optrace] 1244 SET_ROWS         cache_k_l35 (view)           f32      1024    256 |     3.1     1.6     1.5 | start     0.1     0.0     0.0 | t 195772.0
+[optrace] 1246 SET_ROWS         cache_v_l35 (view)           f32      1024    256 |     1.7     0.5     0.6 | start     0.3     0.0     0.0 | t 195776.1
+[optrace] 1253 FLASH_ATTN_EXT   node_1253                    f32       128     32 |   114.0   114.3   106.2 | start     0.0     0.0     0.0 | t 195779.3
+[optrace] 1255 MUL_MAT          node_1255                    q1_0     4096      1 |   344.9   344.1   346.9 | start     0.6     0.1     0.0 | t 195894.0
+[optrace] 1256 GET_ROWS         node_1256                    f32      4096      1 |     5.0     2.4     2.4 | start     1.2     0.0     0.0 | t 196241.6
+[optrace] 1257 GET_ROWS         node_1257                    f32      4096      1 |     3.4     0.7     0.7 | start     0.3     0.0     0.0 | t 196248.2
+[optrace] 1258 ADD              ffn_inp-35                   f32      4096      1 |     6.1     6.3     6.3 | start     0.1     0.0     0.0 | t 196252.2
+[optrace] 1259 RMS_NORM         norm-35                      f32      4096      1 |     4.8     5.5     5.6 | start     0.6     0.0     0.0 | t 196259.0
+[optrace] 1260 MUL              ffn_norm-35                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1261 MUL_MAT          ffn_gate-35                  q1_0    12288      1 |  1090.2  1094.6  1077.4 | start     0.3     0.0     0.0 | t 196265.0
+[optrace] 1262 MUL_MAT          ffn_up-35                    q1_0    12288      1 |  1192.8  1169.6  1156.0 | start     1.2     0.0     0.0 | t 197360.5
+[optrace] 1263 SWIGLU           ffn_swiglu-35                f32     12288      1 |   146.1    45.6    33.4 | start     1.7     0.0     0.0 | t 198555.7
+[optrace] 1264 MUL_MAT          ffn_out-35                   q1_0     4096      1 |  1135.7  1125.0  1111.0 | start     0.6     0.0     0.0 | t 198704.0
+[optrace] 1265 ADD              l_out-35                     f32      4096      1 |     8.1     9.6    10.8 | start     1.2     0.0     0.0 | t 199841.6
+[optrace] 1266 RMS_NORM         norm                         f32      4096      1 |     9.3     9.8    10.0 | start     0.7     0.0     0.0 | t 199852.6
+[optrace] 1267 MUL              result_norm                  f32      4096      1 |     0.0     0.0     0.0 | start     0.0     0.0     0.0 | t -3011898156.0
+[optrace] 1268 MUL_MAT          node_1268                    q1_0    61592      1 |  9632.6  9454.3  9536.1 | start     0.7     0.0     0.0 | t 199862.8
+[optrace] 1270 CONT              (transposed) (cont)         f32         1  61592 |    57.0    57.7    56.0 | start     0.9     0.0     0.0 | t 209497.9
+[optrace] 1271 FILL              (view)                      f32         1 151669 |    57.2    57.8    58.7 | start     0.4     0.0     0.0 | t 209556.7
+[optrace] 1272 SET_ROWS          (view) (view)               f32         1 151669 |   411.5   326.8   418.1 | start     0.5     0.0     0.0 | t 209616.0
+[optrace] 1274 CONT             result_output                f32    151669      1 |   183.2   117.1    97.5 | start     1.0   105.7     0.0 | t 210035.1
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen3 8B Q1_0                  |   1.03 GiB |     7.82 B | CPU        |       3 |            tg28 |          4.56 ± 0.00 |
+
+[opprof] 29 graphs, 7.140 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q1_0         7337    5972.7   83.6%      4.91   5468.7ms    814.0
+[opprof] RMS_NORM               f32          4205     756.3   10.6%      0.07    661.7ms    179.9
+[opprof] FLASH_ATTN_EXT         f32          1044     137.2    1.9%      0.12    122.5ms    131.4
+[opprof] GLU                    f32          1044      73.2    1.0%      0.70     40.5ms     70.1
+[opprof] ROPE                   f32          2088      60.0    0.8%      0.36     40.0ms     28.7
+[opprof] ADD                    f32          2088      56.4    0.8%      0.61     20.0ms     27.0
+[opprof] GET_ROWS               q1_0           29      49.1    0.7%     51.56     47.9ms   1694.3
+[opprof] SET_ROWS               f32          2117      23.5    0.3%      0.67     14.2ms     11.1
+[opprof] CONT                   f32            58       5.9    0.1%      4.20      5.6ms    101.5
+[opprof] FILL                   f32            29       4.1    0.1%      4.29      1.9ms    141.4
+[opprof] GET_ROWS               f32            58       2.0    0.0%      0.47      0.3ms     34.7
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 237 MB, max RSS 1219 MB

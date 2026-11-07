@@ -1,0 +1,12 @@
+TV Q2 top-6 bias 0.25 (default)    loops 11/16 | repeats mean  43.2 median  45.4 % | longest run median  309 | loop starts at word 330 | 7.8 tok/s | 663 words
+   server: 28.11.543.848 I slot      release: id  0 | task 12713 | stop processing: n_tokens = 59, tr top=calendar
+TV Q2 top-8 bias 0                 loops  7/8 | repeats mean  52.0 median  62.8 % | longest run median  288 | loop starts at word 284 | 4.7 tok/s | 697 words
+   server: 27.44.297.961 I slot      release: id  0 | task 6860 | stop processing: n_tokens = 54, tru top=calendar
+TV Q3 top-8 bias 0.2               loops  7/16 | repeats mean  20.9 median  15.7 % | longest run median   23 | loop starts at word 533 | 4.3 tok/s | 747 words
+   server: 62.00.405.339 I slot      release: id  0 | task 14211 | stop processing: n_tokens = 1022,  top=calendar
+TV Q3 top-8 bias 0                 loops  4/8 | repeats mean  16.1 median  11.2 % | longest run median   42 | loop starts at word 565 | 2.6 tok/s | 786 words
+   server: 54.18.137.896 I slot      release: id  0 | task 6860 | stop processing: n_tokens = 1022, t top=calendar
+TV Q2 default + rep1.15/256 prose  loops  2/16 | repeats mean   4.9 median   0.0 % | longest run median    0 | loop starts at word 475 | 7.5 tok/s | 513 words
+TV Q2 default + rep1.15/256 code   loops  3/6 | repeats mean  24.6 median   5.2 % | longest run median   21 | loop starts at word 103 | 7.4 tok/s | 279 words
+TV Q2 default, no penalty, code    loops  4/6 | repeats mean  38.4 median  50.6 % | longest run median  151 | loop starts at word 185 | 8.0 tok/s | 368 words
+TV FIX DONE

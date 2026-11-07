@@ -1,0 +1,7 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+ggml_cpu_stream_register: cannot stream 0.0 MB zone
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen3 8B Q1_0                  |   1.03 GiB |     7.82 B | CPU        |       3 |            tg48 |          5.08 ± 0.00 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 242 MB, max RSS 1130 MB

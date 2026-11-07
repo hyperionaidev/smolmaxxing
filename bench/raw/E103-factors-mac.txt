@@ -1,0 +1,16 @@
+Q3 h60 top-8 bias 0 seed 42: {979, tps: 31.24} words 754 repeated 6-grams 0.4 %, longest repeated run 2 words 
+Q3 h60 top-8 bias 0 seed 43: {979, tps: 33.28} words 755 repeated 6-grams 24.7 %, longest repeated run 171 words 
+Q3 h60 top-8 bias 0 seed 44: {979, tps: 37.92} words 674 repeated 6-grams 28.4 %, longest repeated run 14 words 
+Q3 h60 top-8 bias 0.2 seed 42: {979, tps: 31.12} words 713 repeated 6-grams 10.6 %, longest repeated run 28 words 
+Q3 h60 top-8 bias 0.2 seed 43: {979, tps: 43.37} words 776 repeated 6-grams 7.5 %, longest repeated run 14 words 
+Q3 h60 top-8 bias 0.2 seed 44: {979, tps: 48.35} words 719 repeated 6-grams 22.3 %, longest repeated run 97 words 
+Q3 h60 top-6 bias 0.2 seed 42: {979, tps: 43.71} words 776 repeated 6-grams 42.0 %, longest repeated run 166 words 
+Q3 h60 top-6 bias 0.2 seed 43: {979, tps: 56.23} words 832 repeated 6-grams 3.5 %, longest repeated run 5 words 
+Q3 h60 top-6 bias 0.2 seed 44: {979, tps: 55.06} words 736 repeated 6-grams 34.7 %, longest repeated run 241 words 
+Q4 h60 top-8 bias 0 seed 42: {979, tps: 19.94} words 743 repeated 6-grams 8.8 %, longest repeated run 22 words 
+Q4 h60 top-8 bias 0 seed 43: {979, tps: 22.49} words 783 repeated 6-grams 11.3 %, longest repeated run 37 words 
+Q4 h60 top-8 bias 0 seed 44: {979, tps: 23.97} words 697 repeated 6-grams 0.0 %, longest repeated run 0 words 
+Q4 h60 top-8 bias 0.2 seed 42: {979, tps: 18.01} words 687 repeated 6-grams 0.6 %, longest repeated run 2 words 
+Q4 h60 top-8 bias 0.2 seed 43: {830, tps: 21.21} words 609 repeated 6-grams 6.3 %, longest repeated run 4 words 
+Q4 h60 top-8 bias 0.2 seed 44: {979, tps: 39.51} words 771 repeated 6-grams 8.4 %, longest repeated run 55 words 
+MAC-FACTORS DONE

@@ -1,0 +1,222 @@
+// tvbox: expert pager for mixture-of-experts models bigger than RAM (EXPERIMENT.md section 19, included in ops.cpp).
+// A token only uses 8 of 128 experts per layer, so the weights touched per token fit in RAM even if the model doesn't, and 45 % of
+// a token's experts were also used by the previous one. Here:
+//  * the whole-page interior of every *_exps tensor in the model mapping is overlaid with empty anonymous memory;
+//  * right after a layer's routing (the argsort hook) the missing experts are read with parallel O_DIRECT straight into their own
+//    addresses, so kernels see a normal tensor; each layer keeps an LRU of GGML_MOE_POOL experts, the rest is freed (MADV_DONTNEED);
+//  * pages at an expert's edges can be shared with its neighbour: a page is freed only if no cached expert covers it.
+// Nothing else may touch an expert that wasn't selected: an unloaded page reads as zeros, not as an error. GGML_MOE_VERIFY=1 compares
+// every loaded expert with the file. GGML_MOE_READERS=n reader threads (default 4), GGML_MOE_STATS=1 prints totals at exit.
+#include <atomic>
+#include <map>
+#include <condition_variable>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <time.h>
+#include <unistd.h>
+
+namespace {
+constexpr size_t MP_PG = 4096;
+struct mp_tensor { char * base; size_t len; size_t stride; char * map0; std::vector<uint8_t> present; std::string name; int fd = -1, vfd = -1; };   // map0: file offset 0's address
+struct mp_layer { std::vector<mp_tensor> t; std::vector<int> lru; std::vector<uint8_t> cached; };
+struct mp_job { char * p; size_t len; off_t off; int fd; };
+struct mp_state {
+    std::vector<mp_layer> layers = std::vector<mp_layer>(256);
+    int fd = -1, vfd = -1, n_expert = 0;
+    std::mutex mu; std::condition_variable cv_work, cv_done;
+    std::vector<mp_job> q; size_t q_head = 0; int pending = 0; bool started = false;
+    std::atomic<long> rd_bytes{0}, wait_ns{0}, hits{0}, miss{0}, drop_bytes{0}, passes{0};
+    bool verify = false;
+};
+mp_state & mp_get() { static mp_state s; return s; }
+int64_t mp_now() { timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (int64_t) t.tv_sec * 1000000000 + t.tv_nsec; }
+
+void mp_reader() {
+    mp_state & s = mp_get();
+    for (;;) {
+        mp_job j;
+        {
+            std::unique_lock<std::mutex> lk(s.mu);
+            s.cv_work.wait(lk, [&] { return s.q_head < s.q.size(); });
+            j = s.q[s.q_head++];
+        }
+        char * a = j.p; size_t left = j.len; off_t off = j.off;
+        while (left) {
+            const ssize_t r = pread(j.fd, a, left, off);
+            if (r <= 0) { GGML_ABORT("moe pager: read failed at %lld", (long long) off); }
+            a += r; left -= (size_t) r; off += r; s.rd_bytes += r;
+        }
+        {
+            std::lock_guard<std::mutex> lk(s.mu);
+            if (--s.pending == 0) { s.cv_done.notify_all(); }
+        }
+    }
+}
+// pages [p0, p1) of tensor t covering expert e
+inline void mp_pages(const mp_tensor & t, int e, size_t & p0, size_t & p1) {
+    const char * a = t.base + (size_t) e * t.stride, * b = a + t.stride;
+    const char * first = (const char *) (((uintptr_t) t.base + MP_PG - 1) & ~(uintptr_t) (MP_PG - 1));   // the overlay's start
+    const char * last  = (const char *) ((uintptr_t) (t.base + t.len) & ~(uintptr_t) (MP_PG - 1));       // the overlay's end
+    const char * pa = (const char *) ((uintptr_t) a & ~(uintptr_t) (MP_PG - 1));
+    const char * pb = (const char *) (((uintptr_t) b + MP_PG - 1) & ~(uintptr_t) (MP_PG - 1));
+    if (pa < first) { pa = first; }
+    if (pb > last)  { pb = last; }
+    p0 = pa < pb ? (size_t) (pa - first) / MP_PG : 0;
+    p1 = pa < pb ? (size_t) (pb - first) / MP_PG : 0;
+}
+inline char * mp_first(const mp_tensor & t) { return (char *) (((uintptr_t) t.base + MP_PG - 1) & ~(uintptr_t) (MP_PG - 1)); }
+
+void mp_evict(mp_layer & L, int e) {
+    mp_state & s = mp_get();
+    L.cached[e] = 0;
+    for (mp_tensor & t : L.t) {
+        size_t p0, p1; mp_pages(t, e, p0, p1);
+        for (size_t p = p0; p < p1; ) {
+            size_t q = p;
+            // a page is kept if the neighbour sharing it is cached
+            auto keep = [&](size_t pg) {
+                const size_t bo = (size_t) (mp_first(t) + pg * MP_PG - t.base);
+                const int e0 = (int) (bo / t.stride), e1 = (int) ((bo + MP_PG - 1) / t.stride);
+                for (int x = e0; x <= e1 && x < (int) L.cached.size(); x++) { if (L.cached[x]) { return true; } }
+                return false;
+            };
+            while (q < p1 && t.present[q] && !keep(q)) { t.present[q] = 0; q++; }
+            if (q > p) { madvise(mp_first(t) + p * MP_PG, (q - p) * MP_PG, MADV_DONTNEED); s.drop_bytes += (long) ((q - p) * MP_PG); p = q; } else { p++; }
+        }
+    }
+}
+void mp_load(mp_layer & L, const std::vector<int> & want) {
+    mp_state & s = mp_get();
+    std::vector<mp_job> jobs;
+    for (int e : want) {
+        for (mp_tensor & t : L.t) {
+            size_t p0, p1; mp_pages(t, e, p0, p1);
+            for (size_t p = p0; p < p1; ) {
+                if (t.present[p]) { p++; continue; }
+                size_t q = p;
+                while (q < p1 && !t.present[q]) { t.present[q] = 1; q++; }
+                char * a = mp_first(t) + p * MP_PG;
+                jobs.push_back({ a, (q - p) * MP_PG, (off_t) (a - t.map0), t.fd });
+                p = q;
+            }
+        }
+    }
+    if (jobs.empty()) { return; }
+    const int64_t t0 = mp_now();
+    {
+        std::unique_lock<std::mutex> lk(s.mu);
+        s.q.swap(jobs); s.q_head = 0; s.pending = (int) s.q.size();
+        s.cv_work.notify_all();
+        s.cv_done.wait(lk, [&] { return s.pending == 0; });
+        s.q.clear(); s.q_head = 0;
+    }
+    s.wait_ns += mp_now() - t0;
+    if (s.verify) {
+        for (int e : want) {
+            for (mp_tensor & t : L.t) {
+                std::vector<char> ref(t.stride);
+                const char * a = t.base + (size_t) e * t.stride;
+                const ssize_t r = pread(t.vfd, ref.data(), t.stride, (off_t) (a - t.map0));
+                if (r != (ssize_t) t.stride || memcmp(ref.data(), a, t.stride) != 0) {
+                    GGML_ABORT("moe pager VERIFY: %s expert %d differs from the file", t.name.c_str(), e);
+                }
+            }
+        }
+    }
+}
+}  // namespace
+
+extern "C" int ggml_cpu_moe_pager_active = 0;
+extern "C" void ggml_cpu_moe_pager_stats(void) {
+    mp_state & s = mp_get();
+    fprintf(stderr, "moe-pager: %ld hits, %ld misses (%.1f %%), read %.1f MB in %.2f s (%.0f MB/s while waiting), freed %.1f MB\n", s.hits.load(), s.miss.load(),
+            100.0 * s.miss.load() / (s.hits.load() + s.miss.load() + 1e-9), s.rd_bytes.load() / 1e6, s.wait_ns.load() / 1e9, (s.rd_bytes.load() / 1e6) / (s.wait_ns.load() / 1e9 + 1e-9), s.drop_bytes.load() / 1e6);
+}
+extern "C" void ggml_cpu_moe_pager_register(const struct ggml_tensor * t, int fd, int64_t file_off) {
+    mp_state & s = mp_get();
+    // descriptors per source file (main model and draft model register from different files)
+    static std::map<int, std::pair<int, int>> fds;
+    auto fit = fds.find(fd);
+    if (fit == fds.end()) {
+        const std::string path = "/proc/self/fd/" + std::to_string(fd);
+#if defined(O_DIRECT)
+        const int dfd = open(path.c_str(), O_RDONLY | O_DIRECT);
+#else
+        const int dfd = dup(fd);
+#endif
+        const int vfd = dup(fd);
+        GGML_ASSERT(dfd >= 0 && vfd >= 0);
+        fit = fds.emplace(fd, std::make_pair(dfd, vfd)).first;
+    }
+    if (!s.started) {
+        s.started = true;
+        s.verify = getenv("GGML_MOE_VERIFY") != nullptr;
+        const int n = getenv("GGML_MOE_READERS") ? atoi(getenv("GGML_MOE_READERS")) : 4;
+        for (int i = 0; i < n; i++) { std::thread(mp_reader).detach(); }
+        if (getenv("GGML_MOE_STATS")) { atexit(ggml_cpu_moe_pager_stats); }
+    }
+    const int il = atoi(t->name + 4) & 255;
+    mp_layer & L = s.layers[il];
+    mp_tensor x;
+    x.base = (char *) t->data; x.len = ggml_nbytes(t); x.stride = t->nb[2]; x.map0 = x.base - file_off; x.name = t->name;
+    x.fd = fit->second.first; x.vfd = fit->second.second;
+    GGML_ASSERT(((uintptr_t) x.map0 & (MP_PG - 1)) == 0 && t->ne[2] <= 1024 && x.stride * (size_t) t->ne[2] == x.len);
+    char * a = mp_first(x), * e = (char *) ((uintptr_t) (x.base + x.len) & ~(uintptr_t) (MP_PG - 1));
+    void * q = mmap(a, (size_t) (e - a), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    GGML_ASSERT(q == a);
+    x.present.assign((size_t) (e - a) / MP_PG, 0);
+    L.t.push_back(std::move(x));
+    L.cached.assign((size_t) t->ne[2], 0);
+    s.n_expert = (int) t->ne[2];
+    ggml_cpu_moe_pager_active = 1;
+}
+// GGML_MOE_WARM=<file> (lines: il e e e ..., most used first, tools/moe_keep.py on calibration text): each layer's pool starts full, so
+// a cold start doesn't cost hundreds of MB of misses during the first answer. The server's warm-up run pays for it at load.
+static std::vector<int> mp_warm_list(int il, int pool) {
+    static std::vector<std::vector<int>> w = [] {
+        std::vector<std::vector<int>> v(256);
+        if (const char * kf = getenv("GGML_MOE_WARM")) {
+            FILE * f = fopen(kf, "r");
+            GGML_ASSERT(f);
+            char line[8192];
+            while (fgets(line, sizeof line, f)) {
+                char * sv = nullptr; char * tok = strtok_r(line, " \n", &sv);
+                if (!tok) { continue; }
+                const int l = atoi(tok) & 255;
+                while ((tok = strtok_r(nullptr, " \n", &sv))) { v[l].push_back(atoi(tok)); }
+            }
+            fclose(f);
+        }
+        return v;
+    }();
+    std::vector<int> r(w[il & 255].begin(), w[il & 255].begin() + std::min((size_t) pool, w[il & 255].size()));
+    std::reverse(r.begin(), r.end());   // least used first: the LRU's eviction end
+    return r;
+}
+// experts of layer il selected for the current batch: make them resident, keep the layer's LRU to `pool` experts
+static void mp_touch(int il, const std::vector<int> & set, int pool) {
+    mp_state & s = mp_get();
+    mp_layer & L = s.layers[il];
+    if (L.t.empty()) { return; }
+    if (L.lru.empty()) {
+        std::vector<int> warm = mp_warm_list(il, pool);
+        for (int e : warm) { L.cached[e] = 1; L.lru.push_back(e); }
+        mp_load(L, warm);
+    }
+    std::vector<int> want;
+    for (int e : set) {
+        auto it = std::find(L.lru.begin(), L.lru.end(), e);
+        if (it != L.lru.end()) { L.lru.erase(it); s.hits++; } else { s.miss++; want.push_back(e); }
+        L.lru.push_back(e);
+    }
+    const int cap = std::max(pool, (int) set.size());
+    while ((int) L.lru.size() > cap) {
+        const int v = L.lru.front(); L.lru.erase(L.lru.begin());
+        mp_evict(L, v);
+    }
+    for (int e : want) { L.cached[e] = 1; }
+    mp_load(L, want);
+}

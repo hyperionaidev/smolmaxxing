@@ -1,0 +1,58 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.00.001.658 I srv  llama_server: initializing ...
+0.00.001.675 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.001.990 W srv  server_setup: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.004.064 I srv    load_model: loading model 'models/moe/mb-q2-h60.gguf'
+0.00.180.919 W load: special_eos_id is not in special_eog_ids - the tokenizer config may be incorrect
+0.02.155.840 I cmn          init: llama threadpool init, n_threads = 4
+0.02.474.415 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 1024, kv_unified = 'false'
+0.02.474.461 W srv          init: --cache-idle-slots requires --cache-ram, disabling
+0.02.477.607 W srv          init: chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)
+0.02.477.623 I srv  server_run_i: model loaded
+0.02.477.626 I srv  server_on_li: listening on http://127.0.0.1:8094
+0.03.159.681 I slot get_availabl: id  0 | task -1 | selected slot by LRU, n_tokens = 0, t_last = -1
+0.03.159.724 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.06.750.758 I slot print_timing: id  0 | task 0 | n_gen =    148, tg =  48.75 t/s, tg_3s =  49.08 t/s
+0.09.758.832 I slot print_timing: id  0 | task 0 | n_gen =    299, tg =  49.47 t/s, tg_3s =  50.20 t/s
+0.12.767.918 I slot print_timing: id  0 | task 0 | n_gen =    451, tg =  49.82 t/s, tg_3s =  50.51 t/s
+0.13.754.286 I slot print_timing: id  0 | task 0 | prompt eval time =     575.77 ms /    45 tokens (   12.79 ms per token,    78.16 tokens per second)
+0.13.754.289 I slot print_timing: id  0 | task 0 |        eval time =   10018.78 ms /   500 tokens (   20.08 ms per token,    49.81 tokens per second)
+0.13.754.289 I slot print_timing: id  0 | task 0 |       total time =   10594.55 ms /   545 tokens
+0.13.754.289 I slot print_timing: id  0 | task 0 |    graphs reused =        497
+0.13.754.290 I slot print_timing: id  0 | task 0 |   graph reallocs =          1    /     2        (same size) / (changed size)
+0.13.754.305 I slot      release: id  0 | task 0 | stop processing: n_tokens = 544, truncated = 0
+0.13.756.090 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.273 (> 0.100 thold), f_keep = 0.022
+0.13.756.150 I slot launch_slot_: id  0 | task 503 | processing task, is_child = 0
+0.17.183.062 I slot print_timing: id  0 | task 503 | n_gen =    160, tg =  52.87 t/s, tg_3s =  53.20 t/s
+0.20.202.350 I slot print_timing: id  0 | task 503 | n_gen =    314, tg =  51.94 t/s, tg_3s =  51.01 t/s
+0.22.292.532 I slot print_timing: id  0 | task 503 | prompt eval time =     419.44 ms /    44 tokens (    9.53 ms per token,   104.90 tokens per second)
+0.22.292.535 I slot print_timing: id  0 | task 503 |        eval time =    8116.93 ms /   420 tokens (   19.37 ms per token,    51.62 tokens per second)
+0.22.292.536 I slot print_timing: id  0 | task 503 |       total time =    8536.37 ms /   464 tokens
+0.22.292.536 I slot print_timing: id  0 | task 503 |    graphs reused =        914
+0.22.292.537 I slot print_timing: id  0 | task 503 |   graph reallocs =          2    /     4        (same size) / (changed size)
+0.22.292.551 I slot      release: id  0 | task 503 | stop processing: n_tokens = 463, truncated = 0
+0.22.294.326 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.267 (> 0.100 thold), f_keep = 0.026
+0.22.294.390 I slot launch_slot_: id  0 | task 926 | processing task, is_child = 0
+0.25.735.769 I slot print_timing: id  0 | task 926 | n_gen =    159, tg =  52.63 t/s, tg_3s =  52.96 t/s
+0.26.069.416 I slot print_timing: id  0 | task 926 | prompt eval time =     439.22 ms /    45 tokens (    9.76 ms per token,   102.45 tokens per second)
+0.26.069.420 I slot print_timing: id  0 | task 926 |        eval time =    3335.78 ms /   176 tokens (   19.06 ms per token,    52.46 tokens per second)
+0.26.069.420 I slot print_timing: id  0 | task 926 |       total time =    3775.01 ms /   221 tokens
+0.26.069.421 I slot print_timing: id  0 | task 926 |    graphs reused =       1088
+0.26.069.421 I slot print_timing: id  0 | task 926 |   graph reallocs =          3    /     6        (same size) / (changed size)
+0.26.069.438 I slot      release: id  0 | task 926 | stop processing: n_tokens = 220, truncated = 0
+0.26.071.003 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.273 (> 0.100 thold), f_keep = 0.055
+0.26.071.060 I slot launch_slot_: id  0 | task 1105 | processing task, is_child = 0
+0.29.489.853 I slot print_timing: id  0 | task 1105 | n_gen =    159, tg =  52.51 t/s, tg_3s =  52.84 t/s
+0.32.497.665 I slot print_timing: id  0 | task 1105 | n_gen =    312, tg =  51.69 t/s, tg_3s =  50.87 t/s
+0.35.500.331 I slot print_timing: id  0 | task 1105 | n_gen =    462, tg =  51.11 t/s, tg_3s =  49.96 t/s
+0.36.262.461 I slot print_timing: id  0 | task 1105 | prompt eval time =     409.88 ms /    44 tokens (    9.32 ms per token,   107.35 tokens per second)
+0.36.262.464 I slot print_timing: id  0 | task 1105 |        eval time =    9781.51 ms /   500 tokens (   19.60 ms per token,    51.01 tokens per second)
+0.36.262.465 I slot print_timing: id  0 | task 1105 |       total time =   10191.39 ms /   544 tokens
+0.36.262.465 I slot print_timing: id  0 | task 1105 |    graphs reused =       1584
+0.36.262.466 I slot print_timing: id  0 | task 1105 |   graph reallocs =          4    /     8        (same size) / (changed size)
+0.36.262.492 I slot      release: id  0 | task 1105 | stop processing: n_tokens = 543, truncated = 0
+0.36.270.075 I srv    operator(): operator(): cleaning up before exit...
+moe-sim: pre-gate: 71.2 % of selected experts predicted one layer early, 89.5 % of pool misses (3723 misses)
+moe-sim: pool 43 per layer, bias 0.250: hits 237582 misses 6174, miss rate 2.53 %

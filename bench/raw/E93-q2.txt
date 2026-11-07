@@ -1,0 +1,8 @@
+wrote 2,753,180,192 bytes (525 + 2 tensors, 57 keys)
+Q2 used 8 pool 43 bias 0: PPL = 11.1953 +/- 0.64974 pool 43 per layer, bias 0.000: hits 802113 misses 119847, miss rate 13.00 % 
+Q2 used 8 pool 43 bias 0.2: PPL = 11.6230 +/- 0.67281 pool 43 per layer, bias 0.200: hits 901502 misses 20458, miss rate 2.22 % 
+Q2 used 6 pool 43 bias 0.2: PPL = 12.2190 +/- 0.71194 pool 43 per layer, bias 0.200: hits 675427 misses 16043, miss rate 2.32 % 
+Q2 used 5 pool 43 bias 0.2: PPL = 12.9385 +/- 0.75445 pool 43 per layer, bias 0.200: hits 562894 misses 13331, miss rate 2.31 % 
+Q2 used 6 pool 43 bias 0.1: PPL = 12.0875 +/- 0.70540 pool 43 per layer, bias 0.100: hits 661969 misses 29501, miss rate 4.27 % 
+Q2 used 5 pool 43 bias 0.1: PPL = 12.8997 +/- 0.75073 pool 43 per layer, bias 0.100: hits 551986 misses 24239, miss rate 4.21 % 
+Q2 DONE

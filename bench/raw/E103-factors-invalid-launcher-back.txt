@@ -1,0 +1,6 @@
+bias0 temp1 top20 (GGUF sampling) seed 42: {979, tps: 3.12} words 730 repeated 6-grams 37.8 %, longest repeated run 19 words 
+bias0 temp1 top20 (GGUF sampling) seed 43: words 332 repeated 6-grams 0.0 %, longest repeated run 0 words 
+bias0 temp1 top20 (GGUF sampling) seed 44:     raise URLError(err) urllib.error.URLError: <urlopen error [Errno 61] Connection refused> 
+bias0.2 temp1 top20 (GGUF sampling) seed 42: words 0 repeated 6-grams 0.0 %, longest repeated run 0 words 
+bias0.2 temp1 top20 (GGUF sampling) seed 43:     raise URLError(err) urllib.error.URLError: <urlopen error [Errno 61] Connection refused> 
+bias0.2 temp1 top20 (GGUF sampling) seed 44:     raise URLError(err) urllib.error.URLError: <urlopen error [Errno 61] Connection refused> 

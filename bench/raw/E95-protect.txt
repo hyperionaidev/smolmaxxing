@@ -1,0 +1,7 @@
+used 5 protect 2 bias 0.4: PPL = 13.5552 +/- 0.80888 bias 0.400: hits 559810 misses 16415, miss rate 2.85 % 
+used 5 protect 3 bias 0.4: PPL = 12.9013 +/- 0.75678 bias 0.400: hits 549433 misses 26792, miss rate 4.65 % 
+used 5 protect 2 bias 1: PPL = 13.4156 +/- 0.79175 bias 1.000: hits 560191 misses 16034, miss rate 2.78 % 
+used 5 protect 3 bias 1: PPL = 12.8938 +/- 0.75643 bias 1.000: hits 549461 misses 26764, miss rate 4.64 % 
+used 5 protect 1 bias 0.4: PPL = 13.9542 +/- 0.82569 bias 0.400: hits 567355 misses 8870, miss rate 1.54 % 
+used 6 protect 3 bias 0.4: PPL = 12.2145 +/- 0.71447 bias 0.400: hits 664146 misses 27324, miss rate 3.95 % 
+used 6 protect 3 bias 1: PPL = 12.2918 +/- 0.72123 bias 1.000: hits 664393 misses 27077, miss rate 3.92 % 

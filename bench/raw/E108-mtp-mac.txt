@@ -1,0 +1,4 @@
+Mac Q2 top-6 b0.25 rep1.15 MTP n=0 loops  0/8 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 42.4 tok/s | 258 words
+Mac Q2 top-6 b0.25 rep1.15 MTP n=1 loops  0/8 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 38.0 tok/s | 293 words | drafts 2080, accepted 37.9 %, 1.38 tokens per pass
+Mac Q2 top-6 b0.25 rep1.15 MTP n=2 loops  0/8 | repeats mean   0.2 median   0.0 % | longest run median    0 | loop starts at word - | 29.4 tok/s | 303 words | drafts 3951, accepted 25.1 %, 1.50 tokens per pass
+MTP-MAC DONE

@@ -1,0 +1,7 @@
+wrote 2,753,180,192 bytes (525 + 2 tensors, 57 keys)
+2d78fcdd14c72fb8
+ppl top-4 bias 0.2: PPL = 15.8593 +/- 0.95337 bias 0.200: hits 450342 misses 10638, miss rate 2.31 % 
+ppl top-4 bias 0.25: PPL = 16.3837 +/- 0.98598 bias 0.250: hits 452686 misses 8294, miss rate 1.80 % 
+ppl top-3 bias 0.2: PPL = 24.6060 +/- 1.56037 bias 0.200: hits 338032 misses 7703, miss rate 2.23 % 
+ppl top-6 bias 0.25: PPL = 12.6409 +/- 0.73532 bias 0.250: hits 679285 misses 12185, miss rate 1.76 % 
+TURBO-PPL DONE

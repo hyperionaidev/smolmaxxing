@@ -1,0 +1,16 @@
+VERIFY prefetch k=12 ahead 2       loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 2.4 tok/s | 288 words
+moe-pager: 98952 hits, 981 misses (1.0 %), 701 waited on a read already started; read 16029.0 MB, waited 10.70 s; prefetched 18652, 0 of them used
+tv-guard: exit 0, min MemAvailable 187 MB, max RSS 1139 MB
+TV default+fix, GGML_MOE_PREFETCH_K=0 loops  2/8 | repeats mean  10.1 median   0.0 % | longest run median    0 | loop starts at word 395 | 7.4 tok/s | 489 words
+moe-pager: 733868 hits, 13231 misses (1.8 %), 0 waited on a read already started; read 11048.4 MB, waited 87.39 s; prefetched 0, 0 of them used
+tv-guard: exit 0, min MemAvailable 167 MB, max RSS 1144 MB
+TV default+fix, GGML_MOE_PREFETCH_K=6 GGML_MOE_PREFETCH_AHEAD=2 loops  0/8 | repeats mean   0.3 median   0.0 % | longest run median    0 | loop starts at word - | 6.5 tok/s | 730 words
+moe-pager: 971051 hits, 6022 misses (0.6 %), 11658 waited on a read already started; read 61733.0 MB, waited 88.64 s; prefetched 72428, 0 of them used
+tv-guard: exit 0, min MemAvailable 170 MB, max RSS 1143 MB
+=== decision-aware prefetch, 18:51:50
+VERIFY prefetch k=6 ahead 2 (decision-aware) loops  0/2 | repeats mean   0.2 median   0.2 % | longest run median    0 | loop starts at word - | 6.4 tok/s | 336 words
+moe-pager: 116008 hits, 1460 misses (1.2 %), 161 waited on a read already started; read 2629.7 MB, waited 10.96 s; prefetched 932, 0 of them used
+tv-guard: exit 0, min MemAvailable 183 MB, max RSS 1145 MB
+TV default+fix, GGML_MOE_PREFETCH_K=6 GGML_MOE_PREFETCH_AHEAD=2 loops  2/8 | repeats mean   4.4 median   0.0 % | longest run median    0 | loop starts at word 646 | 7.3 tok/s | 580 words
+moe-pager: 796039 hits, 8920 misses (1.1 %), 1672 waited on a read already started; read 14146.9 MB, waited 67.80 s; prefetched 8297, 0 of them used
+tv-guard: exit 0, min MemAvailable 178 MB, max RSS 1145 MB

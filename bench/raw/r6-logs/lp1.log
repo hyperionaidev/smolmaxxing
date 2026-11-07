@@ -1,0 +1,21 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+ggml_cpu_stream_register: cannot stream 0.0 MB zone
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen3 8B Q1_0                  |   1.03 GiB |     7.82 B | CPU        |       3 |            tg32 |          4.59 ± 0.00 |
+
+[opprof] 33 graphs, 8.175 s total
+[opprof] op                     src0        calls        ms       % GB/s(src0)   compute  us/call
+[opprof] MUL_MAT                q1_0         8349    6746.9   82.5%      4.95   6255.5ms    808.1
+[opprof] RMS_NORM               f32          4785     932.0   11.4%      0.07    810.6ms    194.8
+[opprof] FLASH_ATTN_EXT         f32          1188     177.7    2.2%      0.11    159.5ms    149.6
+[opprof] GLU                    f32          1188      89.8    1.1%      0.65     45.6ms     75.6
+[opprof] ROPE                   f32          2376      72.1    0.9%      0.34     38.0ms     30.3
+[opprof] ADD                    f32          2376      59.7    0.7%      0.65     26.9ms     25.1
+[opprof] GET_ROWS               q1_0           33      58.1    0.7%     49.64     55.6ms   1759.8
+[opprof] SET_ROWS               f32          2409      25.2    0.3%      0.71     15.9ms     10.5
+[opprof] CONT                   f32            66       9.3    0.1%      3.02      8.6ms    141.2
+[opprof] FILL                   f32            33       3.5    0.0%      5.78      2.2ms    104.9
+[opprof] GET_ROWS               f32            66       0.4    0.0%      2.94      0.3ms      5.6
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 265 MB, max RSS 1169 MB

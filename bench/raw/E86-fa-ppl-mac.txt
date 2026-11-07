@@ -1,0 +1,5 @@
+stock: Final estimate: PPL = 10.8349 +/- 0.67229 
+eps0: Final estimate: PPL = 10.8531 +/- 0.67370 
+eps1e-4: Final estimate: PPL = 10.8399 +/- 0.67278 
+eps1e-3: Final estimate: PPL = 10.8815 +/- 0.67583 
+eps1e-2: Final estimate: PPL = 11.0268 +/- 0.68693 

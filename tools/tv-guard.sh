@@ -7,6 +7,9 @@
 # stdout, so a watcher on the Mac keeps the readings even if the box crashes before the log reaches flash.
 # GUARD_KILL_NAMES="a b" also kills those processes (by name) on trigger, for multi-process jobs.
 # usage: sh tv-guard.sh <log> <command...>
+# Prefer the fork-free binary next to this script (tools/tv-watch.c): this shell loop starts processes every second, which slows a run.
+d=${0%/*}; [ "$d" = "$0" ] && d=.
+[ -x "$d/tv-watch" ] && exec "$d/tv-watch" "$@"
 LOG=$1; shift
 LIMIT=${LIMIT_MB:-180}
 "$@" > "$LOG" 2>&1 &

@@ -1,0 +1,15 @@
+t+   30s tokens   120  last-30s 3.99 tok/s
+t+   60s tokens   269  last-30s 4.95 tok/s
+t+   90s tokens   410  last-30s 4.67 tok/s
+t+  120s tokens   545  last-30s 4.50 tok/s
+t+  151s tokens   676  last-30s 4.33 tok/s
+t+  181s tokens   801  last-30s 4.16 tok/s
+t+  211s tokens   923  last-30s 4.04 tok/s
+server timings {'prompt_per_second': 5.38, 'predicted_n': 988, 'predicted_per_second': 4.48}
+
+---
+
+## **1980s: The Personal Computer Revolution**
+
+The 1980s marked the emergence of the **personal computer (PC
+23:41:19 230 352 1060

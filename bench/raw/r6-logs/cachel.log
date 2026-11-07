@@ -1,0 +1,6 @@
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen3 8B Q1_0                  |   1.03 GiB |     7.82 B | CPU        |       3 |             tg1 |          0.10 ± 0.00 |
+
+build: 8642541 (1)
+tv-guard: exit 0, min MemAvailable 837 MB, max RSS 827 MB

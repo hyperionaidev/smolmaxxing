@@ -1,0 +1,14 @@
+Q2 top-8 bias 0 seed 42: {'predicted_n': 979, 'predicted_per_second': 3.34} words 776 repeated 6-grams 27.9 %, longest repeated run 53 words 
+Q2 top-8 bias 0 seed 43: {'predicted_n': 979, 'predicted_per_second': 3.35} words 742 repeated 6-grams 13.0 %, longest repeated run 43 words 
+bash: /private/tmp/claude-501/loops.sh: No such file or directory
+Q2 top-8 bias 0.2 seed 42: {'predicted_n': 979, 'predicted_per_second': 7.63} words 879 repeated 6-grams 95.8 %, longest repeated run 837 words 
+Q2 top-8 bias 0.2 seed 43: {'predicted_n': 979, 'predicted_per_second': 6.84} words 828 repeated 6-grams 55.2 %, longest repeated run 440 words 
+Q2 top-8 bias 0.2 seed 44: {'predicted_n': 979, 'predicted_per_second': 7.47} words 732 repeated 6-grams 77.3 %, longest repeated run 529 words 
+Q2 top-6 bias 0.25 seed 42: {'predicted_n': 979, 'predicted_per_second': 8.06} words 827 repeated 6-grams 78.7 %, longest repeated run 632 words 
+Q2 top-6 bias 0.25 seed 43: {'predicted_n': 979, 'predicted_per_second': 7.68} words 717 repeated 6-grams 40.2 %, longest repeated run 278 words 
+Q2 top-6 bias 0.25 seed 44: {'predicted_n': 979, 'predicted_per_second': 7.83} words 796 repeated 6-grams 53.9 %, longest repeated run 139 words 
+LOOPS-TV DONE
+Bonsai-8B seed 42: {'predicted_n': 988, 'predicted_per_second': 4.5} words 655 repeated 6-grams 0.0 %, longest repeated run 0 words 
+Bonsai-8B seed 43: {'predicted_n': 988, 'predicted_per_second': 4.52} words 628 repeated 6-grams 0.0 %, longest repeated run 0 words 
+Bonsai-8B seed 44: {'predicted_n': 988, 'predicted_per_second': 4.52} words 660 repeated 6-grams 0.6 %, longest repeated run 3 words 
+LOOPS-BONSAI DONE

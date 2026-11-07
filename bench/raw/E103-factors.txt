@@ -1,0 +1,22 @@
+bias0 temp1 top20 (GGUF sampling) seed 42 [top=calendar]: {979, tps: 3.09} words 730 repeated 6-grams 37.8 %, longest repeated run 19 words 
+bias0 temp1 top20 (GGUF sampling) seed 43 [top=calendar]: {979, tps: 3.47} words 793 repeated 6-grams 36.2 %, longest repeated run 177 words 
+bias0 temp1 top20 (GGUF sampling) seed 44 [top=calendar]: {979, tps: 3.44} words 712 repeated 6-grams 11.7 %, longest repeated run 41 words 
+bias0.2 temp1 top20 (GGUF sampling) seed 42 [top=calendar]: {7, tps: 3.99} words 5 repeated 6-grams 0.0 %, longest repeated run 0 words 
+bias0.2 temp1 top20 (GGUF sampling) seed 43 [top=calendar]: {163, tps: 6.66} words 115 repeated 6-grams 0.0 %, longest repeated run 0 words 
+bias0.2 temp1 top20 (GGUF sampling) seed 44 [top=calendar]: {979, tps: 7.51} words 821 repeated 6-grams 85.3 %, longest repeated run 690 words 
+bias0.1 temp0.7 seed 42 [top=calendar]: {979, tps: 6.49} words 663 repeated 6-grams 75.4 %, longest repeated run 475 words 
+bias0.1 temp0.7 seed 43 [top=calendar]: {979, tps: 5.38} words 776 repeated 6-grams 14.8 %, longest repeated run 46 words 
+bias0.1 temp0.7 seed 44 [top=calendar]: {979, tps: 6.94} words 892 repeated 6-grams 78.2 %, longest repeated run 683 words 
+bias0.05 temp0.7 seed 42 [top=calendar]: {979, tps: 5.17} words 842 repeated 6-grams 47.0 %, longest repeated run 393 words 
+bias0.05 temp0.7 seed 43 [top=calendar]: {979, tps: 6.71} words 879 repeated 6-grams 79.7 %, longest repeated run 697 words 
+bias0.05 temp0.7 seed 44 [top=calendar]: {979, tps: 5.18} words 821 repeated 6-grams 38.1 %, longest repeated run 45 words 
+bias0.2 KV f16 seed 42 [top=calendar]: {979, tps: 7.39} words 784 repeated 6-grams 75.4 %, longest repeated run 574 words 
+bias0.2 KV f16 seed 43 [top=calendar]: {979, tps: 7.42} words 683 repeated 6-grams 55.6 %, longest repeated run 365 words 
+bias0.2 KV f16 seed 44 [top=calendar]: {979, tps: 7.71} words 783 repeated 6-grams 78.0 %, longest repeated run 570 words 
+bias0.2 stock attention seed 42 [top=calendar]: {979, tps: 7.2} words 811 repeated 6-grams 76.1 %, longest repeated run 612 words 
+bias0.2 stock attention seed 43 [top=calendar]: {979, tps: 6.55} words 742 repeated 6-grams 51.0 %, longest repeated run 212 words 
+bias0.2 stock attention seed 44 [top=calendar]: {979, tps: 7.02} words 757 repeated 6-grams 15.2 %, longest repeated run 48 words 
+bias0 pool 128-free baseline third seed seed 42 [top=calendar]: {979, tps: 3.3} words 776 repeated 6-grams 27.9 %, longest repeated run 53 words 
+bias0 pool 128-free baseline third seed seed 43 [top=calendar]: {979, tps: 3.35} words 715 repeated 6-grams 0.6 %, longest repeated run 2 words 
+bias0 pool 128-free baseline third seed seed 44 [top=calendar]: {979, tps: 3.74} words 807 repeated 6-grams 66.7 %, longest repeated run 535 words 
+FACTORS DONE

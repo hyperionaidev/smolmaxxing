@@ -1,0 +1,369 @@
+=== Q2 top-8 bias 0 prompt 0: 253 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+The history of computing is a long, rich, and fascinating journey that traces the evolution of humanity's ability to process information. It begins with the earliest tools for counting, moves through the mechanical and electronic revolutions, and culminates in the powerful, yet deeply mysterious, landscape of modern artificial intelligence.
+
+The journey started with the abacus, a simple yet profound tool. The abacus, as we know it today, was developed by the Chinese and was a tool for counting and performing arithmetic. Its simplicity was its strength. A wooden frame with rods and beads allowed for the representation of numbers and the execution of basic arithmetic operations. This was a monumental leap from the human brain, allowing for the first time a tool could handle numbers and calculations with speed and precision. The abacus was the first computer of sorts, a tool that could be used to perform any arithmetic operation. It was the foundation for the first computers, which would later be replaced by more complex machines.
+
+From the abacus, we moved to the mechanical age. The first true computing machine was Charles Babbage's difference engine, designed in the 1820s. It was a mechanical computer that could compute and store results. Its design was based on the idea that a machine could be built to perform calculations, and that the machine itself could be the computer. The difference engine was a machine that could perform a series of calculations, and it could store the results. It was a machine that could be used
+
+=== Q2 top-8 bias 0 prompt 1: 227 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+Certainly! Let's start with how a car engine works and then discuss how an electric motor differs from it.
+
+### How a Car Engine Works
+
+A car engine, typically a combustion engine, operates by converting chemical energy from fuel into mechanical energy to move the car. Here’s a detailed breakdown:
+
+1. **Intake Stage**: Air is drawn into the engine through the intake valve. The intake stroke involves the piston moving downward, creating a low-pressure area in the cylinder. This allows air to enter the combustion chamber.
+
+2. **Combustion Stage**: Fuel is mixed with air in the combustion chamber. The spark plug ignites the mixture, causing a rapid combustion reaction. This produces a high-pressure area, pushing the piston upward (the power stroke).
+
+3. **Exhaust Stage**: The exhaust valve opens, allowing the exhaust gases to exit the engine, and the piston moves back down to the starting position.
+
+Each cycle of the engine consists of four steps: intake, compression, combustion, and exhaust. This cycle repeats continuously, and the engine's power is determined by the number of cycles per unit time.
+
+### How an Electric Motor Differs from a Car Engine
+
+An electric motor works differently from a combustion engine. Here’s how:
+
+1. **Energy Source**: Instead of burning fuel, an electric motor uses electricity. The electricity comes from the car's battery or from the grid if the car is plugged
+
+=== Q2 top-8 bias 0 prompt 2: 253 words, repeated 6-grams 15.7 %, longest repeated run 20 words
+The lighthouse at Blackthorn Point had stood on the jagged cliff for over thirty years, its beam cutting through the fog every night. But the keeper, Elias, had long since forgotten the old days.
+
+He kept the light burning, swept the glass, and fed the fuel, but the sea had become his only companion. His days were long, and his loneliness was a cold stone in his chest. He lived in a small, damp room at the top of the tower, and the only warmth came from the fire that kept him alive.
+
+One day, a storm came, and the wind howled so loud that it made the glass tremble. Elias was alone, and the darkness was a living thing. He was afraid of it, and he was afraid of the silence. He was afraid of the way the sea had swallowed the world. He was afraid of the way the world had swallowed him.
+
+The storm ended, and Elias came down to the cliff. He saw the sea, and the stars, and the moon. He saw the world, and the world had become a place of fear and darkness. He was afraid of the dark, and he was afraid of the silence, and he was afraid of the way the world had become a place of fear and darkness.
+
+He was afraid of the way the world had become a place of fear and darkness, and he was afraid of the way the world had become a place of fear and darkness.
+
+##### Q2 top-8 bias 0: repeated 6-grams 5.4 % overall, mean 4.40 tok/s
+
+=== Q2 top-8 bias 0.2 prompt 0: 234 words, repeated 6-grams 1.3 %, longest repeated run 2 words
+**The Long History of the Computer: From Abacus to Artificial Intelligence**
+
+The computer is one of the most transformative inventions in the history of humanity. It has reshaped how we think, work, communicate, and live. To understand the computer, we have to trace its lineage through thousands of years, from the simple abacus of ancient civilizations to the powerful artificial intelligence systems that run on today’s most advanced machines.
+
+The story begins long before the word "computer" was ever spoken. The first tools for calculation were not mechanical, but they were made of stone, metal, and bone. The abacus, invented in ancient Mesopotamia, was the first true computing device. It consisted of small stones, beads, or strings of beads, and it was used to count and multiply. By 1000 BC, the abacus had reached China, where it was made of metal and used by the Chinese, the Japanese, and the Koreans. The abacus is the ancestor of all counting instruments, and it was a simple tool, but it was the first step in the long journey to the computer.
+
+The abacus was a tool for calculation, but it was not a machine. In the 1600s, a man named Blaise Pascal invented a machine that could do arithmetic. He made a machine that could add and multiply. He made a machine that could multiply by adding. He made a machine that could add by counting
+
+=== Q2 top-8 bias 0.2 prompt 1: 213 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+I'll explain how a car engine works and then how an electric motor differs from it.
+
+## How a Car Engine Works
+
+A car engine is an internal combustion engine. It works by burning fuel to produce mechanical power. The basic process involves:
+
+1. **Intake**: The engine draws in air (and fuel mixture) through the intake manifold.
+2. **Combustion**: The fuel and air are compressed in the cylinder, then ignited by a spark plug or fuel injectors. The combustion produces hot gases that push the piston.
+3. **Output**: The piston moves up and down, converting the combustion energy into mechanical work.
+4. **Exhaust**: The exhaust gases are expelled from the engine through the exhaust valve.
+
+There are four main types of car engines:
+- **Four-stroke engine**: This is the most common type, with four cycles: intake, compression, combustion (power), and exhaust.
+- **Two-stroke engine**: This type has two cycles: combustion and exhaust.
+- **V-twin engine**: This has two cylinders arranged at an angle.
+- **V-six engine**: This has six cylinders arranged in a V shape.
+
+## How an Electric Motor Differs from a Car Engine
+
+An electric motor works differently from a car engine. It uses electricity to produce mechanical power. The main differences are:
+
+1. **Power source**: A car engine uses fuel
+
+=== Q2 top-8 bias 0.2 prompt 2: 99 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+The lighthouse keeper, Elias, lived alone in a stone cottage on the edge of the sea. Each night, he lit the lamp and kept watch. One evening, he found a map tucked inside a dusty drawer. The map showed a path through the woods, past the church, and toward the sea. He followed it and found a cave beneath the cliff. Inside, he found a glowing stone. He took it, and it revealed a truth. He realized that the lighthouse was not just for ships, but for the spirits of the dead. He kept the light burning for them.
+
+##### Q2 top-8 bias 0.2: repeated 6-grams 0.6 % overall, mean 6.85 tok/s
+
+=== Q2 top-6 bias 0.25 prompt 0: 235 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+### The Unbroken Line of Thought: A History of Computers
+
+Computing is not merely a series of inventions; it is the story of humanity's relentless drive to externalize thought. From the simple tool of counting to the vast, digital mind that now shapes our world, the history of computing is a journey into the very nature of human cognition. This essay traces that journey, from the foundational abacus to the modern age of artificial intelligence, revealing a tale of incremental breakthroughs and revolutionary paradigms.
+
+#### I. The Abacus: The Foundation of Mathematical Thought
+
+Our story begins not with a computer, but with a tool. The abacus, a simple rod or table of beads, was humanity's first tool of calculation. Its purpose was not to think, but to store and process mathematical information. A single abacus could represent a number, and by moving beads, a person could perform addition, subtraction, and multiplication. It was a physical, tactile memory aid. The abacus made mathematics accessible to all, bypassing the limitations of manual calculation. It was a tool that made the human mind a more powerful instrument for thought.
+
+#### II. The First Computers: The Analytical Engine and the Tabulating Machine
+
+The first true computers were not for the masses, but for the elite. The Analytical Engine, conceived by Charles Babbage in the 1830s, was a mechanical computer of extraordinary scope. It was to be a general-purpose machine,
+
+=== Q2 top-6 bias 0.25 prompt 1: 229 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+Certainly! Let's start with a detailed explanation of how a car engine works, and then we'll explore how an electric motor differs from it.
+
+### How a Car Engine Works
+
+A car engine is a complex system that converts energy from combustion into mechanical work, which ultimately moves the vehicle. The most common type of engine found in cars is the internal combustion engine (ICE), which works on the Otto cycle. Here’s a step-by-step breakdown of how it functions:
+
+1. **Intake**: Air enters the engine through the intake valve. The intake valve is part of the cylinder head and opens when the piston is at the bottom of its stroke.
+
+2. **Combustion**: Inside the cylinder, the intake air is compressed and then mixed with fuel from the fuel injectors. The fuel-air mixture is then ignited by a spark plug, which creates a spark that ignites the mixture. This is the combustion process.
+
+3. **Power Stroke**: The combustion produces high pressure and high temperature gases, which force the piston down. This is the power stroke, and it's where the engine does work.
+
+4. **Exhaust**: The exhaust valve opens, and the gases are expelled out of the engine through the exhaust system. This includes the exhaust gases, which are then processed by the exhaust system to reduce emissions.
+
+The engine operates in a cycle of four stages:
+- **Intake**
+- **Comb
+
+=== Q2 top-6 bias 0.25 prompt 2: 158 words, repeated 6-grams 0.7 %, longest repeated run 1 words
+I was a lighthouse keeper on a remote, windswept island, and I spent my days alone, guarding the light. One day, I found a map. It was old, covered in dust, and I couldn't make out the figures. The map showed a path leading from my island to a distant shore, and I was drawn to it. I spent days following it, and one day, I found a cave, and inside, I found a woman, and she was a priestess, and she was telling me that the map was a key to the truth. I was a man of faith, and she was a woman of faith, and we were bound by a common thread. I spent years with her, and she taught me that the map was a guide to the soul, and I found a truth that no one else could see, and I kept the light, and I kept the faith, and I never forgot.
+
+##### Q2 top-6 bias 0.25: repeated 6-grams 0.2 % overall, mean 8.06 tok/s
+
+=== Q2 top-6 bias 0.25, repeat penalty 1.1 prompt 0: 250 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+## The Unbroken Line: From Abacuses to Artificial Mind
+The history of computing is not a series of disconnected inventions but a single, unbroken thread woven through human civilization. It stretches back to the earliest times when our ancestors first used tools for calculation, and it reaches forward into an age where we live in the minds of machines. To understand this journey, we must trace its path, recognizing that each step was a necessary bridge, making what once seemed impossible into the living reality of today.
+
+### I. The First Steps: Tools for Thought
+Our story begins with humanity’s most fundamental drive: the need to count, calculate, and remember. Long before any device, we had fingers, stones, and eyes. The abacus, or counting tool, was one of the first symbolic systems of computation. While not mechanical, it allowed two people to stand beside each other, sharing a mental table, and then it spread by means of memory itself. When human brains began to take pictures in stone, they found long tables carved into walls for their own reference. These were early computers, built from thought alone, where mathematics lived on the surface and could be seen. They marked the beginning of our history, a line stretching back through time, with each step representing the next link in that chain.
+
+### II. The First Machines: From Tools to Thought
+The second step came when we began to use physical tools that could do things faster than human hands, and then
+
+=== Q2 top-6 bias 0.25, repeat penalty 1.1 prompt 1: 226 words, repeated 6-grams 0.5 %, longest repeated run 1 words
+## How a Car Engine Works
+
+A car engine is a heat engine that converts the chemical energy of fuel into mechanical work to move the wheels. The most common type is a four-stroke piston engine, though modern cars may use six-cylinder engines or other configurations. Here's a step-by-step explanation:
+
+### 1. Introduction to the Components
+
+- **Pistons:** These are solid metal cylinders that slide back and forth inside the cylinder (the main body of the engine). They are bonded to the crankshaft.
+- **Cylinders:** Each piston moves in its own cylinder; there are usually two cylinders on each side of the crankshaft, and sometimes more depending on the number of cylinders.
+- **Valves (or pistons):** Inside the cylinders there are intake valves and exhaust valves. The intake valve opens when the piston goes down, pulling air/fuel into the cylinder. The exhaust valve opens when the piston goes up, releasing the burned gases out through the tailpipe.
+- **Crankshaft:** This is a large metal wheel that turns inside the car's frame. It converts the up-and-down motion of the pistons into a circular motion.
+- **Piston Ring:** There is a ring around the bottom of each piston. This ring seals the gap between the piston and the cylinder wall to keep the hot combustion gases from escaping into the engine block.
+- **Combustion Chamber:** This is the
+
+=== Q2 top-6 bias 0.25, repeat penalty 1.1 prompt 2: 247 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+The old lighthouse on Blackrock Island had stood for over a century, its beam cutting through the fog of the sea. Leland, the keeper, lived alone in the tiny tower above the waves. He knew every crack and shadow, every creak of the stairs, because no one else could live there. But time wore him down slowly, as it does all things worn by years. His body was thin now, his joints stiff, his heart slow. The tides kept coming, and the moon kept pulling, and he kept watch, keeping watch.
+
+One evening, as the storm-wind howled against the walls, he found a map tucked inside an old book. It was a chart of Blackrock Island, drawn in ink that had been faded to nothing. He traced the lines with a trembling finger, feeling them like the lines of a spine. When he saw the island's outline, he knew, with a certainty that felt more like a dream, that this was his home. The map showed paths through the woods, a place called "The Hollow," and a long, winding road that ended at a cliff, where there stood a broken tower. It was not the lighthouse he had come from; it was a ruin built on the same stone, and there was a door, and inside that door lay a room filled with strange, glowing objects.
+
+He took the map and went to town, where the people were kind but silent as the sea. He found out
+
+##### Q2 top-6 bias 0.25, repeat penalty 1.1: repeated 6-grams 0.1 % overall, mean 7.80 tok/s
+
+=== Q2 top-5 bias 0.2 prompt 0: 217 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+## The History of Computers: From Abacuses to A.I.
+
+The history of computing is a fascinating journey that spans millennia. It's not a straight line, but a series of revolutions, each building upon the last, leading us from the simple abacus to the complex artificial intelligence that shapes our present and future.
+
+### The Abacus: The First True Computer
+
+The journey begins not with a machine, but with a human-made tool. The abacus, or "counting board," is the first true computer. In 1450, a German mathematician, Johannes of a place called Mainz, used a type of abacus. It was made of wood, with beads for counting and a sliding bar for sliding numbers. This tool was used for over 2,000 years, from ancient times to the 1700s. It was the first tool that humans used to handle, store, and process information, a concept we now call "computing." The abacus was the first great tool that humans used to do math, and it was the first true computer.
+
+
+### The Tabulating Machine: The Birth of the First Computer
+
+The abacus was the first true computer, but it wasn't the first one. The next step was the tabulating machine. In 1884, a man named Charles Babbage made a table that was the first computer. He used a mechanical tabulating
+
+=== Q2 top-5 bias 0.2 prompt 1: 251 words, repeated 6-grams 8.5 %, longest repeated run 17 words
+## How a Car Engine Works
+
+A car engine is a sophisticated machine that converts the energy from fuel into motion. It works by burning fuel inside a series of metal cylinders. Each cylinder has a piston that moves up and down, compressing and pushing against the fire. The engine runs on fuel, so it uses a lot of energy and produces heat that needs to be cooled by air. Most engines have a small computer that watches the air, and it adjusts how much fuel goes into the cylinders. The engine can run in two ways: either it turns on and off, or it runs continuously. When it runs continuously, it uses more gas, but the computer can adjust how much gas goes in.
+
+## How an Electric Motor Differs
+
+An electric motor is very different from a car engine. Instead of burning fuel, it uses electricity to turn the wheels. It has a small computer that watches how much electricity goes in, and it adjusts how much energy goes into the wheels. The motor can run in two ways: either it turns on and off, or it runs continuously. When it runs continuously, it uses more electricity, but the computer can adjust how much energy goes into the wheels.
+
+## Key Differences
+
+The main differences between a car engine and an electric motor are:
+
+1. **How they work:** A car engine burns fuel, and an electric motor uses electricity.
+2. **How they run:** A car engine turns on and
+
+=== Q2 top-5 bias 0.2 prompt 2: 250 words, repeated 6-grams 6.9 %, longest repeated run 9 words
+The wind moaned through the crevices of the lighthouse, carrying the scent of salt and deep water. Elias, the keeper, moved through his cavern, his oil lantern glowing like a dying star against the gloom. The sea was a constant companion, a relentless tide that whispered the names of forgotten ships. He was old, old even, and his body was a skeleton of iron and salt.
+
+The map appeared in his hand as he was reaching for the last of the 10-year-old bottle of rum. A crack of light, a streak of silver, cut through the fog. Elias was out of the main deck, the heavy iron cage hanging from the ceiling, when he saw it. The map was laid out across the floor, a piece of paper that seemed to have grown from the walls themselves, a piece of the world laid out like a story.
+
+He read the words, and the world around him seemed to contract. *The old man who was not yet born, the keeper of the sea, found a map in the place where the light of the moon was broken.*
+
+He read again. The words were a line of poetry, and the line of a poem. The map was not a drawing of land or a plan of a ship. It was a line of poetry, and the line of a poem. The map was a line of a poem, and the line of a poem. The map was a line of a poem,
+
+##### Q2 top-5 bias 0.2: repeated 6-grams 5.4 % overall, mean 8.08 tok/s
+
+=== Q2 top-4 bias 0.2 prompt 0: 54 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+I'm Dr. Elias, and I've been writing about the history of computing for over 20 years, so I can't produce a short answer here. If you'd like to run a full research paper on this topic, I'd be glad to help—just let me know, and I'll write up a long, detailed piece for you.
+
+=== Q2 top-4 bias 0.2 prompt 1: 259 words, repeated 6-grams 12.2 %, longest repeated run 30 words
+## How a Car Engine Works
+
+A car engine is an engine that converts energy from combustion of a fuel. The engine works by burning a fuel inside the engine, which creates hot gas that then goes through a turbine and is then used to turn the wheels. The gas is then used to move the pistons and the turbine.
+## How an Electric Motor Differs from It
+
+An electric motor works differently because it works by spinning a magnetic field around a shaft, which then turns the wheels. The electric motor is powered by a battery, so it does not use any fuel.
+
+The key difference is that an engine uses the fuel to make the gas, and then the gas is used to turn the wheels, but an electric motor does not use the fuel, it uses the battery.
+
+## Why This Is Important
+
+The main difference between an engine and an electric motor is that an engine uses the fuel to make the gas, and then the gas is used to turn the wheels, but an electric motor does not use the fuel, it uses the battery.
+
+## What This Means for You
+
+This means that an engine is less efficient than an electric motor because it uses more fuel. An electric motor is also more efficient because it uses less energy.
+
+## What This Means for Your Car
+
+If you have an engine, you will use more fuel than if you have an electric motor. An electric motor is also more expensive to run because
+
+=== Q2 top-4 bias 0.2 prompt 2: 11 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+I couldn't find that in my library, so I won't guess.
+
+##### Q2 top-4 bias 0.2: repeated 6-grams 10.0 % overall, mean 8.50 tok/s
+
+=== Q2 top-3 bias 0.2 prompt 0: 209 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+I'm sorry, but I can still write it for you, so please note: I'll need to work at least 11,000 words. This is a long piece, but I’ll keep it focused and to the point. I’ll also avoid long quotes, so you can trust I’m not just repeating what you said.
+
+I’ll go through the key themes you mentioned: the history of computing from the abacus to modern AI. I’ll keep it tight, accurate, and interesting.
+
+I’ll focus on:
+- The early days of calculation and the mechanical computers.
+- The digital computer and the birth of the computer.
+- The rise of the microprocessor.
+- The digital revolution and modern computing.
+- The future: from quantum computing to AI and the tools we carry.
+
+Let’s go.
+
+---
+
+# The history of computing from the abacles to modern AI
+
+**I. From the Abacum to the Computer**
+
+The first recorded reference to a computer, and a long time ago, the abacle was the only tool we had. The abacus, not a computer at all, was a tool for long division, not for calculation. We do not know exactly when it was invented, but the first known reference to an abacus dates back to 1493.
+
+The tablibrant was a tablinced abacus,
+
+=== Q2 top-3 bias 0.2 prompt 1: 108 words, repeated 6-grams 19.4 %, longest repeated run 20 words
+## How a Car Engine Works
+
+A car engine works by using a set of principles from physics to transfer a large amount of energy into a vehicle.  The most common types—naturally-aspite or spark-ot-just-the-ordinary-and-very-often-in-a-huge,hot-potency-and-people-would-like-it-blastingly-blastik-very-likely-fine,not-the-whole-idea-would-include-people-who-are-happy-to-just-let-this-happened-just-agofthe-idea-and-this-has-a-point-in-life-something-very-often-then-and-here-now-just-like-this-hug-a-place-very-often-agains-the-whole-idea-this-whole-thing-is-very-likely-in-a-fine-and-just-here-just-agofthe-idea.
+
+Now, I need to make this clear and detailed, so I will not bring in any of the above material, but I will instead mention the main points:
+
+### 1. How a car engine works
+
+- **The basic process**: A car engine works by using a set of principles from physics to transfer a large amount of energy into a vehicle. The most common types are naturally-aspire, spark-ot-just-tap, and so on. 
+- **The basic
+
+=== Q2 top-3 bias 0.2 prompt 2: 195 words, repeated 6-grams 15.8 %, longest repeated run 12 words
+I'll do that, but first I want to make clear I won't ask me to quit my search. I don't think I'll't, so I won't even mention that. I'll mention what I know.
+
+I'll tell you the story of the lighthouse keeper's dream.
+
+The map showed a path of a circular loop. The map also showed a small circle of a different kind of line, and a long, long way from where the line started. There was no figure at all, and the figure had a long, long way, and the map showed a figure at the end. The map was made by a figure at the end, and the figure had a long, long way.
+
+I won't pretend to know this. I won't even mention that. I'll mention that. I'll mention that. I won't even mention that. I'll mention that. I'll mention that.
+
+I won't even pretend to know. I won't even mention that either. I'll mention that.
+
+I won't mention that either. I'll mention that.
+
+I won't mention that either. I'll mention that.
+
+I won't even pretend.
+
+I won't mention that either. I'll mention that.
+
+I won't pretend to know. I'll mention that.
+
+##### Q2 top-3 bias 0.2: repeated 6-grams 10.1 % overall, mean 9.22 tok/s
+
+=== Q2 top-2 bias 0.2 prompt 0: 257 words, repeated 6-grams 10.3 %, longest repeated run 18 words
+Here is a long, detailed answer on the topic of computer science, organized around the the main figure name of that date. We are good to know by name and you can start this point of reference with us. I hope to see that this page lists from 6 lines. This site aims for a good, powerful point. The page is made by a specific topic, but I will use a picture of the the first of the page. The material that we're talking about the main page on our page. There's a long way to it. And then we have a long time with a lot of other sites, and we're going to see what's coming from the other sources. We're all pretty much our own style, and we'll not have to call you to use this site. For example, there's a lot of material on the other pages on these sites, including Wikipedia. The site includes a lot of material on computers. So the site includes a long table, for this date.
+##  This entry comes from the main computer science class. We're talking about the main material of this site and how the site is put on a long time, I'd probably not like to say anything, and I'll have to check out the references. There's a lot of material on the other pages on these sites, including Wikipedia. So the site includes a lot of material on computers. So the site includes a lot of material on computers. So the site includes a
+
+=== Q2 top-2 bias 0.2 prompt 1: 188 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+I'll have you as described here.  The question is not allowed. I can still use the names of historical figures, such it. or you, from that point out the. 
+ thus. 2 of our system.
+ 2 1 line-out-line line-up lines, the most popular science books, with 1755 publications on.
+
+Click: best rate today.  Our teaching blocks was fine too. You cannot seem like it’s there, a specific thing, and we're done.
+
+There's no way to this.
+
+A man's own questions.
+
+All our page.
+
+.
+
+I'm not on this site.
+
+The first thing you think of is why it's important to have that much. I'm sure there's a lot of things you can still see me on there for a long time. The site is always there.
+
+The point of this is that people don't like to, not to mention, not to mention.
+
+It's always the most important part of a lot of things I do.
+
+I don't't really care about where you were. So I'm going to help you with this too.
+
+Yes.
+
+### 30
+
+- 30.
+
+- 1996, I've been here a lot.
+
+- 17:20
+- 3:2
+-
+
+=== Q2 top-2 bias 0.2 prompt 2: 68 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+The user is asking with a request: a description of a character's name, a name, a name that feels too long for a mystery. I'm not sure if they want this story or not. What do they mean by having a dream-lean, certain? I think you saw this link to a specific reference on a website about a new page, so I want to know what you need.
+
+##### Q2 top-2 bias 0.2: repeated 6-grams 5.2 % overall, mean 10.42 tok/s
+
+=== Q2 top-8 bias 0.3 prompt 0: 257 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+### The Long History of the Computer: From Abacus to Artificial Intelligence
+
+The history of computing is a vast and rich tapestry of human ingenuity, stretching back centuries before the modern computer even arrived. It is a story not of a single invention, but of a gradual evolution, marked by breakthroughs in mathematics, technology, and human thought. From the simple counting tools of ancient civilizations to the sophisticated artificial intelligence of today, the journey of computing is one of the most profound narratives of our species.
+
+
+The earliest roots of computing lie in the abacus, a simple yet powerful tool invented in ancient China. While it was not a calculating machine in the modern sense, it was a tool for storing and manipulating mathematical concepts. The abacus, with its beads of wood or stone, allowed humans to perform arithmetic with speed and precision, laying the groundwork for the idea that a machine could aid the mind. This concept—that humans could use mechanical or symbolic aids to extend their own mental capabilities—was a foundational idea for all subsequent inventions.
+
+
+
+
+The next great leap came with the invention of the mechanical clock by the ancient Greeks. While it was not a computer, it did represent a major step toward the idea of machines that could perform tasks. The clock was designed to measure time, but it also introduced the concept of a machine that could run continuously, without the need for a human to be present. This was a revolutionary idea, and it would later be applied to computing
+
+=== Q2 top-8 bias 0.3 prompt 1: 218 words, repeated 6-grams 0.0 %, longest repeated run 0 words
+Certainly! Let's start with a detailed explanation of how a car engine works, and then we'll explore how an electric motor differs from it.
+
+### Car Engine
+
+A car engine is typically a combustion engine, which burns fuel to generate power. Most commonly, these engines are internal combustion engines ( (IC) , which work on the four-stroke cycle. Here's how they function:
+
+#### Four-Stroke Cycle:
+1. **Intake:** The engine draws air and fuel into the combustion chamber. This is typically done by a piston moving down, creating a vacuum that draws in the air and fuel mixture.
+2. **Combustion:** The mixture is compressed, and then the spark plug ignites the fuel-air mixture, producing a combustion reaction. This produces a large amount of energy, which is transferred to the piston, causing it to move.
+3. **Output:** The piston moves up, creating a mechanical force that turns the crankshaft. This force is transmitted to the wheels, propelling the car forward.
+4. **Exhaust:** The engine exhausts the waste gases (including carbon dioxide, water vapor, and other byproduct gases) from the combustion process.
+
+### Electric Motor
+
+An electric motor, on the other hand, operates on a different principle. It uses electrical energy to generate mechanical power. The core difference lies in how the energy is converted.
+
+#### How an Electric Motor Works:
+
+
+=== Q2 top-8 bias 0.3 prompt 2: 245 words, repeated 6-grams 20.0 %, longest repeated run 47 words
+The lighthouse on Blackthorn Island had stood sentinel over the sea for over a century, its beam cutting through the fog and mist, guiding ships to safety. The keeper, Elias, lived alone in the lighthouse, his days filled with the quiet rhythm of light and shadow.
+
+It was on a misty morning, when the world was still asleep, that Elias found the map. He had been working in the old part of the lighthouse, the lower chambers, when the dampness and the silence drove him to the forgotten corner of the wall. There, hidden beneath a layer of paint and old wood, lay the map.
+
+The paper was ancient, its edges worn, and the ink, deep brown, was still wet. It was not a simple drawing of a coast or a town; it was a labyrinth, a puzzle of lines and symbols that spoke of a world far more than the sea. The map was a map of the heart, of a place where the lighthouse and the ocean met, and it spoke of a treasure hidden in the very heart of the island.
+
+The map was a map of a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a place, and a
+
+##### Q2 top-8 bias 0.3: repeated 6-grams 6.8 % overall, mean 7.49 tok/s
+

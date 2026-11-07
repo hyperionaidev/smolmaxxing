@@ -1,0 +1,16 @@
+Q2 top-8 bias 0 f16                loops 13/16 | repeats mean  52.5 median  57.8 % | longest run median  297 | loop starts at word 274 | 56.0 tok/s | 760 words
+Q2 top-8 bias 0 q8KV               loops 12/16 | repeats mean  49.0 median  48.7 % | longest run median  358 | loop starts at word 268 | 54.0 tok/s | 753 words
+Q2 top-8 bias 0.2 q8KV             loops 15/16 | repeats mean  64.2 median  66.8 % | longest run median  449 | loop starts at word 239 | 41.7 tok/s | 810 words
+Q2 top-8 bias 0.2 f16              loops 13/16 | repeats mean  48.8 median  55.9 % | longest run median  323 | loop starts at word 315 | 58.2 tok/s | 736 words
+Q2 top-8 bias 0.05 q8KV            loops 14/16 | repeats mean  46.8 median  48.0 % | longest run median  353 | loop starts at word 351 | 57.1 tok/s | 666 words
+Q2 top-8 bias 0.1 q8KV             loops 15/16 | repeats mean  56.9 median  60.9 % | longest run median  464 | loop starts at word 343 | 55.8 tok/s | 764 words
+Q2 top-6 bias 0.25 q8KV            loops 13/16 | repeats mean  49.5 median  55.8 % | longest run median  285 | loop starts at word 323 | 61.6 tok/s | 752 words
+Q2 top-6 bias 0 q8KV               loops 16/16 | repeats mean  51.9 median  48.0 % | longest run median  249 | loop starts at word 431 | 61.3 tok/s | 804 words
+Q3 top-8 bias 0 f16                loops  6/16 | repeats mean  14.2 median   8.3 % | longest run median   22 | loop starts at word 592 | 52.6 tok/s | 764 words
+Q3 top-8 bias 0.2 f16              loops 10/16 | repeats mean  30.4 median  32.2 % | longest run median  138 | loop starts at word 424 | 52.6 tok/s | 733 words
+Q3 top-8 bias 0.2 q8KV             loops 11/16 | repeats mean  27.4 median  27.5 % | longest run median  171 | loop starts at word 545 | 54.8 tok/s | 744 words
+Q3 top-6 bias 0.2 q8KV             loops  9/16 | repeats mean  24.0 median  16.3 % | longest run median   73 | loop starts at word 524 | 60.0 tok/s | 751 words
+Q4 top-8 bias 0 f16                loops  7/16 | repeats mean  20.8 median  13.1 % | longest run median   21 | loop starts at word 641 | 51.7 tok/s | 798 words
+Q4 top-8 bias 0.2 q8KV             loops  8/16 | repeats mean  19.8 median   6.0 % | longest run median   36 | loop starts at word 542 | 57.3 tok/s | 776 words
+Q8 reference                       loops  2/6 | repeats mean   3.4 median   1.8 % | longest run median    4 | loop starts at word 737 | 3.4 tok/s | 767 words
+MATRIX DONE

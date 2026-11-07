@@ -1,0 +1,10 @@
+test trace, no bias, top-8, 989 slots: uniform 43 per layer: 13.00 % misses (23.40 per token); by benefit: 12.34 % (22.21 per token), -5.1 %
+alloc: 1:60 2:60 3:57 4:46 5:45 6:41 7:44 8:49 9:38 10:35 11:33 12:39 13:35 14:34 15:40 16:50 17:46 18:40 19:44 20:42 21:42 22:41 23:28
+test trace, no bias, top-5, 989 slots: uniform 43 per layer: 9.72 % misses (10.94 per token); by benefit: 9.03 % (10.16 per token), -7.1 %
+alloc: 1:59 2:61 3:56 4:47 5:42 6:42 7:45 8:46 9:41 10:33 11:31 12:39 13:40 14:36 15:45 16:50 17:47 18:42 19:43 20:39 21:40 22:39 23:26
+used 5 bias 0.25: PPL = 13.7006 +/- 0.80458 bias 0.250: hits 566098 misses 10127, miss rate 1.76 % 
+used 5 bias 0.3: PPL = 14.3272 +/- 0.84943 bias 0.300: hits 568392 misses 7833, miss rate 1.36 % 
+used 6 bias 0.25: PPL = 12.6409 +/- 0.73532 bias 0.250: hits 679285 misses 12185, miss rate 1.76 % 
+used 8 bias 0.25: PPL = 11.8956 +/- 0.69147 bias 0.250: hits 906390 misses 15570, miss rate 1.69 % 
+used 8 bias 0.3: PPL = 12.1747 +/- 0.70962 bias 0.300: hits 910142 misses 11818, miss rate 1.28 % 
+AL DONE

@@ -1,0 +1,9 @@
+k=6: pre-gate: 79.5 % of selected experts predicted one layer early, 97.8 % of pool misses (4287 misses)
+k=10: pre-gate: 93.6 % of selected experts predicted one layer early, 99.6 % of pool misses (4287 misses)
+k=16: pre-gate: 97.8 % of selected experts predicted one layer early, 99.8 % of pool misses (4287 misses)
+PREGATE DONE
+ahead 2 k=6: pre-gate: 75.1 % of selected experts predicted one layer early, 94.2 % of pool misses (4061 misses)
+ahead 3 k=6: pre-gate: 71.2 % of selected experts predicted one layer early, 89.5 % of pool misses (3723 misses)
+ahead 2 k=12: pre-gate: 93.1 % of selected experts predicted one layer early, 98.5 % of pool misses (4061 misses)
+ahead 3 k=12: pre-gate: 90.1 % of selected experts predicted one layer early, 96.3 % of pool misses (3723 misses)
+PREGATE DONE

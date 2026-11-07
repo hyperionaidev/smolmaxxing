@@ -1,0 +1,4 @@
+used 5 bias 0 nonblock: PPL = 17.9984 +/- 1.09820 non-blocking: 0.75 experts skipped per layer-token, 0.000 filled from masked groups (of 115245 layer-tokens) 
+used 5 bias 0.05 nonblock: PPL = 16.4349 +/- 0.98487 non-blocking: 0.35 experts skipped per layer-token, 0.000 filled from masked groups (of 115245 layer-tokens) 
+used 5 bias 0.1 nonblock: PPL = 16.5131 +/- 0.99994 non-blocking: 0.23 experts skipped per layer-token, 0.000 filled from masked groups (of 115245 layer-tokens) 
+used 5 bias 0.2 nonblock: PPL = 16.4799 +/- 0.98879 non-blocking: 0.12 experts skipped per layer-token, 0.000 filled from masked groups (of 115245 layer-tokens) 

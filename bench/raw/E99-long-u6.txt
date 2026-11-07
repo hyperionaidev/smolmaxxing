@@ -1,0 +1,12 @@
+t+   30s tokens   187  last-30s 6.21 tok/s
+t+   60s tokens   401  last-30s 7.11 tok/s
+t+   90s tokens   635  last-30s 7.78 tok/s
+t+  120s tokens   866  last-30s 7.70 tok/s
+server timings {'prompt_per_second': 9.46, 'predicted_n': 979, 'predicted_per_second': 7.47}
+tail: at could do more than just record.
+
+The tabula and the abacus were the first tools, and the mechanical computer was the first tool that could do more than just record.
+
+The tabula and the abacus were the first tools, and the mechanical computer was the first tool that could do more than just record.
+01:39:07 173 258 1141
+01:40:22 197 233 1101

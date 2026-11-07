@@ -1,0 +1,9 @@
+pool 30 bias 0: PPL = 10.5037 +/- 0.61244 pool 30 per layer, bias 0.000: hits 703096 misses 218864, miss rate 23.74 % 
+pool 30 bias 0.02: PPL = 10.5193 +/- 0.61301 pool 30 per layer, bias 0.020: hits 752471 misses 169489, miss rate 18.38 % 
+pool 30 bias 0.05: PPL = 10.6729 +/- 0.62504 pool 30 per layer, bias 0.050: hits 795253 misses 126707, miss rate 13.74 % 
+pool 30 bias 0.1: PPL = 10.8946 +/- 0.64346 pool 30 per layer, bias 0.100: hits 834014 misses 87946, miss rate 9.54 % 
+pool 30 bias 0.2: PPL = 11.0602 +/- 0.64252 pool 30 per layer, bias 0.200: hits 873830 misses 48130, miss rate 5.22 % 
+pool 30 bias 0.4: PPL = 13.9014 +/- 0.84071 pool 30 per layer, bias 0.400: hits 906536 misses 15424, miss rate 1.67 % 
+pool 23 bias 0.1: PPL = 11.0397 +/- 0.65100 pool 23 per layer, bias 0.100: hits 790459 misses 131501, miss rate 14.26 % 
+pool 39 bias 0.1: PPL = 10.7161 +/- 0.62899 pool 39 per layer, bias 0.100: hits 870207 misses 51753, miss rate 5.61 % 
+BIAS DONE

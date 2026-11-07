@@ -1,0 +1,5 @@
+llama_model_quantize_impl: quant size  =  2597.18 MiB (2.76 BPW)
+wrote 2,646,133,280 bytes (525 + 2 tensors, 57 keys)
+all-Q2 used 6 bias 0.25 pool 52: PPL = 16.1648 +/- 0.95083 pool 52 per layer, bias 0.250: hits 684676 misses 6794, miss rate 0.98 % 
+all-Q2 used 8 bias 0.2 pool 52: PPL = 14.5153 +/- 0.84580 pool 52 per layer, bias 0.200: hits 910861 misses 11099, miss rate 1.20 % 
+NE DONE

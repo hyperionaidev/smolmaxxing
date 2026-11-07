@@ -1,0 +1,12 @@
+t+   30s tokens   173  last-30s 5.74 tok/s
+t+   60s tokens   378  last-30s 6.79 tok/s
+t+   90s tokens   589  last-30s 7.01 tok/s
+t+  121s tokens   789  last-30s 6.64 tok/s
+server timings {'prompt_per_second': 9.09, 'predicted_n': 979, 'predicted_per_second': 6.81}
+tail: round pieces of metal. Each piece was called a "number. The Tabulating Machine could do long multiplication and division, and it was made of wood and had a series of small, round pieces of metal. Each piece was called a "number. The Tabulating Machine was the first mechanical computer.
+
+
+
+## II. The
+01:13:37 200 281 1108
+01:13:44 202 281 1108

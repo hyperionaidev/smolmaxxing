@@ -1,0 +1,7 @@
+pool 30 bias 0.2 prefetch 2: PPL = 11.2421 +/- 0.65873 prefetch loads 9329 pool 30 per layer, bias 0.200: hits 873699 misses 48261, miss rate 5.23 % 
+pool 30 bias 0.2 prefetch 4: PPL = 11.3438 +/- 0.66515 prefetch loads 19342 pool 30 per layer, bias 0.200: hits 873365 misses 48595, miss rate 5.27 % 
+pool 30 bias 0.2 prefetch 8: PPL = 11.2251 +/- 0.65507 prefetch loads 62805 pool 30 per layer, bias 0.200: hits 869773 misses 52187, miss rate 5.66 % 
+pool 30 bias 0.1 prefetch 4: PPL = 10.7982 +/- 0.63450 prefetch loads 41312 pool 30 per layer, bias 0.100: hits 833582 misses 88378, miss rate 9.59 % 
+pool 30 bias 0 prefetch 4: PPL = 10.5037 +/- 0.61244 prefetch loads 183692 pool 30 per layer, bias 0.000: hits 700002 misses 221958, miss rate 24.07 % 
+pool 30 bias 0 prefetch 8: PPL = 10.5037 +/- 0.61244 prefetch loads 416190 pool 30 per layer, bias 0.000: hits 689955 misses 232005, miss rate 25.16 % 
+PF DONE

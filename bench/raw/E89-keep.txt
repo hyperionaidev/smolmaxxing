@@ -1,0 +1,12 @@
+-rw-r--r--  1 mohamedrashad  wheel  5547876 Nov  7 04:17 /private/tmp/claude-501/mb-cal.trace
+layer  1: top 60 carry 82.2 % of uses
+layer 12: top 60 carry 91.6 % of uses
+layer 23: top 60 carry 94.1 % of uses
+keep 60 per layer: PPL = 16.8735 +/- 1.00895  (RAM at Q3_K 1393 MB)
+layer  1: top 40 carry 67.0 % of uses
+layer 12: top 40 carry 79.7 % of uses
+layer 23: top 40 carry 81.6 % of uses
+keep 40 per layer: PPL = 33.6038 +/- 2.17191  (RAM at Q3_K 929 MB)
+layer  1: top 30 carry 56.5 % of uses
+layer 12: top 30 carry 71.1 % of uses
+layer 23: top 30 carry 71.0 % of uses

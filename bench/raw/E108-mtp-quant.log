@@ -1,0 +1,97 @@
+version: 0.8.0-dev (build 1, commit 8642541)
+built with AppleClang 15.0.0.15000309 for Darwin arm64
+llama_quantize: quantizing 'models/moe/mb-mtp-q4.gguf' to 'models/moe/mb-mtp-q2-tmp.gguf' as Q4_K using 4 threads
+llama_model_loader: loaded meta data with 52 key-value pairs and 26 tensors from models/moe/mb-mtp-q4.gguf (version GGUF V3 (latest))
+llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+llama_model_loader: - kv   0:                       general.architecture str              = bailingmoe3
+llama_model_loader: - kv   1:                               general.type str              = model
+llama_model_loader: - kv   2:                     general.sampling.top_k i32              = 20
+llama_model_loader: - kv   3:                     general.sampling.top_p f32              = 0.950000
+llama_model_loader: - kv   4:                      general.sampling.temp f32              = 1.000000
+llama_model_loader: - kv   5:                               general.name str              = Hf
+llama_model_loader: - kv   6:                         general.size_label str              = 128x500M
+llama_model_loader: - kv   7:                    bailingmoe3.block_count u32              = 25
+llama_model_loader: - kv   8:                 bailingmoe3.context_length u32              = 131072
+llama_model_loader: - kv   9:               bailingmoe3.embedding_length u32              = 1536
+llama_model_loader: - kv  10:            bailingmoe3.feed_forward_length u32              = 4608
+llama_model_loader: - kv  11:           bailingmoe3.attention.head_count u32              = 16
+llama_model_loader: - kv  12:        bailingmoe3.attention.head_count_kv arr[i32,25]      = [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, ...
+llama_model_loader: - kv  13:                 bailingmoe3.rope.freq_base f32              = 6000000.000000
+llama_model_loader: - kv  14: bailingmoe3.attention.layer_norm_rms_epsilon f32              = 0.000001
+llama_model_loader: - kv  15:                   bailingmoe3.expert_count u32              = 128
+llama_model_loader: - kv  16:              bailingmoe3.expert_used_count u32              = 8
+llama_model_loader: - kv  17:             bailingmoe3.expert_group_count u32              = 8
+llama_model_loader: - kv  18:        bailingmoe3.expert_group_used_count u32              = 4
+llama_model_loader: - kv  19:             bailingmoe3.expert_gating_func u32              = 2
+llama_model_loader: - kv  20:           bailingmoe3.attention.key_length u32              = 576
+llama_model_loader: - kv  21:         bailingmoe3.attention.value_length u32              = 128
+llama_model_loader: - kv  22:                     bailingmoe3.vocab_size u32              = 157184
+llama_model_loader: - kv  23:                bailingmoe3.ssm.conv_kernel u32              = 4
+llama_model_loader: - kv  24:                   bailingmoe3.kda.head_dim u32              = 128
+llama_model_loader: - kv  25:                  bailingmoe3.kda.safe_gate bool             = true
+llama_model_loader: - kv  26:           bailingmoe3.kda.gate_lower_bound f32              = -5.000000
+llama_model_loader: - kv  27:          bailingmoe3.attention.q_lora_rank u32              = 256
+llama_model_loader: - kv  28:         bailingmoe3.attention.kv_lora_rank u32              = 512
+llama_model_loader: - kv  29:           bailingmoe3.rope.dimension_count u32              = 64
+llama_model_loader: - kv  30:       bailingmoe3.attention.key_length_mla u32              = 192
+llama_model_loader: - kv  31:     bailingmoe3.attention.value_length_mla u32              = 128
+llama_model_loader: - kv  32:     bailingmoe3.expert_feed_forward_length u32              = 512
+llama_model_loader: - kv  33: bailingmoe3.expert_shared_feed_forward_length u32              = 512
+llama_model_loader: - kv  34:            bailingmoe3.expert_shared_count u32              = 1
+llama_model_loader: - kv  35:      bailingmoe3.leading_dense_block_count u32              = 1
+llama_model_loader: - kv  36:           bailingmoe3.expert_weights_scale f32              = 2.500000
+llama_model_loader: - kv  37:            bailingmoe3.expert_weights_norm bool             = true
+llama_model_loader: - kv  38:           bailingmoe3.nextn_predict_layers u32              = 1
+llama_model_loader: - kv  39:                       tokenizer.ggml.model str              = gpt2
+llama_model_loader: - kv  40:                         tokenizer.ggml.pre str              = bailingmoe2
+llama_model_loader: - kv  41:                      tokenizer.ggml.tokens arr[str,157184]  = ["!", "\"", "#", "$", "%", "&", "'", ...
+llama_model_loader: - kv  42:                  tokenizer.ggml.token_type arr[i32,157184]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+llama_model_loader: - kv  43:                      tokenizer.ggml.merges arr[str,156635]  = ["Ġ Ġ", "Ġ t", "i n", "Ġ a", "h e...
+llama_model_loader: - kv  44:                tokenizer.ggml.bos_token_id u32              = 156891
+llama_model_loader: - kv  45:                tokenizer.ggml.eos_token_id u32              = 156895
+llama_model_loader: - kv  46:            tokenizer.ggml.padding_token_id u32              = 156892
+llama_model_loader: - kv  47:               tokenizer.ggml.add_bos_token bool             = false
+llama_model_loader: - kv  48:               tokenizer.ggml.add_eos_token bool             = false
+llama_model_loader: - kv  49:                    tokenizer.chat_template str              = {#- Bailing V3 chat template -#}\n{#- ...
+llama_model_loader: - kv  50:               general.quantization_version u32              = 2
+llama_model_loader: - kv  51:                          general.file_type u32              = 15
+llama_model_loader: - type  f32:   10 tensors
+llama_model_loader: - type q5_0:    1 tensors
+llama_model_loader: - type q4_K:   12 tensors
+llama_model_loader: - type q6_K:    3 tensors
+warning: blk.24.attn_k_b.weight               - ncols    128 not divisible by 256 (required for type    q4_K) -> falling back to    q5_0
+llama_tensor_get_type: blk.24.ffn_down_exps.weight          - applying manual override: q4_K -> q2_K
+llama_tensor_get_type: blk.24.ffn_gate_exps.weight          - applying manual override: q4_K -> q2_K
+llama_tensor_get_type: blk.24.ffn_up_exps.weight            - applying manual override: q4_K -> q2_K
+[   1/  26] output.weight                        - [  1536, 157184,      1,      1], type =   q6_K, converting to q4_K .. size =   188.88 MiB ->   129.52 MiB
+[   2/  26] output_norm.weight                   - [  1536,      1,      1,      1], type =    f32, size =    0.006 MiB
+[   3/  26] token_embd.weight                    - [  1536, 157184,      1,      1], type =   q4_K, size =  129.516 MiB
+[   4/  26] blk.24.attn_gate.weight              - [  1536,     16,      1,      1], type =   q4_K, size =    0.013 MiB
+[   5/  26] blk.24.attn_k_b.weight               - [   128,    512,     16,      1], type =   q5_0, size =    0.688 MiB
+[   6/  26] blk.24.attn_kv_a_mqa.weight          - [  1536,    576,      1,      1], type =   q4_K, size =    0.475 MiB
+[   7/  26] blk.24.attn_kv_a_norm.weight         - [   512,      1,      1,      1], type =    f32, size =    0.002 MiB
+[   8/  26] blk.24.attn_norm.weight              - [  1536,      1,      1,      1], type =    f32, size =    0.006 MiB
+[   9/  26] blk.24.attn_output.weight            - [  2048,   1536,      1,      1], type =   q4_K, size =    1.688 MiB
+[  10/  26] blk.24.attn_q_a.weight               - [  1536,    256,      1,      1], type =   q4_K, size =    0.211 MiB
+[  11/  26] blk.24.attn_q_a_norm.weight          - [   256,      1,      1,      1], type =    f32, size =    0.001 MiB
+[  12/  26] blk.24.attn_q_b.weight               - [   256,   3072,      1,      1], type =   q4_K, size =    0.422 MiB
+[  13/  26] blk.24.attn_v_b.weight               - [   512,    128,     16,      1], type =   q4_K, size =    0.562 MiB
+[  14/  26] blk.24.exp_probs_b.bias              - [   128,      1,      1,      1], type =    f32, size =    0.000 MiB
+[  15/  26] blk.24.ffn_down_exps.weight          - [   512,   1536,    128,      1], type =   q6_K, converting to q2_K .. size =    78.75 MiB ->    31.50 MiB
+[  16/  26] blk.24.ffn_down_shexp.weight         - [   512,   1536,      1,      1], type =   q6_K, converting to q4_K .. size =     0.62 MiB ->     0.42 MiB
+[  17/  26] blk.24.ffn_gate_exps.weight          - [  1536,    512,    128,      1], type =   q4_K, converting to q2_K .. size =    54.00 MiB ->    31.50 MiB
+[  18/  26] blk.24.ffn_gate_inp.weight           - [  1536,    128,      1,      1], type =    f32, size =    0.750 MiB
+[  19/  26] blk.24.ffn_gate_shexp.weight         - [  1536,    512,      1,      1], type =   q4_K, size =    0.422 MiB
+[  20/  26] blk.24.ffn_norm.weight               - [  1536,      1,      1,      1], type =    f32, size =    0.006 MiB
+[  21/  26] blk.24.ffn_up_exps.weight            - [  1536,    512,    128,      1], type =   q4_K, converting to q2_K .. size =    54.00 MiB ->    31.50 MiB
+[  22/  26] blk.24.ffn_up_shexp.weight           - [  1536,    512,      1,      1], type =   q4_K, size =    0.422 MiB
+[  23/  26] blk.24.layer_output_norm.weight      - [  1536,      1,      1,      1], type =    f32, size =    0.006 MiB
+[  24/  26] blk.24.nextn.eh_proj.weight          - [  3072,   1536,      1,      1], type =   q4_K, size =    2.531 MiB
+[  25/  26] blk.24.nextn.enorm.weight            - [  1536,      1,      1,      1], type =    f32, size =    0.006 MiB
+[  26/  26] blk.24.nextn.hnorm.weight            - [  1536,      1,      1,      1], type =    f32, size =    0.006 MiB
+llama_model_quantize_impl: model size  =   513.98 MiB (5.39 BPW)
+llama_model_quantize_impl: quant size  =   362.17 MiB (3.80 BPW)
+llama_model_quantize_impl: WARNING: 1 of 26 tensor(s) required fallback quantization
+
+llama_quantize: quantize time = 10153.09 ms
+llama_quantize:    total time = 10153.09 ms
