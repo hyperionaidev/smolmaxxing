@@ -171,6 +171,16 @@ Everything on the box lives in `/data/local/tmp/llm` and runs as the adb `shell`
 
 The model files (0.5-4 GB each) are not in this repo. [`tools/rebuild-models.sh`](tools/rebuild-models.sh) recreates every one from public Hugging Face files, streaming them through `tools/gguf_build.py` onto the TV. The SHA-256s below are of the files used in the experiments. Rebuilds of the 4B, Bonsai-8B and 9B files were checked **byte-identical**.
 
+**Ready-made downloads.** The three best files are on Hugging Face exactly as the TV runs them (they need the patched llama.cpp above; stock llama.cpp can't load the pruned head). Each card has the run command and the measured numbers:
+
+| Model | Hugging Face | File |
+|---|---|---|
+| Moon-Beam-8B-A1B (MoE), 7.2 tok/s | [hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF) | `mb-q2-h60.gguf` + `moe-warm-moonbeam.txt` |
+| Bonsai-8B (1-bit), 5.2 tok/s | [hyperionaidev/Bonsai-8B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Bonsai-8B-tvbox-GGUF) | `b8-q1-hml.gguf` |
+| Ling-mini-2.0 (16B MoE), 5.1 tok/s | [hyperionaidev/Ling-mini-2.0-tvbox-GGUF](https://huggingface.co/hyperionaidev/Ling-mini-2.0-tvbox-GGUF) | `lm2-q2-h60.gguf` + `moe-warm-ling.txt` |
+
+Download with `hf download hyperionaidev/<repo> --local-dir models/`, then `adb push` the files to `/data/local/tmp/llm/` (and `moe-warm-*.txt` next to them) instead of running the `mb` / `b8` / `lm` targets. The first start writes the repack cache.
+
 | File on the TV | Target | Built from | SHA-256 |
 |---|---|---|---|
 | `w-q4k-h65.gguf` (Qwen3.5-2B) | `2b` | `unsloth/Qwen3.5-2B-GGUF` BF16 + `imatrix_unsloth`, MTP block from `Qwen/Qwen3.5-2B`, quantized on the TV, head `data/head-ids-ml60k.txt` | `16057be3…3285b` |
@@ -181,8 +191,8 @@ The model files (0.5-4 GB each) are not in this repo. [`tools/rebuild-models.sh`
 | `tb4-q20-hml.gguf` | `4b` | `prism-ml/Ternary-Bonsai-4B-gguf` Q2_0_g64, head `data/head-ids-qwen3-ml64k.txt` | `a02d805f…3fe24` |
 | `b8-q1-hml.gguf` | `b8` | `prism-ml/Bonsai-8B-gguf` Q1_0, same head | `fc297cb3…0d42a` |
 | `tb8-q20-hml.gguf` | `tb8` | `prism-ml/Ternary-Bonsai-8B-gguf` Q2_0_g64, same head | `01b1e0ef…93e06` |
-| `mb-q2-h60.gguf` | `mb` | `tablinum/Moon-Beam-8B-A1B-GGUF-Preview` Q8_0, requantized on the Mac: experts Q2_K, the rest Q4_K, own imatrix from `data/corpus`, head `data/head-ids-ling-60k.txt`; expert bytes hole-punched on the TV after the repack cache (`cache/mbq2.*`) is written | |
-| `lm2-q2-h60.gguf` | `lm` | `bartowski/inclusionAI_Ling-mini-2.0-GGUF` Q4_K_M + its imatrix: experts requantized to Q2_K on the Mac, the rest Q4_K, head `data/head-ids-ling-60k.txt`; punched on the TV after the repack cache (`cache/lmq2.*`) is written | |
+| `mb-q2-h60.gguf` | `mb` | `tablinum/Moon-Beam-8B-A1B-GGUF-Preview` Q8_0, requantized on the Mac: experts Q2_K, the rest Q4_K, own imatrix from `data/corpus`, head `data/head-ids-ling-60k.txt`; expert bytes hole-punched on the TV after the repack cache (`cache/mbq2.*`) is written | `2d78fcdd…1c34ee` |
+| `lm2-q2-h60.gguf` | `lm` | `bartowski/inclusionAI_Ling-mini-2.0-GGUF` Q4_K_M + its imatrix: experts requantized to Q2_K on the Mac, the rest Q4_K, head `data/head-ids-ling-60k.txt`; punched on the TV after the repack cache (`cache/lmq2.*`) is written | `c089aeb0…e8d7` |
 | `q9-iq2-h65-mtp.gguf` | `q9` | `unsloth/Qwen3.5-9B-GGUF` UD-IQ2_XXS, MTP block from `Qwen/Qwen3.5-9B` (Q4_0), 65K head | `7766478e…8dcbc` |
 | `cache/b8c.*`, `cache/tb8.*` | `caches` | written by the first run with `GGML_REPACK_CACHE` | |
 
