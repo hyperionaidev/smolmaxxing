@@ -1,0 +1,5 @@
+=== 04:39:16 GGML_MOE_POOL=43 GGML_MOE_BIAS=0.3 LLAMA_MOE_USED=8
+TV ling GGML_MOE_POOL=43 GGML_MOE_BIAS=0.3 LLAMA_MOE_USED=8 loops  0/6 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.0 tok/s | 600 words
+moe-pager: 755028 hits, 49622 misses (6.2 %), 5052 waited on a read already started; read 76938.6 MB, waited 418.29 s; prefetched 24100, 0 of them used
+tv-guard: exit 0, min MemAvailable 188 MB, max RSS 1134 MB
+LM-TV DONE

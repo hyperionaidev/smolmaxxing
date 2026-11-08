@@ -735,3 +735,44 @@ Max RSS 1.14 GB in headless mode, min MemAvailable ~170 MB. Bits/byte on `eval-e
 
 **MoE switches:** `GGML_MOE_PAGER=1` (expert pager), `GGML_MOE_POOL`, `GGML_MOE_BIAS`, `LLAMA_MOE_USED`, `GGML_MOE_WARM=<list>`, `GGML_MOE_PREFETCH_K` / `GGML_MOE_PREFETCH_AHEAD` / `GGML_MOE_PREFETCH_INFLIGHT`, `GGML_MOE_VERIFY=1`; `GGML_FA_EPS` / `GGML_FA_Q8=0` / `GGML_FA_CHECK=1` for the Q8_0 attention path.
 
+
+## 20. Bigger than 9B: Ling-mini-2.0, a 16B MoE (2026-11-08)
+
+**Goal (your call):** "try to go a bit higher with bigger than 9B models and apply all what you learned." Same rules as §19: every speed is real chat on the TV through the server, headless mode, under the guard.
+
+**The result: Ling-mini-2.0 (16.3 B parameters, 256 experts) runs at 5.1 tok/s in real chat on the TV** (5.0 over ~600-word answers), coherent and loop-free, with the §19 recipe unchanged: Q2_K experts paged from flash, cache-aware routing, warm start, pre-gated prefetch, repeat penalty. That is twice Moon-Beam's size at 70 % of its speed. **But it isn't better:** 1.054 bits/byte against Moon-Beam's 0.996 and Bonsai-8B's 0.974. Ling-mini-2.0 (Sep 2025) is a generation older than Moon-Beam's Ling-3.0 base, and on this box a bigger model only helps if it is also a better model per byte.
+
+### 20.1 Candidates (Nov 2026)
+
+What matters on this box is the weight touched per token and the non-expert bytes that must stay in RAM, not the total size.
+
+| Model | Total / active | Experts | Verdict |
+|---|---|---|---|
+| **Ling-mini-2.0** (inclusionAI) | 16.3 B / 1.4 B | 256 × 1.03 MB (Q2_K), top-8 + shared, 19 MoE layers | **the only > 9 B model with Moon-Beam-sized per-token work**: 279 MB resident non-experts, 5.0 GB of experts |
+| LFM2.5-24B-A2B (Liquid, Oct 2026) | 24 B / 2.45 B | 64 × 3.1 MB, top-4, 38 MoE layers | ✗ ~560 MB of non-experts (convolution and attention at Q4_K) leave room for ~4 experts per layer, and each miss reads 3 MB: estimated ~1 tok/s |
+| Qwen3.6-35B-A3B (Qwen) | 35 B / 3 B | 256 × 1.03 MB, top-8, 40 layers | ✗ ~1.5 B non-expert parameters (DeltaNet and attention projections, 248K head) = ~870 MB at Q4_K, nearly the whole budget before one expert is cached: well under 1 tok/s. The Qwen route stays closed (E102) |
+| Qwen3-30B-A3B-derived "A1.5B" variants, gpt-oss-20b, ERNIE-4.5-21B-A3B, SmallThinker-21B-A3B | 20-30 B / 1.5-3.6 B | | ✗ same arithmetic: too many non-expert bytes or too many bytes per expert |
+
+### 20.2 Experiments
+
+| # | What | Result |
+|---|---|---|
+| E105 | **Build** (`tools/rebuild-models.sh lm`, `tools/lm-prep.sh`). The Mac has no room for the 17 GB Q8_0, so bartowski's imatrix Q4_K_M is the source: experts requantized to Q2_K with his imatrix, non-experts Q4_K (the fast kernels), same tokenizer as Moon-Beam (9 reserved tokens differ), so the 60K head list is reused; `bailingmoe2.cpp` got the pruned-head port. 5.49 GB → repack cache 5.26 GB → GGUF punched to 472 MB. Warm list from a calibration trace (`data/moe-warm-ling.txt`): a layer's top 64 of 256 experts carry 56-82 % of uses | Mac, eval-en, 60K head: **1.0346 bits/byte** (PPL 13.96), Moon-Beam Q2_K top-8 0.948 on the same basis. Pool 43, top-8: bias 0.2 1.0558, **0.3 1.0537**, 0.4 1.0773, 0.5 1.0778 (knee between 0.3 and 0.4). Top-6: bias 0.2 1.0904, 0.25 1.0902, 0.3 1.1151, 0.4 1.1255: fewer experts costs this model more than Moon-Beam. Raw: `bench/raw/E105-*` |
+| E106 | **On the TV** (`tools/lm-tv.sh`, real chat, 4 answers × 400 tokens, penalty on). Pager verify run first: clean | Pool 40, top-6, bias 0.25: **5.3 tok/s**, 8.4 % misses, RSS 1.08 GB. Pool 40, top-8, bias 0.2: 4.1. Pool 43 (RSS 1.13 GB), top-6: 5.3, 8.2 %; without prefetch 5.2, 11.6 %. **Pool 43, top-8, bias 0.3: 5.1 tok/s, 6.6 % misses**: the default, since top-6 is 4 % faster for much worse text. Flash waits are ~85 ms of a ~190 ms token. Raw: `bench/raw/E106-ling-tv.txt` |
+| E107 | **Long answers** (default config, 6 × 900-token answers, ~600 words each; `tools/degen_score.py`) | **0/6 loops, 5.0 tok/s**, 6.2 % misses, RSS 1.13 GB, min MemAvailable 188 MB; 0/10 degenerate over every default-config run. Unlike Moon-Beam's (12/13 without the penalty, E99), Ling's Q2_K experts hold long-form coherence. Raw: `bench/raw/E106-ling-long.txt`, texts `E106-ling-texts.txt` |
+
+### 20.3 Where it stands
+
+| On this TV | Total params | Bits/byte | Chat |
+|---|---|---|---|
+| Bonsai-8B (§19) | 8 B dense, 1-bit | 0.974 | 5.2 |
+| Moon-Beam-8B-A1B (§19) | 7.9 B MoE | 0.996 | 7.2 |
+| **Ling-mini-2.0 (this section)** | **16.3 B MoE** | 1.054 | **5.1** |
+
+**To use it:** `MODEL=lm2-q2-h60.gguf tv-llm-ui/start.sh` (first `tools/rebuild-models.sh lm`).
+
+**What went wrong:**
+- **The Mac crashed** during the first calibration trace: 8.6 GB of RAM, a 5.6 GB model, a 5.5 GB stream to the TV and only ~5 GB of free disk for swap at the same time. Since then: one heavy job at a time, at `nice`, with the disk kept above ~10 GB free.
+- **A shell chain deleted the intermediate file:** `build | tail && rm src` tests `tail`'s exit status, so a full disk still ran the `rm`. Six minutes lost.
+- **`adb exec-in` returns before the TV has the data:** the Mac side hands everything to the adb server and exits, so restarting the server twice truncated the file on the TV (4.7 and 2.3 of 5.5 GB). The model now goes through `adb push`, which checks completion.
+- **zsh doesn't word-split `set -- $cfg`** again: three Mac runs did nothing until rerun under bash.

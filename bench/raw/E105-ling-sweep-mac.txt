@@ -1,0 +1,12 @@
+03:46:33 lm2-q2-h60.gguf nosim en PPL 13.9606 tokens 5993 bits/byte 1.0346 | Final estimate: PPL = 13.9606 +/- 1.00824 pruned-head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept vocab) 
+03:49:39 lm2-q2-h60.gguf pool40-b0-top8 en PPL 13.9606 tokens 5993 bits/byte 1.0346 | Final estimate: PPL = 13.9606 +/- 1.00824 pruned-head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept vocab) 
+03:51:45 lm2-q2-h60.gguf pool40-b0.2-top8 en PPL 14.5342 tokens 5993 bits/byte 1.0504 | Final estimate: PPL = 14.5342 +/- 1.05704 pruned-head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept vocab) 
+03:54:00 lm2-q2-h60.gguf pool40-b0.3-top8 en PPL 14.6488 tokens 5993 bits/byte 1.0535 | Final estimate: PPL = 14.6488 +/- 1.05761 pruned-head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept vocab) 
+03:55:38 lm2-q2-h60.gguf pool40-b0.2-top6 en PPL 16.0954 tokens 5993 bits/byte 1.0904 | Final estimate: PPL = 16.0954 +/- 1.20223 pruned-head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept vocab) 
+03:57:18 lm2-q2-h60.gguf pool40-b0.3-top6 en PPL 17.1394 tokens 5993 bits/byte 1.1151 | Final estimate: PPL = 17.1394 +/- 1.28326 pruned-head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept vocab) 
+03:58:47 lm2-q2-h60.gguf pool40-b0.4-top6 en PPL 17.5981 tokens 5993 bits/byte 1.1255 | Final estimate: PPL = 17.5981 +/- 1.29681 pruned-head misses: 28 of 2520 scored tokens (1.111%) skipped (target outside kept vocab) 
+04:17:49 lm2-q2-h60.gguf pool43-b0.25-top6 en PPL 16.0869 tokens 5993 bits/byte 1.0902 | Final estimate: PPL =
+04:19:27 lm2-q2-h60.gguf pool43-b0.3-top8 en PPL 14.6569 tokens 5993 bits/byte 1.0537 | Final estimate: PPL = 
+04:21:17 lm2-q2-h60.gguf pool43-b0.2-top8 en PPL 14.7368 tokens 5993 bits/byte 1.0558 | Final estimate: PPL = 
+04:37:35 lm2-q2-h60.gguf pool43-b0.4-top8 en PPL 15.5659 tokens 5993 bits/byte 1.0773 | Final estimate: PPL = 
+04:39:04 lm2-q2-h60.gguf pool43-b0.5-top8 en PPL 15.5837 tokens 5993 bits/byte 1.0778 | Final estimate: PPL = 

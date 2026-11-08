@@ -1,0 +1,22 @@
+=== 03:53:31 VERIFY  GGML_MOE_BIAS=0.2 LLAMA_MOE_USED=8
+TV ling GGML_MOE_VERIFY=1          loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 2.5 tok/s | 248 words
+moe-pager: 88107 hits, 8288 misses (8.6 %), 584 waited on a read already started; read 14987.4 MB, waited 71.68 s; prefetched 5472, 0 of them used
+tv-guard: exit 0, min MemAvailable 248 MB, max RSS 1067 MB
+TV ling                            loops  0/4 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.3 tok/s | 281 words
+moe-pager: 174383 hits, 16061 misses (8.4 %), 3260 waited on a read already started; read 28441.0 MB, waited 138.95 s; prefetched 10733, 0 of them used
+tv-guard: exit 0, min MemAvailable 242 MB, max RSS 1082 MB
+TV ling GGML_MOE_BIAS=0.2 LLAMA_MOE_USED=8 loops  0/4 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 4.1 tok/s | 295 words
+moe-pager: 230229 hits, 24615 misses (9.7 %), 2686 waited on a read already started; read 40570.3 MB, waited 207.58 s; prefetched 13930, 0 of them used
+tv-guard: exit 0, min MemAvailable 220 MB, max RSS 1083 MB
+LM-TV DONE
+=== 04:15:47 GGML_MOE_POOL=43 GGML_MOE_POOL=43 GGML_MOE_PREFETCH_K=0 GGML_MOE_POOL=43 GGML_MOE_BIAS=0.3 LLAMA_MOE_USED=8
+TV ling GGML_MOE_POOL=43           loops  0/4 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.3 tok/s | 291 words
+moe-pager: 174898 hits, 15578 misses (8.2 %), 3337 waited on a read already started; read 27186.9 MB, waited 137.42 s; prefetched 9944, 0 of them used
+tv-guard: exit 0, min MemAvailable 178 MB, max RSS 1134 MB
+TV ling GGML_MOE_POOL=43 GGML_MOE_PREFETCH_K=0 loops  0/4 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.2 tok/s | 292 words
+moe-pager: 171242 hits, 22503 misses (11.6 %), 0 waited on a read already started; read 24070.7 MB, waited 167.01 s; prefetched 0, 0 of them used
+tv-guard: exit 0, min MemAvailable 182 MB, max RSS 1126 MB
+TV ling GGML_MOE_POOL=43 GGML_MOE_BIAS=0.3 LLAMA_MOE_USED=8 loops  0/4 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.1 tok/s | 286 words
+moe-pager: 239102 hits, 16766 misses (6.6 %), 1778 waited on a read already started; read 25838.9 MB, waited 139.78 s; prefetched 7450, 0 of them used
+tv-guard: exit 0, min MemAvailable 200 MB, max RSS 1129 MB
+LM-TV DONE

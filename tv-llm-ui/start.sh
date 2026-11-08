@@ -5,6 +5,7 @@
 #   MODEL=w-q4k-h45.gguf ./start.sh     45K head: ~4 % faster, more non-English tokens it cannot produce (§17, E68)
 #   MODEL=tb4-q20-hml.gguf ./start.sh   Ternary-Bonsai-4B, merged scales + 2-bit fields: 4.3 tok/s in chat, ~0.965 bits/byte (§18, E77)
 #   MODEL=mb-q2-h60.gguf ./start.sh     Moon-Beam-8B, expert pager + pre-gated prefetch: ~7.2 tok/s on long coherent answers (§19)
+#   MODEL=lm2-q2-h60.gguf ./start.sh    Ling-mini-2.0 16B MoE, same expert pager recipe (§20)
 #   MODEL=b8-q1-hml.gguf ./start.sh     Bonsai-8B, LUT kernel, fully resident, headless mode: 5.2 tok/s in chat, 0.974 bits/byte (§19)
 #   MODEL=file.gguf BIN=patched THREADS=3 EXTRA="..." ./start.sh
 #   TV=1 ./start.sh                    also open the page in the TV browser (only fits next to small models)
@@ -39,6 +40,13 @@ elif [ -z "${BIN:-}" ] && [ "$MODEL" = mb-q2-h60.gguf ]; then
   BIN=patched41
   SENV="${SENV-GGML_MOE_PAGER=1 GGML_MOE_POOL=${POOL:-43} GGML_MOE_BIAS=${BIAS:-0.25} LLAMA_MOE_USED=${EXPERTS:-6} GGML_MOE_PREFETCH_K=6 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_WARM=$D/moe-warm-moonbeam.txt GGML_REPACK_CACHE=$D/cache/mbq2}"
   EXTRA="${EXTRA:--ub 4 -b 64 -ctk q8_0 -ctv q8_0 -fa on -cram 0 -ctxcp 0 --repeat-penalty 1.15 --repeat-last-n 256}"
+  LIMIT_MB="${LIMIT_MB:-150}"
+  HEADLESS=1
+elif [ -z "${BIN:-}" ] && [ "$MODEL" = lm2-q2-h60.gguf ]; then
+  # Ling-mini-2.0 (EXPERIMENT.md §20): 16.3 B MoE, 256 experts of 1 MB, same recipe as Moon-Beam: ~5.1 tok/s. EXPERTS=6 BIAS=0.25: 5.3, much worse text.
+  BIN=patched42
+  SENV="${SENV-GGML_MOE_PAGER=1 GGML_MOE_POOL=${POOL:-43} GGML_MOE_BIAS=${BIAS:-0.3} LLAMA_MOE_USED=${EXPERTS:-8} GGML_MOE_PREFETCH_K=6 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_WARM=$D/moe-warm-ling.txt GGML_REPACK_CACHE=$D/cache/lmq2}"
+  EXTRA="${EXTRA:--ub 4 -b 64 -ctk q8_0 -ctv q8_0 -fa on -cram 0 --repeat-penalty 1.15 --repeat-last-n 256}"
   LIMIT_MB="${LIMIT_MB:-150}"
   HEADLESS=1
 elif [ -z "${BIN:-}" ]; then

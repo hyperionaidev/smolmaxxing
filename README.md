@@ -4,14 +4,15 @@
 
 **Every device around you is more capable than it looks.** TV boxes, old phones, single-board computers and routers all ship with CPUs, RAM and flash that sit idle most of the day. **smolmaxxing** is about unlocking that capability: finding the biggest language model each device can really run, then pushing it further with custom kernels, smarter memory use and weight streaming. Every claim is measured on the hardware itself.
 
-**Device #1 is a Xiaomi TV Box S (3rd Gen)**: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, **1.9 GB of RAM** (about 1 GB usable), eMMC flash, Android 14, no root. On it, this repo runs models from 260 K to 9 B parameters:
+**Device #1 is a Xiaomi TV Box S (3rd Gen)**: Amlogic S7D, 4× Cortex-A55 @ 2.5 GHz, **1.9 GB of RAM** (about 1 GB usable), eMMC flash, Android 14, no root. On it, this repo runs models from 260 K to 16 B parameters:
 - **Qwen3.5-0.8B: 16.8 tok/s** (2.2× the stock 7.5; measured in the evening of 11-05, see §17).
 - **Qwen3.5-2B: 7.7 tok/s** in real chat. The box's speed drifts by ~10 % over a day, so every step is measured back to back: §16 gave +11 %, §17 another +7 %.
 - **An 8B mixture-of-experts model (Moon-Beam-8B-A1B): 7.2 tok/s** in real chat, its experts paged from flash on demand and prefetched one layer ahead (§19).
 - **A dense 1-bit 8B model (Bonsai-8B): 5.2 tok/s** in real chat, up from 1.2: fully resident in a "headless" mode plus a lookup-table kernel (§19).
-- **A 9B model: 0.27 tok/s**, streaming most of its weights from flash.
+- **A 16B mixture-of-experts model (Ling-mini-2.0): 5.1 tok/s** in real chat, coherent over 600-word answers, the same expert pager applied unchanged (§20). Twice Moon-Beam's size, but not better per byte: bigger only helps on this box when the model is also better.
+- **A dense 9B model: 0.27 tok/s**, streaming most of its weights from flash.
 
-Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E104).
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E107).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
@@ -19,7 +20,7 @@ Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIM
 
 | Device | Status |
 |---|---|
-| Xiaomi TV Box S (3rd Gen): Amlogic S7D, Cortex-A55, 2 GB | ✅ done: 260K → 9B parameters, 8B at 5-7 tok/s |
+| Xiaomi TV Box S (3rd Gen): Amlogic S7D, Cortex-A55, 2 GB | ✅ done: 260K → 16B parameters, 8B at 5-7 tok/s, 16B at 5 tok/s |
 | More TV boxes, phones, single-board computers, routers… | 🔜 coming soon |
 
 The techniques aren't tied to this box. Any ARM chip with dotprod gets the kernels, and any Linux or Android device with more model than RAM can use the streaming engine.
@@ -37,6 +38,7 @@ Quality is English perplexity on a fixed 22 KB text, converted to **bits per byt
 | **Qwen3.5-2B, all-Q4_K + 65K head** | 0.99 GB | **0.909** | **7.7 chat** | 17.8 | **the default: best overall** (§11, §16, §17) |
 | **Ternary-Bonsai-4B, merged scales + 2-bit fields** | 1.03 GB | ≈0.965 | **4.3 chat** (4.8 bench) | 9.6 | best 4B: was 3.2 chat / 7.0 prompt on the same build (§18) |
 | **Moon-Beam-8B-A1B (MoE), Q2_K experts + 60K head** | 0.48 GB GGUF + 2.6 GB repack cache on flash, ~1.1 GB RSS | 0.996 | **7.2 chat** | n/a | **fastest 8B**: 128 experts, 6 used; expert pager, cache-aware routing, pre-gated prefetch, repeat penalty against long-answer loops (§19, headless mode) |
+| **Ling-mini-2.0 (MoE, 16.3 B), Q2_K experts + 60K head** | 0.47 GB GGUF + 5.3 GB repack cache on flash, ~1.13 GB RSS | 1.054 | **5.1 chat** | n/a | **biggest model at a usable speed**: 256 experts of 1 MB, 8 used, pool 43 per layer, bias 0.3 (§20) |
 | **Bonsai-8B, 1-bit, LUT kernel** | 0.96 GB, all resident | 0.991 (0.974 on the head) | **5.2 chat** (5.1-5.4 bench), 4.0 at ~900 tokens of context | 5.8-6.1 | best dense 8B: headless mode, Q8_0 attention (§19) |
 | Bonsai-8B, 1-bit + compact scales | 0.84 GB + 0.12 GB streamed | 0.991 | 1.21 chat (2.2 bench) | 4.9 | §14, before headless mode |
 | Ternary-Bonsai-8B | 0.89 GB + 0.80 GB streamed | 0.919 | 0.31 bench | 3.45 | §14 |
@@ -134,7 +136,7 @@ adb -s $ADB_SERIAL push third_party/llama.cpp/build-tv/bin/llama-quantize /data/
 zig cc -target aarch64-linux-musl -O2 -static -o gguf_recut tools/gguf-recut/gguf_recut.c && adb -s $ADB_SERIAL push gguf_recut /data/local/tmp/llm/
 
 # 2. models: rebuilt from their Hugging Face sources straight onto the TV (see below)
-tools/rebuild-models.sh 2b          # also: 08 4b b8 tb8 q9 mb caches
+tools/rebuild-models.sh 2b          # also: 08 4b b8 tb8 q9 mb lm caches
 
 # 3. the live chat page (default: the 2B on patched25 with fp16 state), then open http://<tv-ip>:8090 from any device on the network
 tv-llm-ui/start.sh
@@ -146,6 +148,8 @@ tv-llm-ui/start.sh stop
 # Moon-Beam-8B-A1B MoE, ~7.2 tok/s (first: `tools/rebuild-models.sh mb`, needs a native Mac build and ~9 GB on the Mac while it runs).
 # start.sh turns on headless mode, the expert pager, routing bias, prefetch and the repeat penalty; POOL / BIAS / EXPERTS override them.
 MODEL=mb-q2-h60.gguf tv-llm-ui/start.sh
+# Ling-mini-2.0 16B MoE, ~5.1 tok/s (first: `tools/rebuild-models.sh lm`)
+MODEL=lm2-q2-h60.gguf tv-llm-ui/start.sh
 # Bonsai-8B 1-bit fully resident, ~5.2 tok/s (first: `tools/rebuild-models.sh b8`; the repack cache is written on first start)
 MODEL=b8-q1-hml.gguf tv-llm-ui/start.sh
 sh /data/local/tmp/llm/tv-llm-mode.sh off   # on the TV, afterwards: launcher and screensaver back
@@ -178,6 +182,7 @@ The model files (0.5-4 GB each) are not in this repo. [`tools/rebuild-models.sh`
 | `b8-q1-hml.gguf` | `b8` | `prism-ml/Bonsai-8B-gguf` Q1_0, same head | `fc297cb3…0d42a` |
 | `tb8-q20-hml.gguf` | `tb8` | `prism-ml/Ternary-Bonsai-8B-gguf` Q2_0_g64, same head | `01b1e0ef…93e06` |
 | `mb-q2-h60.gguf` | `mb` | `tablinum/Moon-Beam-8B-A1B-GGUF-Preview` Q8_0, requantized on the Mac: experts Q2_K, the rest Q4_K, own imatrix from `data/corpus`, head `data/head-ids-ling-60k.txt`; expert bytes hole-punched on the TV after the repack cache (`cache/mbq2.*`) is written | |
+| `lm2-q2-h60.gguf` | `lm` | `bartowski/inclusionAI_Ling-mini-2.0-GGUF` Q4_K_M + its imatrix: experts requantized to Q2_K on the Mac, the rest Q4_K, head `data/head-ids-ling-60k.txt`; punched on the TV after the repack cache (`cache/lmq2.*`) is written | |
 | `q9-iq2-h65-mtp.gguf` | `q9` | `unsloth/Qwen3.5-9B-GGUF` UD-IQ2_XXS, MTP block from `Qwen/Qwen3.5-9B` (Q4_0), 65K head | `7766478e…8dcbc` |
 | `cache/b8c.*`, `cache/tb8.*` | `caches` | written by the first run with `GGML_REPACK_CACHE` | |
 
@@ -187,7 +192,7 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 
 | Path | What |
 |---|---|
-| [`EXPERIMENT.md`](EXPERIMENT.md) | the full write-up: §1-8 the first tiny model, §9-10 llama.cpp and the first flash streaming, §11 the 2B push, §13 the 4B push, §14 the 9B push, §15 the 0.8B speed push, §16-17 the 2B rounds 3-4, §18 the 4B round 2 (arXiv / GitHub scan, 2-bit ternary layouts), §19 the 8B push (headless mode, LUT kernel, Moon-Beam MoE with an expert pager, why long answers loop) |
+| [`EXPERIMENT.md`](EXPERIMENT.md) | the full write-up: §1-8 the first tiny model, §9-10 llama.cpp and the first flash streaming, §11 the 2B push, §13 the 4B push, §14 the 9B push, §15 the 0.8B speed push, §16-17 the 2B rounds 3-4, §18 the 4B round 2 (arXiv / GitHub scan, 2-bit ternary layouts), §19 the 8B push (headless mode, LUT kernel, Moon-Beam MoE with an expert pager, why long answers loop), §20 bigger than 9B (Ling-mini-2.0 16B, and why LFM2.5-24B and Qwen3.6-35B don't fit) |
 | `patches/llama.cpp-v0.8.0-tvbox.patch` | every change to llama.cpp: pruned head (`output_ids`) for Qwen3 / Qwen3.5 / Granite 4.0 H, the kernels above (`ggml-cpu/repack-*-tv.inc`), fused DeltaNet (state read by id, optional fp16 state, one-token conv step), the 1-bit LUT kernel, Q8_0 attention, the MoE expert pager with routing bias and prefetch (`ggml-cpu/moe-pager-tv.inc`), a pruned head for `bailingmoe3`, embedding rows from the resident head, repack cache and streaming engine (`ggml-cpu/stream-tv.inc`, loader hooks), padded small batches, op profiler, pruned-head-aware perplexity, Vulkan tuning for Mali |
 | `tools/` | GGUF rewriter / head pruner / re-cutter, vocabulary selection, corpus and MTP fetchers, model rebuild script, TV memory guard and RAM helper, benchmark sweeps, kernel benches and exactness checks (`kbench/`), flash benchmark |
 | `tv-llm-ui/` | the live token-stream page for llama-server (confidence colours, top-3 alternatives, speed, box stats), its launcher and the benchmark harness |
@@ -210,6 +215,7 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 - **Most of the RAM was Android's, not the model's.** Force-stopping the launchers and Google services for the duration (nothing persistent) let Bonsai-8B sit fully in RAM: 1.2 → 3.6 tok/s before any kernel work (E80). An animated screensaver and a guard that forked 25 times a second each cost another 10-15 % (E82, E88).
 - **For a mixture-of-experts model the flash is a cache miss, not a stream.** A ~6 ms miss per expert means the pool hit rate decides the speed; routing toward cached experts and prefetching what the next router will pick turned 4.4 into 7.2 tok/s.
 - **Perplexity can't see loops.** It scores one token at a time on clean text; the 2-bit model scored fine and still fell into loops in 12 of 13 long answers. Score long free-running generations too (`tools/loop_stats.py`), and compare models with different tokenizers in bits per byte, never in perplexity.
+- **Past 9B, count resident bytes, not parameters.** The ceiling for a mixture-of-experts model here is the non-expert weights that must stay in RAM plus a useful expert pool. Ling-mini-2.0 (16B) keeps 279 MB resident and runs at 5 tok/s; Qwen3.6-35B-A3B would need ~870 MB before caching a single expert (§20).
 - **Guard the box.** After two early kernel panics, every heavy run goes through a wrapper that kills it below 180 MB of free memory.
 
 ## License

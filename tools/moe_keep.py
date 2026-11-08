@@ -11,7 +11,7 @@ while o < len(tr):
         if x >= 0: c[il][x] += 1
 with open(sys.argv[3], 'w') as f:
     for il in sorted(c):
-        top = c[il].most_common(128)
+        top = c[il].most_common()
         # top up with unseen experts so a layer always has K
         have = [e for e, _ in top][:K]
         f.write(str(il) + ' ' + ' '.join(map(str, have)) + '\n')

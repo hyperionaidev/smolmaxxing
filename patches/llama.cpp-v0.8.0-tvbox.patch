@@ -4293,6 +4293,73 @@ index 222238e..0ba958c 100644
      struct ggml_tensor * output_b        = nullptr;
      struct ggml_tensor * output_norm_enc = nullptr;
  
+diff --git a/src/models/bailingmoe2.cpp b/src/models/bailingmoe2.cpp
+index d7003ef..1cfd4b7 100644
+--- a/src/models/bailingmoe2.cpp
++++ b/src/models/bailingmoe2.cpp
+@@ -1,3 +1,4 @@
++#include <cmath>
+ #include "models.h"
+ 
+ void llama_model_bailingmoe2::load_arch_hparams(llama_model_loader & ml) {
+@@ -17,17 +18,26 @@ void llama_model_bailingmoe2::load_arch_hparams(llama_model_loader & ml) {
+     }
+ }
+ 
+-void llama_model_bailingmoe2::load_arch_tensors(llama_model_loader &) {
++void llama_model_bailingmoe2::load_arch_tensors(llama_model_loader & ml) {
+     LLAMA_LOAD_LOCALS;
+     const int64_t n_expert_shared = hparams.n_expert_shared;
+ 
+     const int64_t n_ff_exp        = hparams.n_ff_exp();
+ 
+-    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, 0);
++    // tvbox: with a pruned head (as in qwen3.cpp), token_embd is only read row by row, so it can be a lazy mapping
++    const ggml_tensor * ids_meta = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str());
++    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, ids_meta ? TENSOR_READ_LAZY : 0);
+ 
+     // output
+     output_norm = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd}, 0);
+-    output      = create_tensor(tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, 0);
++    if (ids_meta) {
++        const int64_t n_keep = ids_meta->ne[0];
++        output_ids = create_tensor(tn(LLM_TENSOR_OUTPUT_IDS, "weight"), { n_keep }, 0);
++        output     = create_tensor(tn(LLM_TENSOR_OUTPUT,     "weight"), { n_embd, n_keep }, 0);
++        LLAMA_LOG_INFO("%s: pruned LM head: %lld of %lld vocab rows\n", __func__, (long long) n_keep, (long long) n_vocab);
++    } else {
++        output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), {n_embd, n_vocab}, 0);
++    }
+ 
+     GGML_ASSERT(n_expert > 0 && "n_expert must be > 0 for bailingmoe2");
+     GGML_ASSERT(n_expert_used > 0 && "n_expert_used must be > 0 for bailingmoe2");
+@@ -83,6 +93,19 @@ void llama_model_bailingmoe2::load_arch_tensors(llama_model_loader &) {
+     }
+ }
+ 
++// pruned LM head (TV-box experiment, same as qwen3.cpp): scatter [n_keep, n_out] logits into [n_vocab, n_out], -inf for dropped tokens
++static ggml_tensor * bailingmoe2_scatter_pruned_logits(ggml_context * ctx0, ggml_tensor * cur, const llama_model & model) {
++    if (!model.output_ids) {
++        return cur;
++    }
++    const int64_t n_vocab_full = model.tok_embd->ne[1];
++    ggml_tensor * lt   = ggml_cont(ctx0, ggml_transpose(ctx0, cur));
++    ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, lt->ne[0], n_vocab_full);
++    full = ggml_fill_inplace(ctx0, full, -INFINITY);
++    full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++    return ggml_cont(ctx0, ggml_transpose(ctx0, full));
++}
++
+ std::unique_ptr<llm_graph_context> llama_model_bailingmoe2::build_arch_graph(const llm_graph_params & params) const {
+     return std::make_unique<graph>(*this, params);
+ }
+@@ -203,6 +226,7 @@ llama_model_bailingmoe2::graph::graph(const llama_model & model, const llm_graph
+ 
+     // lm_head
+     cur = build_lora_mm(model.output, cur, model.output_s);
++    cur = bailingmoe2_scatter_pruned_logits(ctx0, cur, model);
+ 
+     cb(cur, "result_output", -1);
+     res->t_logits = cur;
 diff --git a/src/models/bailingmoe3.cpp b/src/models/bailingmoe3.cpp
 index 49c0f7f..951621f 100644
 --- a/src/models/bailingmoe3.cpp

@@ -12,6 +12,7 @@
 #                                                  tb8     # Ternary-Bonsai-8B + 61K head (§14)
 #                                                  q9      # Qwen3.5-9B UD-IQ2_XXS + 65K head + MTP block (§14)
 #                                                  mb      # Moon-Beam-8B-A1B: Q2_K experts + 60K head, repack cache, GGUF expert bytes punched (§19)
+#                                                  lm      # Ling-mini-2.0 (16B, 256 experts): Q2_K experts + 60K head, repack cache, punched (§20)
 #                                                  caches  # repack caches for b8 / tb8 (built on the TV by a 1-token run)
 #
 # Needs: the patched binaries on the TV (the README's quick-start build in /data/local/tmp/llm/patched25; BIN=... for another, bin/gguf_recut to
@@ -43,6 +44,19 @@ mb)
   python3 -I tools/gguf_exp_ranges.py $M/mb-q2-h60.gguf $M/mb-q2.ranges
   adb -s "$S" push $M/mb-q2-h60.gguf $M/mb-q2.ranges bin/gguf-punch bin/tv-watch data/moe-warm-moonbeam.txt "$D/"
   A "cd $D && chmod 755 gguf-punch tv-watch && GGML_REPACK_CACHE=$D/cache/mbq2 ./tv-watch c-mb.log ./$BIN/llama-bench -m mb-q2-h60.gguf -t 3 -p 0 -n 1 -r 1 -ctk q8_0 -ctv q8_0 -fa on && ./gguf-punch mb-q2-h60.gguf mb-q2.ranges"
+  ;;
+lm)
+  # §20: Ling-mini-2.0, 16.3 B total / ~1.4 B active. No room on the Mac for its Q8_0 (17 GB), so bartowski's imatrix Q4_K_M is the
+  # source: its Q4_K tensors are copied as they are, experts requantized to Q2_K with bartowski's imatrix.
+  B=third_party/llama.cpp/build-mac/bin; M=models/ling; mkdir -p $M
+  R=$HF/bartowski/inclusionAI_Ling-mini-2.0-GGUF/resolve/main
+  curl -sL -o $M/lm2-imatrix.gguf $R/inclusionAI_Ling-mini-2.0-imatrix.gguf
+  curl -sL -o $M/lm2-q4km.gguf $R/inclusionAI_Ling-mini-2.0-Q4_K_M.gguf
+  $B/llama-quantize --allow-requantize --pure --imatrix $M/lm2-imatrix.gguf --token-embedding-type q4_K --output-tensor-type q4_K --tensor-type "_exps\.=q2_K" $M/lm2-q4km.gguf $M/lm2-q2.gguf q4_K 8
+  python3 -I tools/gguf_build.py $M/lm2-q2.gguf $M/lm2-q2-h60.gguf --head-ids data/head-ids-ling-60k.txt && rm -f $M/lm2-q2.gguf
+  python3 -I tools/gguf_exp_ranges.py $M/lm2-q2-h60.gguf $M/lm2-q2.ranges
+  adb -s "$S" push $M/lm2-q2-h60.gguf $M/lm2-q2.ranges bin/gguf-punch bin/tv-watch data/moe-warm-ling.txt "$D/"
+  A "cd $D && chmod 755 gguf-punch tv-watch && GGML_REPACK_CACHE=$D/cache/lmq2 ./tv-watch c-lm.log ./$BIN/llama-bench -m lm2-q2-h60.gguf -t 3 -p 0 -n 1 -r 1 -ctk q8_0 -ctv q8_0 -fa on && ./gguf-punch lm2-q2-h60.gguf lm2-q2.ranges"
   ;;
 2b)
   # 1. MTP block of Qwen3.5-2B from the original BF16 safetensors (range requests, ~120 MB), kept BF16
