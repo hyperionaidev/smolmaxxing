@@ -30,6 +30,7 @@ struct options {
     std::string system_prompt;
     int      n_threads      = 2;
     int      n_ctx          = 1024;
+    int      n_ubatch       = 512;
     int      n_predict      = 400;
     int      repeat_last    = 256;   // repeat penalty settings from smolmaxxing EXPERIMENT.md
     float    repeat_penalty = 1.15f;
@@ -51,6 +52,7 @@ static void usage(const char * name) {
     printf("usage: %s -m model.gguf [options]\n"
            "  -t N                threads (default 2)\n"
            "  -c N                context size in tokens (default 1024)\n"
+           "  -b N                tokens evaluated at once; lower it to save memory (default 512)\n"
            "  -n N                maximum tokens per reply (default 400)\n"
            "  -s TEXT             system prompt\n"
            "  --temp X            temperature (default 0.7)\n"
@@ -79,6 +81,7 @@ static bool parse_args(int argc, char ** argv, options & o) {
         else if (a == "-s")               { o.system_prompt = v; }
         else if (a == "-t")               { o.n_threads = atoi(v); }
         else if (a == "-c")               { o.n_ctx = atoi(v); }
+        else if (a == "-b")               { o.n_ubatch = atoi(v); }
         else if (a == "-n")               { o.n_predict = atoi(v); }
         else if (a == "--temp")           { o.temp = (float) atof(v); }
         else if (a == "--repeat-penalty") { o.repeat_penalty = (float) atof(v); }
@@ -88,7 +91,7 @@ static bool parse_args(int argc, char ** argv, options & o) {
         else if (a == "--host")           { o.host = v; }
         else                              { return false; }
     }
-    return !o.model.empty() && o.n_threads > 0 && o.n_ctx > 0 && o.n_predict > 0;
+    return !o.model.empty() && o.n_threads > 0 && o.n_ctx > 0 && o.n_ubatch > 0 && o.n_predict > 0;
 }
 
 // returns false if the model's chat template is not one llama.cpp can apply
@@ -248,6 +251,7 @@ int main(int argc, char ** argv) {
     llama_context_params ctx_params = llama_context_default_params();
     ctx_params.n_ctx           = o.n_ctx;
     ctx_params.n_batch         = o.n_ctx;
+    ctx_params.n_ubatch        = std::min(o.n_ubatch, o.n_ctx);
     ctx_params.n_threads       = o.n_threads;
     ctx_params.n_threads_batch = o.n_threads;
     llama_context * ctx = llama_init_from_model(model, ctx_params);

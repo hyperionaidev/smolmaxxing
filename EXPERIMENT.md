@@ -854,3 +854,25 @@ Quality here means the three-question test and the code answer. Perplexity was n
 **What went wrong:** one long run read 400 ms per token because a script error had left an earlier benchmark running, so two copies shared the CPU. It was discarded and rerun. A later comparison of pruned and stock attention never ran, because of a shell quoting slip; E127 replaced it.
 
 **New environment switches:** `GGML_OPPROF=1` (op table at exit), `SMOLCHAT_PROF=1` (sampling and decode time per token), `GGML_FA_EPS=x` (attention pruning, 0 keeps every row), `GGML_FA_PRUNE=0` (stock attention).
+
+### 21.6 A 4B model on 1 GB: Bonsai-4B (2026-11-09)
+
+**Goal (your call):** "get to the 4B models." The iPad has 1 GB and a 4B model needs about 3.6 B weights in RAM, so only a 1-bit model can fit: Ternary-Bonsai-4B is 1.07 GB as a file. [Bonsai-4B](https://huggingface.co/prism-ml/Bonsai-4B-gguf) (Q1_0, 572 MB, SHA-256 `4524b3f9…2168`, Apache-2.0, 36 layers, hidden size 2,560, 32 q heads over 8 KV heads) is 4.02 B parameters.
+
+**The result: a 4B model runs on a 2013 iPad at about 10 tok/s (9.2 through long chats), with the context cut to 512 tokens.**
+
+| # | Experiment | Result |
+|---|---|---|
+| E129 | **Does it fit?** Default settings: 1,024-token context | Short chat fits (627 MB, 10 tok/s). A long chat doesn't: 9.06 tok/s for 400 tokens, then Jetsam reports `compressor-thrashing` with `smolchat` at 705 MB, killing `pkd` and dropping the SSH session. 1-bit weights don't compress, so the compressor can only churn. **About 700 MB is the practical ceiling.** The KV cache adds 147 KB per token. `-c 768 -b 64` also lost the session. |
+| E130 | **A smaller context and batch** (`smolchat -b`, new: `n_ubatch` 512 → 64, smaller work buffers) | **`-c 512 -b 64`: three long answers, no kills**, peak RSS 615-682 MB across runs, lowest available memory 137-198 MB. Older turns are dropped once the 512 tokens fill. |
+| E131 | **Attention for 4 q heads per K head.** E125's path assumed 2. Generalized with a fixed-width template, for one-token decodes; many-token prompts on this shape use the stock path | Temporary node-by-node comparison with stock on the iPad (`-t 1`): **eps 0: mean NMSE 5.9e-7 (4B), 4.5e-7 (1.7B)**, the level of stock's own F16 accumulators. **Default eps 1e-3: mean 1.4e-5, worst node 7.7e-5 (4B); mean 7.5e-6, worst 4.2e-5 (1.7B).** No node above 1e-4. Greedy text matched stock for 338-646 characters before a near-tie diverged. This is also the direct check E125 had lacked. |
+| E132 | **Final numbers**, clean build, `-c 512 -b 64` | Three-turn test ×3: **9.4-11.4 tok/s** after a slower first prompt (3.5 tok/s, including the head build). Long chat: **9.21 / 9.19 / 10.30 tok/s**, about 108 ms per token, correct `is_prime`, no loops. |
+| E133 | **Quality on the Mac** (same method as E127: `eval-en.txt`, context 128, 40 chunks) | **Bonsai-4B PPL 17.2105 = 1.0726 bits/byte; Bonsai-1.7B PPL 21.5823 = 1.1579.** Batches use the Mac build's attention, which here means stock attention for the 4B and eps 1e-4 for the 1.7B; the 1.7B moved by under 0.1 % between those in E127. The TV measured 1.073 and 1.158 for the same files. **Bonsai-4B is about 7 % better per byte but failed "What was my first question?" in every run**, saying it had no access to earlier messages. The same chat code passes that question on the 1.7B. |
+
+**Web server, same settings:** 10.93 and 11.82 tok/s over HTTP, RSS 708 MB, right at the ceiling. **The short context shows:** after a 400-token reply the chat dropped its two oldest messages, so the follow-up "Which of those is largest?" had nothing to refer to. Safari was not open during this test, and it will add memory pressure.
+
+**Where it stands.** Matmuls are 84 % of a token and run at about 53 G weights/s, close to the 58.6 the kernel reaches on its own, so more speed needs a faster kernel, not more plumbing. RAM isn't the limit: 534 MB per token at 10 tok/s is about half of the 10.9 GB/s measured. **Bonsai-1.7B stays the default**: about 2.5× faster, and it answers the recall test.
+
+**What went wrong:** the first long 4B run lost its SSH session and left the benchmark running with no guard; it was found and killed by hand. `long.sh`'s guard then got an RSS limit, which wasn't enough at `-c 768`, because Jetsam acts on system-wide pressure.
+
+**To use it:** `./smolchat -m Bonsai-4B-Q1_0.gguf --no-think -c 512 -b 64 --serve 8080`.

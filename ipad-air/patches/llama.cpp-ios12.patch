@@ -281,10 +281,10 @@ index 40e93cc..ec586fb 100644
  #ifdef GGML_USE_OPENMP
      GGML_PRINT_DEBUG("thread #%d compute-done cplan %p\n", state->ith, (const void *)cplan);
 diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
-index 1884600..f7ef281 100644
+index 1884600..7f49b69 100644
 --- a/ggml/src/ggml-cpu/ops.cpp
 +++ b/ggml/src/ggml-cpu/ops.cpp
-@@ -9426,10 +9426,284 @@ static void ggml_flash_attn_ext_reduce_partials(
+@@ -9426,10 +9426,308 @@ static void ggml_flash_attn_ext_reduce_partials(
      }
  }
  
@@ -294,13 +294,36 @@ index 1884600..f7ef281 100644
 +// then known, so rows with s < M + ln(eps) skip expf and V entirely. V is accumulated in F32 for the survivors.
 +// GGML_FA_EPS=0 keeps every row, GGML_FA_PRUNE=0 uses the stock path.
 +#if defined(__ARM_NEON)
++// Dot products of one K head against the RK q heads that share it, in one pass over the K row. Four accumulators per
++// q head, so an FMA never waits on the previous one's latency.
++template <int RK>
++static inline void ggml_fa_dots(const __fp16 * kr, const float * const * qp, const int64_t DK, float * out) {
++    float32x4_t acc[RK][4];
++    for (int r = 0; r < RK; r++) {
++        for (int j = 0; j < 4; j++) {
++            acc[r][j] = vdupq_n_f32(0.0f);
++        }
++    }
++    for (int64_t i = 0; i < DK; i += 16) {
++        for (int j = 0; j < 4; j++) {
++            const float32x4_t kv = vcvt_f32_f16(vld1_f16(kr + i + j * 4));
++            for (int r = 0; r < RK; r++) {
++                acc[r][j] = vfmaq_f32(acc[r][j], kv, vld1q_f32(qp[r] + i + j * 4));
++            }
++        }
++    }
++    for (int r = 0; r < RK; r++) {
++        out[r] = vaddvq_f32(vaddq_f32(vaddq_f32(acc[r][0], acc[r][1]), vaddq_f32(acc[r][2], acc[r][3])));
++    }
++}
++
 +// One generated token: the KV cache keeps all heads of a context row side by side, so walk the rows once, each read
 +// straight through for every head, instead of striding through memory once per head (2 KB stride, a cache miss per row on
 +// a 1 MB L2). Dots and V are split across threads by context rows; each thread keeps its own partial V and S per q head.
 +static bool ggml_flash_attn_f16_single(const ggml_compute_params * params, ggml_tensor * dst, const float scale, const float eps) {
 +    const ggml_tensor * q = dst->src[0], * k = dst->src[1], * v = dst->src[2], * mask = dst->src[3];
-+    const int64_t DK = k->ne[0], n_kv = k->ne[1], n_hkv = k->ne[2], n_head = q->ne[2];
-+    if (q->ne[1] != 1 || n_head > 32 || (mask && (mask->ne[2] != 1 || mask->ne[1] != 1)) ||
++    const int64_t DK = k->ne[0], n_kv = k->ne[1], n_hkv = k->ne[2], n_head = q->ne[2], rk = n_head / n_hkv;
++    if (q->ne[1] != 1 || n_head > 32 || (rk != 2 && rk != 4) || (mask && (mask->ne[2] != 1 || mask->ne[1] != 1)) ||
 +        k->nb[1] != k->nb[2] * n_hkv || v->nb[1] != v->nb[2] * n_hkv ||
 +        k->nb[2] != (size_t) DK * sizeof(ggml_fp16_t) || v->nb[2] != k->nb[2]) {
 +        return false;
@@ -341,23 +364,21 @@ index 1884600..f7ef281 100644
 +            }
 +            const __fp16 * kr = (const __fp16 *) ((const char *) k->data + ic * k->nb[1]);
 +            for (int64_t hk = 0; hk < n_hkv; hk++, kr += DK) {
-+                const float * q0 = (const float *) ((const char *) q->data + (hk * 2 + 0) * q->nb[2]);
-+                const float * q1 = (const float *) ((const char *) q->data + (hk * 2 + 1) * q->nb[2]);
-+                float32x4_t a0 = vdupq_n_f32(0.0f), a1 = a0, a2 = a0, a3 = a0, b0 = a0, b1 = a0, b2 = a0, b3 = a0;
-+                for (int64_t i = 0; i < DK; i += 16) {
-+                    const float32x4_t k_0 = vcvt_f32_f16(vld1_f16(kr + i)),     k_1 = vcvt_f32_f16(vld1_f16(kr + i + 4));
-+                    const float32x4_t k_2 = vcvt_f32_f16(vld1_f16(kr + i + 8)), k_3 = vcvt_f32_f16(vld1_f16(kr + i + 12));
-+                    a0 = vfmaq_f32(a0, k_0, vld1q_f32(q0 + i));      b0 = vfmaq_f32(b0, k_0, vld1q_f32(q1 + i));
-+                    a1 = vfmaq_f32(a1, k_1, vld1q_f32(q0 + i + 4));  b1 = vfmaq_f32(b1, k_1, vld1q_f32(q1 + i + 4));
-+                    a2 = vfmaq_f32(a2, k_2, vld1q_f32(q0 + i + 8));  b2 = vfmaq_f32(b2, k_2, vld1q_f32(q1 + i + 8));
-+                    a3 = vfmaq_f32(a3, k_3, vld1q_f32(q0 + i + 12)); b3 = vfmaq_f32(b3, k_3, vld1q_f32(q1 + i + 12));
++                const float * qp[4];
++                for (int64_t r = 0; r < rk; r++) {
++                    qp[r] = (const float *) ((const char *) q->data + (hk * rk + r) * q->nb[2]);
 +                }
-+                const float s0 = vaddvq_f32(vaddq_f32(vaddq_f32(a0, a1), vaddq_f32(a2, a3))) * scale + mv;
-+                const float s1 = vaddvq_f32(vaddq_f32(vaddq_f32(b0, b1), vaddq_f32(b2, b3))) * scale + mv;
-+                row_s[hk * 2]     = s0;
-+                row_s[hk * 2 + 1] = s1;
-+                mine_M[hk * 2]     = std::max(mine_M[hk * 2], s0);
-+                mine_M[hk * 2 + 1] = std::max(mine_M[hk * 2 + 1], s1);
++                float dots[4];
++                if (rk == 2) {
++                    ggml_fa_dots<2>(kr, qp, DK, dots);
++                } else {
++                    ggml_fa_dots<4>(kr, qp, DK, dots);
++                }
++                for (int64_t r = 0; r < rk; r++) {
++                    const float sr = dots[r] * scale + mv;
++                    row_s[hk * rk + r] = sr;
++                    mine_M[hk * rk + r] = std::max(mine_M[hk * rk + r], sr);
++                }
 +            }
 +        }
 +    }
@@ -419,7 +440,7 @@ index 1884600..f7ef281 100644
 +                    const int64_t h = h0 + j;
 +                    float * p = mine + h * part_stride;
 +                    p[1] += e4[j];
-+                    const __fp16 * vh = vr + (h / 2) * DK;
++                    const __fp16 * vh = vr + (h / rk) * DK;
 +                    float * acc = p + 2;
 +                    for (int64_t i = 0; i < DK; i += 4) {
 +                        vst1q_f32(acc + i, vmlaq_n_f32(vld1q_f32(acc + i), vcvt_f32_f16(vld1_f16(vh + i)), e4[j]));
@@ -460,12 +481,15 @@ index 1884600..f7ef281 100644
 +    memcpy(&softcap,  (float *) dst->op_params + 2, sizeof(float));
 +    if (!on || params->use_ref || sinks || kv_rows || max_bias != 0.0f || softcap != 0.0f ||
 +        q->type != GGML_TYPE_F32 || k->type != GGML_TYPE_F16 || v->type != GGML_TYPE_F16 ||
-+        q->ne[3] != 1 || k->ne[3] != 1 || v->ne[3] != 1 || k->ne[2] != v->ne[2] || q->ne[2] != 2 * k->ne[2] ||
++        q->ne[3] != 1 || k->ne[3] != 1 || v->ne[3] != 1 || k->ne[2] != v->ne[2] || q->ne[2] % k->ne[2] != 0 ||
 +        k->ne[0] != v->ne[0] || q->ne[0] != k->ne[0] || k->ne[0] % 16 != 0 || k->ne[0] > 1024) {
 +        return false;
 +    }
 +    if (ggml_flash_attn_f16_single(params, dst, scale, eps)) {
 +        return true;
++    }
++    if (q->ne[2] != 2 * k->ne[2]) {
++        return false;   // the many-token path below handles two q heads per K head only
 +    }
 +    const int64_t DK = k->ne[0], N = q->ne[1], n_kv = k->ne[1], n_hkv = k->ne[2];
 +    const int64_t n_chunk = N * n_hkv;
