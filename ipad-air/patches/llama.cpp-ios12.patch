@@ -183,12 +183,398 @@ index f16505b..2736690 100644
      float32x4_t sumv = vdupq_n_f32(0.0f);
  
      for (int i = 0; i < nb; i++) {
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index 40e93cc..ec586fb 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -1261,6 +1261,8 @@ static void ggml_compute_forward_mul_mat_one_chunk(
+     }
+ }
+ 
++bool ggml_q1lut_tied_head(const struct ggml_compute_params * params, struct ggml_tensor * op);
++
+ void ggml_compute_forward_mul_mat(
+         const struct ggml_compute_params * params,
+               struct ggml_tensor * dst) {
+@@ -1274,6 +1276,10 @@ void ggml_compute_forward_mul_mat(
+         return;
+     }
+ 
++    if (src0->type == GGML_TYPE_Q1_0 && !params->use_ref && ggml_q1lut_tied_head(params, dst)) {
++        return;
++    }
++
+     // If tiled is supported, it will execute the full op here and we return
+     if (ggml_compute_forward_mul_mat_tiled(params, dst)) {
+         return;
+@@ -3123,10 +3129,35 @@ static int ggml_cpu_try_fuse_ops(
+     return 0;
+ }
+ 
++// GGML_OPPROF=1: thread 0 times every node (compute, plus the barrier after it) and prints a table at exit.
++static int    g_opprof = -1;
++static double g_opprof_t[GGML_OP_COUNT][GGML_TYPE_COUNT];
++static double g_opprof_c[GGML_OP_COUNT][GGML_TYPE_COUNT];
++static long   g_opprof_n[GGML_OP_COUNT][GGML_TYPE_COUNT];
++static long   g_opprof_graphs;
++static double g_opprof_loop;
++static double opprof_now(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec + ts.tv_nsec * 1e-9; }
++static void ggml_opprof_dump(void) {
++    fprintf(stderr, "[opprof] %ld graphs, %.3f s in node loops\n[opprof] %-16s %-6s %8s %10s %10s %6s %9s\n", g_opprof_graphs, g_opprof_loop, "op", "src0", "calls", "total ms", "compute", "%", "us/call");
++    for (int k = 0; k < 24; k++) {
++        int bo = -1, bt = -1; double bv = 0;
++        for (int o = 0; o < GGML_OP_COUNT; o++) for (int t = 0; t < GGML_TYPE_COUNT; t++) if (g_opprof_t[o][t] > bv) { bv = g_opprof_t[o][t]; bo = o; bt = t; }
++        if (bo < 0) break;
++        fprintf(stderr, "[opprof] %-16s %-6s %8ld %10.1f %10.1f %5.1f%% %9.1f\n", ggml_op_name((enum ggml_op) bo), ggml_type_name((enum ggml_type) bt),
++                g_opprof_n[bo][bt], bv * 1e3, g_opprof_c[bo][bt] * 1e3, 100 * bv / g_opprof_loop, bv * 1e6 / g_opprof_n[bo][bt]);
++        g_opprof_t[bo][bt] = 0;
++    }
++}
++
+ static thread_ret_t ggml_graph_compute_thread(void * data) {
+     struct ggml_compute_state * state = (struct ggml_compute_state *) data;
+     struct ggml_threadpool    * tp    = state->threadpool;
+ 
++    if (g_opprof < 0 && state->ith == 0) {
++        g_opprof = getenv("GGML_OPPROF") ? atoi(getenv("GGML_OPPROF")) : 0;
++        if (g_opprof > 0) { atexit(ggml_opprof_dump); }
++    }
++
+     const struct ggml_cgraph * cgraph = tp->cgraph;
+     const struct ggml_cplan  * cplan  = tp->cplan;
+ 
+@@ -3151,6 +3182,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+     GGML_PRINT_DEBUG("thread #%d compute-start cplan %p last-graph %d\n", state->ith, (const void *)cplan, state->last_graph);
+ #endif
+ 
++    const double loop_t0 = (state->ith == 0 && g_opprof > 0) ? opprof_now() : 0;
+     for (int node_n = 0; node_n < cgraph->n_nodes && atomic_load_explicit(&tp->abort, memory_order_relaxed) != node_n; node_n++) {
+         struct ggml_tensor * node = cgraph->nodes[node_n];
+ 
+@@ -3165,6 +3197,9 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+ 
+         // TODO: move fused-op detection into ggml_graph_plan so fusion decisions are made once at planning time
+         // Try fused ops, fall back to normal compute
++        const int    prof    = state->ith == 0 && g_opprof > 0;
++        const double prof_t0 = prof ? opprof_now() : 0;
++        const struct ggml_tensor * prof_node = node;
+         const int n_fused = ggml_cpu_try_fuse_ops(cgraph, node_n, &params, cplan);
+         if (n_fused > 0) {
+             node_n += n_fused;
+@@ -3178,10 +3213,18 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+             tp->ec    = GGML_STATUS_ABORTED;
+         }
+ 
++        const double prof_t1 = prof ? opprof_now() : 0;
+         if (node_n + 1 < cgraph->n_nodes) {
+             ggml_barrier(state->threadpool);
+         }
++        if (prof) {
++            const int pt = prof_node->src[0] ? prof_node->src[0]->type : prof_node->type;
++            g_opprof_c[prof_node->op][pt] += prof_t1 - prof_t0;
++            g_opprof_t[prof_node->op][pt] += opprof_now() - prof_t0;
++            g_opprof_n[prof_node->op][pt] += 1;
++        }
+     }
++    if (state->ith == 0 && g_opprof > 0) { g_opprof_loop += opprof_now() - loop_t0; g_opprof_graphs++; }
+ 
+ #ifdef GGML_USE_OPENMP
+     GGML_PRINT_DEBUG("thread #%d compute-done cplan %p\n", state->ith, (const void *)cplan);
+diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
+index 1884600..f7ef281 100644
+--- a/ggml/src/ggml-cpu/ops.cpp
++++ b/ggml/src/ggml-cpu/ops.cpp
+@@ -9426,10 +9426,284 @@ static void ggml_flash_attn_ext_reduce_partials(
+     }
+ }
+ 
++// Flash attention over an F16 KV cache for one-token-at-a-time chat on small ARM cores. The stock path does a
++// dot product, expf and a full V accumulate per context token and q head, so a long chat spends most of its time here.
++// This path does all K dots first, reading each K row once for the two q heads that share it; the softmax maximum is
++// then known, so rows with s < M + ln(eps) skip expf and V entirely. V is accumulated in F32 for the survivors.
++// GGML_FA_EPS=0 keeps every row, GGML_FA_PRUNE=0 uses the stock path.
++#if defined(__ARM_NEON)
++// One generated token: the KV cache keeps all heads of a context row side by side, so walk the rows once, each read
++// straight through for every head, instead of striding through memory once per head (2 KB stride, a cache miss per row on
++// a 1 MB L2). Dots and V are split across threads by context rows; each thread keeps its own partial V and S per q head.
++static bool ggml_flash_attn_f16_single(const ggml_compute_params * params, ggml_tensor * dst, const float scale, const float eps) {
++    const ggml_tensor * q = dst->src[0], * k = dst->src[1], * v = dst->src[2], * mask = dst->src[3];
++    const int64_t DK = k->ne[0], n_kv = k->ne[1], n_hkv = k->ne[2], n_head = q->ne[2];
++    if (q->ne[1] != 1 || n_head > 32 || (mask && (mask->ne[2] != 1 || mask->ne[1] != 1)) ||
++        k->nb[1] != k->nb[2] * n_hkv || v->nb[1] != v->nb[2] * n_hkv ||
++        k->nb[2] != (size_t) DK * sizeof(ggml_fp16_t) || v->nb[2] != k->nb[2]) {
++        return false;
++    }
++    static std::vector<float> sv;        // [n_kv][n_head]
++    static std::vector<float> partials;  // [nth][n_head][2 + DK + pad]: M, S, V
++    const int ith = params->ith, nth = params->nth;
++    const int64_t part_stride = 2 + DK + 14;   // 64-byte multiples for DK = 128
++    if (ith == 0) {
++        sv.resize((size_t) n_kv * n_head);
++        partials.resize((size_t) nth * n_head * part_stride);
++        ggml_threadpool_chunk_set(params->threadpool, 0);
++    }
++    ggml_barrier(params->threadpool);
++
++    const ggml_fp16_t * mp = mask ? (const ggml_fp16_t *) mask->data : nullptr;
++    const int64_t step = 32;
++    float mine_M[32];
++    for (int64_t h = 0; h < n_head; h++) {
++        mine_M[h] = -INFINITY;
++    }
++
++    // 1. all K dots
++    while (true) {
++        const int64_t c0 = ggml_threadpool_chunk_add(params->threadpool, (int) step);
++        if (c0 >= n_kv) {
++            break;
++        }
++        const int64_t c1 = std::min(c0 + step, n_kv);
++        for (int64_t ic = c0; ic < c1; ic++) {
++            float * row_s = sv.data() + ic * n_head;
++            const float mv = mp ? GGML_CPU_FP16_TO_FP32(mp[ic]) : 0.0f;
++            if (mv == -INFINITY) {
++                for (int64_t h = 0; h < n_head; h++) {
++                    row_s[h] = -INFINITY;
++                }
++                continue;
++            }
++            const __fp16 * kr = (const __fp16 *) ((const char *) k->data + ic * k->nb[1]);
++            for (int64_t hk = 0; hk < n_hkv; hk++, kr += DK) {
++                const float * q0 = (const float *) ((const char *) q->data + (hk * 2 + 0) * q->nb[2]);
++                const float * q1 = (const float *) ((const char *) q->data + (hk * 2 + 1) * q->nb[2]);
++                float32x4_t a0 = vdupq_n_f32(0.0f), a1 = a0, a2 = a0, a3 = a0, b0 = a0, b1 = a0, b2 = a0, b3 = a0;
++                for (int64_t i = 0; i < DK; i += 16) {
++                    const float32x4_t k_0 = vcvt_f32_f16(vld1_f16(kr + i)),     k_1 = vcvt_f32_f16(vld1_f16(kr + i + 4));
++                    const float32x4_t k_2 = vcvt_f32_f16(vld1_f16(kr + i + 8)), k_3 = vcvt_f32_f16(vld1_f16(kr + i + 12));
++                    a0 = vfmaq_f32(a0, k_0, vld1q_f32(q0 + i));      b0 = vfmaq_f32(b0, k_0, vld1q_f32(q1 + i));
++                    a1 = vfmaq_f32(a1, k_1, vld1q_f32(q0 + i + 4));  b1 = vfmaq_f32(b1, k_1, vld1q_f32(q1 + i + 4));
++                    a2 = vfmaq_f32(a2, k_2, vld1q_f32(q0 + i + 8));  b2 = vfmaq_f32(b2, k_2, vld1q_f32(q1 + i + 8));
++                    a3 = vfmaq_f32(a3, k_3, vld1q_f32(q0 + i + 12)); b3 = vfmaq_f32(b3, k_3, vld1q_f32(q1 + i + 12));
++                }
++                const float s0 = vaddvq_f32(vaddq_f32(vaddq_f32(a0, a1), vaddq_f32(a2, a3))) * scale + mv;
++                const float s1 = vaddvq_f32(vaddq_f32(vaddq_f32(b0, b1), vaddq_f32(b2, b3))) * scale + mv;
++                row_s[hk * 2]     = s0;
++                row_s[hk * 2 + 1] = s1;
++                mine_M[hk * 2]     = std::max(mine_M[hk * 2], s0);
++                mine_M[hk * 2 + 1] = std::max(mine_M[hk * 2 + 1], s1);
++            }
++        }
++    }
++    float * mine = partials.data() + (size_t) ith * n_head * part_stride;
++    for (int64_t h = 0; h < n_head; h++) {
++        float * p = mine + h * part_stride;
++        p[0] = mine_M[h];
++        p[1] = 0.0f;
++        memset(p + 2, 0, (size_t) DK * sizeof(float));
++    }
++    ggml_barrier(params->threadpool);   // no thread is claiming dot chunks any more
++    if (ith == 0) {
++        ggml_threadpool_chunk_set(params->threadpool, 0);
++    }
++    ggml_barrier(params->threadpool);
++
++    // the maxima are final now; every thread derives the same thresholds
++    float M[32], T[32];
++    const float ln_eps = eps > 0.0f ? logf(eps) : -INFINITY;
++    for (int64_t h = 0; h < n_head; h++) {
++        float m = -INFINITY;
++        for (int t = 0; t < nth; t++) {
++            m = std::max(m, partials[(size_t) t * n_head * part_stride + h * part_stride]);
++        }
++        M[h] = m;
++        T[h] = m + ln_eps;
++    }
++
++    // 2. V for the survivors, four heads at a time through the vector exp
++    while (true) {
++        const int64_t c0 = ggml_threadpool_chunk_add(params->threadpool, (int) step);
++        if (c0 >= n_kv) {
++            break;
++        }
++        const int64_t c1 = std::min(c0 + step, n_kv);
++        for (int64_t ic = c0; ic < c1; ic++) {
++            const float * row_s = sv.data() + ic * n_head;
++            const __fp16 * vr = (const __fp16 *) ((const char *) v->data + ic * v->nb[1]);
++            for (int64_t h0 = 0; h0 < n_head; h0 += 4) {
++                const int n = (int) std::min<int64_t>(4, n_head - h0);
++                float s4[4] = { -INFINITY, -INFINITY, -INFINITY, -INFINITY }, m4[4] = { 0, 0, 0, 0 };
++                int any = 0;
++                for (int j = 0; j < n; j++) {
++                    if (row_s[h0 + j] != -INFINITY && row_s[h0 + j] >= T[h0 + j]) {
++                        s4[j] = row_s[h0 + j];
++                        m4[j] = M[h0 + j];
++                        any |= 1 << j;
++                    }
++                }
++                if (!any) {
++                    continue;
++                }
++                float e4[4];
++                vst1q_f32(e4, ggml_v_expf(vsubq_f32(vld1q_f32(s4), vld1q_f32(m4))));
++                for (int j = 0; j < n; j++) {
++                    if (!(any & (1 << j))) {
++                        continue;
++                    }
++                    const int64_t h = h0 + j;
++                    float * p = mine + h * part_stride;
++                    p[1] += e4[j];
++                    const __fp16 * vh = vr + (h / 2) * DK;
++                    float * acc = p + 2;
++                    for (int64_t i = 0; i < DK; i += 4) {
++                        vst1q_f32(acc + i, vmlaq_n_f32(vld1q_f32(acc + i), vcvt_f32_f16(vld1_f16(vh + i)), e4[j]));
++                    }
++                }
++            }
++        }
++    }
++    ggml_barrier(params->threadpool);
++
++    // 3. reduce: each thread finishes its share of the q heads
++    for (int64_t h = ith; h < n_head; h += nth) {
++        float S = 0.0f;
++        float * out = (float *) ((char *) dst->data + h * dst->nb[1]);
++        memset(out, 0, (size_t) DK * sizeof(float));
++        for (int t = 0; t < nth; t++) {
++            const float * p = partials.data() + (size_t) t * n_head * part_stride + h * part_stride;
++            S += p[1];
++            for (int64_t i = 0; i < DK; i += 4) {
++                vst1q_f32(out + i, vaddq_f32(vld1q_f32(out + i), vld1q_f32(p + 2 + i)));
++            }
++        }
++        const float S_inv = S == 0.0f ? 0.0f : 1.0f / S;
++        for (int64_t i = 0; i < DK; i += 4) {
++            vst1q_f32(out + i, vmulq_n_f32(vld1q_f32(out + i), S_inv));
++        }
++    }
++    return true;
++}
++
++static bool ggml_flash_attn_f16_pruned(const ggml_compute_params * params, ggml_tensor * dst) {
++    static const bool  on  = getenv("GGML_FA_PRUNE") == nullptr || atoi(getenv("GGML_FA_PRUNE")) != 0;
++    static const float eps = getenv("GGML_FA_EPS") ? (float) atof(getenv("GGML_FA_EPS")) : 1e-3f;
++    const ggml_tensor * q = dst->src[0], * k = dst->src[1], * v = dst->src[2], * mask = dst->src[3], * sinks = dst->src[4], * kv_rows = dst->src[5];
++    float scale = 1.0f, max_bias = 0.0f, softcap = 0.0f;
++    memcpy(&scale,    (float *) dst->op_params + 0, sizeof(float));
++    memcpy(&max_bias, (float *) dst->op_params + 1, sizeof(float));
++    memcpy(&softcap,  (float *) dst->op_params + 2, sizeof(float));
++    if (!on || params->use_ref || sinks || kv_rows || max_bias != 0.0f || softcap != 0.0f ||
++        q->type != GGML_TYPE_F32 || k->type != GGML_TYPE_F16 || v->type != GGML_TYPE_F16 ||
++        q->ne[3] != 1 || k->ne[3] != 1 || v->ne[3] != 1 || k->ne[2] != v->ne[2] || q->ne[2] != 2 * k->ne[2] ||
++        k->ne[0] != v->ne[0] || q->ne[0] != k->ne[0] || k->ne[0] % 16 != 0 || k->ne[0] > 1024) {
++        return false;
++    }
++    if (ggml_flash_attn_f16_single(params, dst, scale, eps)) {
++        return true;
++    }
++    const int64_t DK = k->ne[0], N = q->ne[1], n_kv = k->ne[1], n_hkv = k->ne[2];
++    const int64_t n_chunk = N * n_hkv;
++    if (params->ith == 0) {
++        ggml_threadpool_chunk_set(params->threadpool, 0);
++    }
++    ggml_barrier(params->threadpool);
++
++    static thread_local std::vector<float> sv;
++    sv.resize((size_t) n_kv * 2);
++    const float ln_eps = eps > 0.0f ? logf(eps) : -INFINITY;
++    float32x4_t V[1024 / 4];
++
++    while (true) {
++        const int64_t c = ggml_threadpool_chunk_add(params->threadpool, 1);
++        if (c >= n_chunk) {
++            break;
++        }
++        const int64_t iq1 = c / n_hkv, ik2 = c % n_hkv;
++        const float * q0 = (const float *) ((const char *) q->data + iq1 * q->nb[1] + (ik2 * 2 + 0) * q->nb[2]);
++        const float * q1 = (const float *) ((const char *) q->data + iq1 * q->nb[1] + (ik2 * 2 + 1) * q->nb[2]);
++        const bool mask_shared = mask && mask->ne[2] == 1;
++        const ggml_fp16_t * mp0 = mask_shared ? (const ggml_fp16_t *) ((const char *) mask->data + iq1 * mask->nb[1]) : nullptr;
++
++        // 1. all K dots, one pass over each K row for both q heads
++        const char * k0 = (const char *) k->data + ik2 * k->nb[2];
++        for (int64_t ic = 0; ic < n_kv; ic++) {
++            if (mp0 && GGML_CPU_FP16_TO_FP32(mp0[ic]) == -INFINITY) {
++                sv[ic * 2] = sv[ic * 2 + 1] = -INFINITY;
++                continue;
++            }
++            const __fp16 * kr = (const __fp16 *) (k0 + ic * k->nb[1]);
++            float32x4_t a0 = vdupq_n_f32(0.0f), a1 = a0, a2 = a0, a3 = a0, b0 = a0, b1 = a0, b2 = a0, b3 = a0;
++            for (int64_t i = 0; i < DK; i += 16) {
++                const float32x4_t k_0 = vcvt_f32_f16(vld1_f16(kr + i)),     k_1 = vcvt_f32_f16(vld1_f16(kr + i + 4));
++                const float32x4_t k_2 = vcvt_f32_f16(vld1_f16(kr + i + 8)), k_3 = vcvt_f32_f16(vld1_f16(kr + i + 12));
++                a0 = vfmaq_f32(a0, k_0, vld1q_f32(q0 + i));      b0 = vfmaq_f32(b0, k_0, vld1q_f32(q1 + i));
++                a1 = vfmaq_f32(a1, k_1, vld1q_f32(q0 + i + 4));  b1 = vfmaq_f32(b1, k_1, vld1q_f32(q1 + i + 4));
++                a2 = vfmaq_f32(a2, k_2, vld1q_f32(q0 + i + 8));  b2 = vfmaq_f32(b2, k_2, vld1q_f32(q1 + i + 8));
++                a3 = vfmaq_f32(a3, k_3, vld1q_f32(q0 + i + 12)); b3 = vfmaq_f32(b3, k_3, vld1q_f32(q1 + i + 12));
++            }
++            sv[ic * 2]     = vaddvq_f32(vaddq_f32(vaddq_f32(a0, a1), vaddq_f32(a2, a3))) * scale;
++            sv[ic * 2 + 1] = vaddvq_f32(vaddq_f32(vaddq_f32(b0, b1), vaddq_f32(b2, b3))) * scale;
++        }
++
++                // 2-3. per q head: maximum, then V for the survivors
++        const char * v0 = (const char *) v->data + ik2 * v->nb[2];
++        for (int64_t r = 0; r < 2; r++) {
++            const int64_t h = ik2 * 2 + r;
++            const ggml_fp16_t * mp = mask_shared ? mp0 : (mask ? (const ggml_fp16_t *) ((const char *) mask->data + iq1 * mask->nb[1] + (h % mask->ne[2]) * mask->nb[2]) : nullptr);
++            float M = -INFINITY;
++            for (int64_t ic = 0; ic < n_kv; ic++) {
++                float s = sv[ic * 2 + r];
++                if (mp && s != -INFINITY) {
++                    const float mv = GGML_CPU_FP16_TO_FP32(mp[ic]);
++                    s = mv == -INFINITY ? -INFINITY : s + mv;
++                    sv[ic * 2 + r] = s;
++                }
++                if (s > M) {
++                    M = s;
++                }
++            }
++            float S = 0.0f;
++            for (int64_t i = 0; i < DK / 4; i++) {
++                V[i] = vdupq_n_f32(0.0f);
++            }
++            const float t = M + ln_eps;
++            for (int64_t ic = 0; ic < n_kv; ic++) {
++                const float s = sv[ic * 2 + r];
++                if (s == -INFINITY || !(s >= t)) {
++                    continue;
++                }
++                const float vs = expf(s - M);
++                S += vs;
++                const __fp16 * vr = (const __fp16 *) (v0 + ic * v->nb[1]);
++                for (int64_t i = 0; i < DK / 4; i++) {
++                    V[i] = vmlaq_n_f32(V[i], vcvt_f32_f16(vld1_f16(vr + i * 4)), vs);
++                }
++            }
++            const float S_inv = S == 0.0f ? 0.0f : 1.0f / S;
++            float * out = (float *) ((char *) dst->data + (h + iq1 * dst->ne[1]) * dst->nb[1]);
++            for (int64_t i = 0; i < DK / 4; i++) {
++                vst1q_f32(out + i * 4, vmulq_n_f32(V[i], S_inv));
++            }
++        }
++    }
++    return true;
++}
++#else
++static bool ggml_flash_attn_f16_pruned(const ggml_compute_params *, ggml_tensor *) { return false; }
++#endif
++
+ static void ggml_compute_forward_flash_attn_ext_f16(
+         const ggml_compute_params * params,
+         ggml_tensor * dst) {
+ 
++    if (ggml_flash_attn_f16_pruned(params, dst)) {
++        return;
++    }
++
+     const ggml_tensor * q     = dst->src[0];
+     const ggml_tensor * k     = dst->src[1];
+     const ggml_tensor * v     = dst->src[2];
 diff --git a/ggml/src/ggml-cpu/repack-q1lut-tv.inc b/ggml/src/ggml-cpu/repack-q1lut-tv.inc
 new file mode 100644
-index 0000000..614dbd3
+index 0000000..8987ba9
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/repack-q1lut-tv.inc
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,155 @@
 +// tvbox patch: Four-Russians (T-MAC style) Q1_0 kernel for in-order ARM, EXPERIMENT.md section 19.
 +// Groups of 32 rows. One 16-byte vector holds 32 weight nibbles, i.e. 4 columns of 32 rows (low nibble: rows 0-15, high
 +// nibble: rows 16-31), so one 16-entry table of activation subset sums serves 32 rows x 4 columns = 128 multiply-adds with
@@ -204,23 +590,18 @@ index 0000000..614dbd3
 +static inline size_t q1lut_group_bytes(int64_t n) { return 128 + (size_t) (n / 128) * 544; }
 +static inline size_t q1lut_row_bytes(int64_t n) { return GGML_PAD((size_t) (n / 128) * sizeof(float), 64) + (size_t) (n / 128) * 512 + 64; }
 +
-+static int repack_q1_0_to_q1lut_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
-+    GGML_ASSERT(t->type == GGML_TYPE_Q1_0);
-+    const int nrow = ggml_nrows(t);
-+    const int nb128 = t->ne[0] / 128;
-+    GGML_ASSERT(data_size == (size_t) nrow * nb128 * sizeof(block_q1_0));
-+    if (t->ne[1] % 32 != 0 || t->ne[0] % 128 != 0) {
-+        return -1;
-+    }
-+    const block_q1_0 * src = (const block_q1_0 *) data;
-+    uint8_t * dst = (uint8_t *) t->data;
-+    for (int r = 0; r < nrow; r += 32) {
-+        ggml_half * hdr = (ggml_half *) dst;
++// Writes groups g0..g1-1 of 32 rows each. dst is the start of the whole LUT layout, src the plain Q1_0 rows.
++static void q1lut_build_groups(uint8_t * GGML_RESTRICT dst, const block_q1_0 * GGML_RESTRICT src, int nb128, int64_t g0, int64_t g1) {
++    const size_t group_bytes = q1lut_group_bytes((int64_t) nb128 * 128);
++    for (int64_t g = g0; g < g1; g++) {
++        const size_t r = (size_t) g * 32;
++        uint8_t * grp = dst + (size_t) g * group_bytes;
++        ggml_half * hdr = (ggml_half *) grp;
 +        float mn[32], st[32];
 +        for (int j = 0; j < 32; j++) {
 +            float lo = INFINITY, hi = -INFINITY;
 +            for (int b = 0; b < nb128; b++) {
-+                const float d = GGML_CPU_FP16_TO_FP32(src[(size_t) (r + j) * nb128 + b].d);
++                const float d = GGML_CPU_FP16_TO_FP32(src[(r + j) * nb128 + b].d);
 +                lo = std::min(lo, d); hi = std::max(hi, d);
 +            }
 +            hdr[j]      = GGML_CPU_FP32_TO_FP16(lo);
@@ -228,12 +609,12 @@ index 0000000..614dbd3
 +            mn[j] = GGML_CPU_FP16_TO_FP32(hdr[j]);
 +            st[j] = GGML_CPU_FP16_TO_FP32(hdr[32 + j]);
 +        }
-+        uint8_t * o = dst + 128;
++        uint8_t * o = grp + 128;
 +        for (int b = 0; b < nb128; b++, o += 544) {
 +            uint8_t tmp[544];
 +            memset(tmp, 0, sizeof tmp);
 +            for (int j = 0; j < 32; j++) {
-+                const block_q1_0 * in = &src[(size_t) (r + j) * nb128 + b];
++                const block_q1_0 * in = &src[(r + j) * nb128 + b];
 +                const float d = GGML_CPU_FP16_TO_FP32(in->d);
 +                const int q = st[j] > 0 ? (int) lroundf((d - mn[j]) / st[j]) : 0;
 +                tmp[j] = (uint8_t) std::max(0, std::min(255, q));
@@ -245,8 +626,18 @@ index 0000000..614dbd3
 +            }
 +            memcpy(o, tmp, sizeof tmp);
 +        }
-+        dst += q1lut_group_bytes(t->ne[0]);
 +    }
++}
++
++static int repack_q1_0_to_q1lut_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    GGML_ASSERT(t->type == GGML_TYPE_Q1_0);
++    const int nrow = ggml_nrows(t);
++    const int nb128 = t->ne[0] / 128;
++    GGML_ASSERT(data_size == (size_t) nrow * nb128 * sizeof(block_q1_0));
++    if (t->ne[1] % 32 != 0 || t->ne[0] % 128 != 0) {
++        return -1;
++    }
++    q1lut_build_groups((uint8_t *) t->data, (const block_q1_0 *) data, nb128, 0, nrow / 32);
 +    return 0;
 +}
 +
@@ -340,10 +731,10 @@ index 0000000..614dbd3
 +#endif
 +
 diff --git a/ggml/src/ggml-cpu/repack.cpp b/ggml/src/ggml-cpu/repack.cpp
-index 9282ca2..5af993e 100644
+index 9282ca2..40d3108 100644
 --- a/ggml/src/ggml-cpu/repack.cpp
 +++ b/ggml/src/ggml-cpu/repack.cpp
-@@ -4238,6 +4238,18 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS>
+@@ -4238,6 +4238,35 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS>
  int repack(struct ggml_tensor *, const void *, size_t);
  
  // TODO: generalise.
@@ -355,6 +746,23 @@ index 9282ca2..5af993e 100644
 +    static const bool on = getenv("GGML_Q1_LUT") == nullptr || atoi(getenv("GGML_Q1_LUT")) != 0;
 +    return on;
 +}
++static void q1lut_run_chunks(const ggml_compute_params * params, const uint8_t * lut, int64_t n, int64_t ngroups, const char * wdata, size_t row_bytes, int64_t nact, char * dst, size_t dst_row) {
++    const int nth = params->nth;
++    const int64_t min_g = MAX(1, ngroups / (16 * nth));
++    while (true) {
++        const int64_t seen = ggml_threadpool_chunk_add(params->threadpool, 0);
++        if (seen >= ngroups) {
++            break;
++        }
++        const int64_t size = MAX(min_g, (ngroups - seen) / (2 * nth));
++        const int64_t start = ggml_threadpool_chunk_add(params->threadpool, (int) size);
++        if (start >= ngroups) {
++            break;
++        }
++        q1lut_gemm(n, lut, wdata, row_bytes, nact, dst, dst_row, start, MIN(start + size, ngroups));
++    }
++}
++
 +template <> int repack<block_q1_0, 4, 32>(struct ggml_tensor * t, const void * data, size_t data_size) {
 +    return repack_q1_0_to_q1lut_tv(t, data, data_size);
 +}
@@ -362,7 +770,7 @@ index 9282ca2..5af993e 100644
  template <> int repack<block_q1_0, 4, 4>(struct ggml_tensor * t, const void * data, size_t data_size) {
      return repack_q1_0_to_q1_0_4_bl(t, 4, data, data_size);
  }
-@@ -4349,6 +4361,8 @@ template <> void gemv<block_q1_0, 8, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t
+@@ -4349,6 +4378,8 @@ template <> void gemv<block_q1_0, 8, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t
      ggml_gemv_q1_0_4x8_q8_0(n, s, bs, vx, vy, nr, nc);
  }
  
@@ -371,7 +779,7 @@ index 9282ca2..5af993e 100644
  template <> void gemv<block_q4_0, 4, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
      ggml_gemv_q4_0_4x4_q8_0(n, s, bs, vx, vy, nr, nc);
  }
-@@ -4454,6 +4468,8 @@ template <> void gemm<block_q1_0, 8, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t
+@@ -4454,6 +4485,8 @@ template <> void gemm<block_q1_0, 8, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t
      ggml_gemm_q1_0_4x8_q8_0(n, s, bs, vx, vy, nr, nc);
  }
  
@@ -380,7 +788,7 @@ index 9282ca2..5af993e 100644
  template <> void gemm<block_q4_0, 4, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
      ggml_gemm_q4_0_4x4_q8_0(n, s, bs, vx, vy, nr, nc);
  }
-@@ -4560,6 +4576,9 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4560,6 +4593,9 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
              case GGML_OP_MUL_MAT:
                  {
                      size = ggml_row_size(PARAM_TYPE, ggml_nelements(op->src[1]));
@@ -390,7 +798,7 @@ index 9282ca2..5af993e 100644
                      return true;
                  }
              case GGML_OP_MUL_MAT_ID:
-@@ -4647,7 +4666,50 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4647,7 +4683,37 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          }
      }
  
@@ -417,20 +825,7 @@ index 9282ca2..5af993e 100644
 +            ggml_threadpool_chunk_set(params->threadpool, 0);
 +        }
 +        ggml_barrier(params->threadpool);
-+        const int64_t ngroups = ggml_nrows(src0) / 32;
-+        const int64_t min_g = MAX(1, ngroups / (16 * nth));
-+        while (true) {
-+            const int64_t seen = ggml_threadpool_chunk_add(params->threadpool, 0);
-+            if (seen >= ngroups) {
-+                break;
-+            }
-+            const int64_t size = MAX(min_g, (ngroups - seen) / (2 * nth));
-+            const int64_t start = ggml_threadpool_chunk_add(params->threadpool, (int) size);
-+            if (start >= ngroups) {
-+                break;
-+            }
-+            q1lut_gemm(ne10, (const uint8_t *) src0->data, wdata, row_bytes, nact, (char *) op->data, op->nb[1], start, MIN(start + size, ngroups));
-+        }
++        q1lut_run_chunks(params, (const uint8_t *) src0->data, ne10, ggml_nrows(src0) / 32, wdata, row_bytes, nact, (char *) op->data, op->nb[1]);
 +    }
 +
      void forward_mul_mat(ggml_compute_params * params, ggml_tensor * op) {
@@ -441,7 +836,79 @@ index 9282ca2..5af993e 100644
          const ggml_tensor * src0 = op->src[0];
          const ggml_tensor * src1 = op->src[1];
          ggml_tensor *       dst  = op;
-@@ -4930,6 +4992,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4927,9 +4993,79 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+ 
+ }  // namespace ggml::cpu::repack
+ 
++// A tied LM head shares its tensor with the embedding table, which GET_ROWS must read in the plain
++// layout, and its row count (the vocabulary) is rarely a multiple of 32. Neither fits the repack
++// buffer, so the head would run on the per-row dot product. This keeps a private LUT copy of its
++// whole groups, built on first use. Only one such matrix is expected; others take the normal path.
++static struct {
++    const void * src;
++    uint8_t *    lut;
++    char *       wrow;
++    bool         ready;
++} g_q1lut_head;
++
++extern "C" bool ggml_q1lut_tied_head(const struct ggml_compute_params * params, struct ggml_tensor * op) {
++    using namespace ggml::cpu::repack;
++    const ggml_tensor * src0 = op->src[0];
++    const ggml_tensor * src1 = op->src[1];
++    const int64_t n = src0->ne[0], nrow = src0->ne[1];
++    if (src1->type != GGML_TYPE_F32 || src1->ne[1] * src1->ne[2] != 1 || src0->ne[2] != 1 || n != src1->ne[0] ||
++        n % 128 != 0 || n < 512 || nrow < 1024 || !ggml_cpu_has_neon() || ggml_cpu_has_dotprod() || !q1lut_enabled()) {
++        return false;
++    }
++    auto & h = g_q1lut_head;
++    if (h.ready && h.src != src0->data) {
++        return false;
++    }
++    const int ith = params->ith, nth = params->nth;
++    const int nb128 = (int) (n / 128);
++    const int64_t ngroups = nrow / 32;
++    const size_t row_bytes = q1lut_row_bytes(n);
++    if (!h.ready) {
++        if (ith == 0) {
++            h.src  = src0->data;
++            h.lut  = (uint8_t *) ggml_aligned_malloc((size_t) ngroups * q1lut_group_bytes(n));
++            h.wrow = (char *) ggml_aligned_malloc(row_bytes);
++            GGML_ASSERT(h.lut && h.wrow);
++        }
++        ggml_barrier(params->threadpool);
++        q1lut_build_groups(h.lut, (const block_q1_0 *) src0->data, nb128, ngroups * ith / nth, ngroups * (ith + 1) / nth);
++        ggml_barrier(params->threadpool);
++        if (ith == 0) {
++            h.ready = true;
++        }
++    }
++    q1lut_tables((const float *) src1->data, h.wrow, n, nb128 * ith / nth, nb128 * (ith + 1) / nth);
++    if (ith == 0) {
++        ggml_threadpool_chunk_set(params->threadpool, 0);
++    }
++    ggml_barrier(params->threadpool);
++    q1lut_run_chunks(params, h.lut, n, ngroups, h.wrow, row_bytes, 1, (char *) op->data, op->nb[1]);
++    if (ith == 0) {   // the rows after the last whole group
++        const float * x = (const float *) src1->data;
++        float * out = (float *) op->data;
++        for (int64_t r = ngroups * 32; r < nrow; r++) {
++            const block_q1_0 * row = (const block_q1_0 *) src0->data + (size_t) r * nb128;
++            float sum = 0.0f;
++            for (int b = 0; b < nb128; b++) {
++                const float d = GGML_CPU_FP16_TO_FP32(row[b].d);
++                float bs = 0.0f;
++                for (int m = 0; m < 128; m++) {
++                    const float v = x[b * 128 + m];
++                    bs += ((row[b].qs[m / 8] >> (m % 8)) & 1) ? v : -v;
++                }
++                sum += d * bs;
++            }
++            out[r] = sum;
++        }
++    }
++    return true;
++}
++
  static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(const struct ggml_tensor * cur) {
      // instance for Q1_0
      static const ggml::cpu::repack::tensor_traits<block_q1_0, 4, 4, GGML_TYPE_Q8_0> q1_0_4x4_q8_0;
@@ -449,7 +916,7 @@ index 9282ca2..5af993e 100644
      static const ggml::cpu::repack::tensor_traits<block_q1_0, 8, 4, GGML_TYPE_Q8_0> q1_0_4x8_q8_0;
  
      // instance for Q4
-@@ -5130,6 +5193,11 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5130,6 +5266,11 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
              #endif
          }
      } else if (cur->type == GGML_TYPE_Q1_0) {

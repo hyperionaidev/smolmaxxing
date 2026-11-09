@@ -11,12 +11,12 @@ Every speed uses 2 threads and a 1,024-token context, through `smolchat` on a fi
 | SmolLM2-135M-Instruct Q4_K_M | 101 MB | 18.6-29.3 tok/s | 42-52 tok/s | 141 MB | right on France and on recall, weak on tides |
 | Gemma 3 270M-it Q4_K_M | 241 MiB | 15.4-19.0 tok/s | 45-64 tok/s | 248-294 MB | wrong on tides, empty reply on recall |
 | SmolLM2-360M-Instruct Q4_K_M | 258 MiB | 10.9-12.5 tok/s | 18-20 tok/s | 269-316 MB | all three right; the lightest good option |
-| **Bonsai-1.7B Q1_0 (1-bit, LUT kernel)** | 237 MiB | **10.5-11.8 tok/s**, falling to about 6 in long chats | 19-33 tok/s | 454-523 MB | **all three right, and writes correct code: the one to use** |
+| **Bonsai-1.7B Q1_0 (1-bit, LUT kernel)** | 237 MiB | **23.7-25.8 tok/s**, 18-22 through long chats | 29-33 tok/s (first prompt about 7) | 605 MB | **all three right, and writes correct code: the one to use** |
 | Qwen3.5-0.8B Q4_K_M | 508 MiB | about 0.2 tok/s | n/a | 506 MB | thrashes the page cache, stopped by hand |
 
 `stories15M-q4_0` (18 MB) reaches about 290 tok/s in `llama-simple`.
 
-Bonsai-1.7B started at 2.75 tok/s. A multiplication-free NEON kernel took it to 3.45 with identical output, and the TV's lookup-table kernel, ported to CPUs without dotprod, took it to about 11. See `EXPERIMENT.md` §21.4.
+Bonsai-1.7B started at 2.75 tok/s. A multiplication-free NEON kernel took it to 3.45 with identical output, and the TV's lookup-table kernel, ported to CPUs without dotprod, took it to about 11. Giving the shared output head that kernel, reading attention row by row with pruning, and a faster sampler then took it to about 25. See `EXPERIMENT.md` §21.4 and §21.5.
 
 ## Rebuilding it
 

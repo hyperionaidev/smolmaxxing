@@ -12,7 +12,7 @@
 - **A 16B mixture-of-experts model (Ling-mini-2.0): 5.1 tok/s** in real chat, coherent over 600-word answers, the same expert pager applied unchanged (§20). Twice Moon-Beam's size, but not better per byte: bigger only helps on this box when the model is also better.
 - **A dense 9B model: 0.27 tok/s**, streaming most of its weights from flash.
 
-Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E121).
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E128).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
@@ -21,7 +21,7 @@ Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIM
 | Device | Status |
 |---|---|
 | Xiaomi TV Box S (3rd Gen): Amlogic S7D, Cortex-A55, 2 GB | ✅ done: 260K → 16B parameters, 8B at 5-7 tok/s, 16B at 5 tok/s |
-| iPad Air (2013): Apple A7, 2 cores, 1 GB, iOS 12.5.7, jailbroken ([`ipad-air/`](ipad-air/)) | ✅ running: Bonsai-1.7B (1-bit) at about 11 tok/s, 6-10 in long chats, CPU only |
+| iPad Air (2013): Apple A7, 2 cores, 1 GB, iOS 12.5.7, jailbroken ([`ipad-air/`](ipad-air/)) | ✅ running: Bonsai-1.7B (1-bit) at 24-26 tok/s, 18-22 in long chats, CPU only |
 | More TV boxes, phones, single-board computers, routers… | 🔜 coming soon |
 
 The techniques aren't tied to this box. Any ARM chip with dotprod gets the kernels, and any Linux or Android device with more model than RAM can use the streaming engine.

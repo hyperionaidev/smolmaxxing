@@ -17,7 +17,9 @@
 #include <algorithm>
 #include <clocale>
 #include <cstdio>
+#include <cmath>
 #include <cstdlib>
+#include <random>
 #include <cstring>
 #include <iostream>
 #include <string>
@@ -118,6 +120,86 @@ static std::vector<llama_token> tokenize(const llama_vocab * vocab, const std::s
     return tokens;
 }
 
+// Repeat penalty, top-40, min-p 0.05, temperature and a weighted draw: the steps of llama.cpp's sampler chain, without
+// copying and sorting the whole vocabulary on every token (about 3 ms per token on the A7 with a 151k vocabulary).
+struct fast_sampler {
+    float penalty, temp;
+    size_t window;
+    std::mt19937 rng;
+    std::vector<llama_token> recent;
+    size_t next = 0;
+
+    fast_sampler(float penalty, int window, float temp, uint32_t seed)
+        : penalty(penalty), temp(temp), window((size_t) std::max(window, 0)),
+          rng(seed == LLAMA_DEFAULT_SEED ? std::random_device{}() : seed) {}
+
+    void reset() { recent.clear(); next = 0; }
+
+    void accept(llama_token id) {
+        if (window == 0) {
+            return;
+        }
+        if (recent.size() < window) {
+            recent.push_back(id);
+        } else {
+            recent[next] = id;
+            next = (next + 1) % window;
+        }
+    }
+
+    llama_token sample(llama_context * ctx, int n_vocab) {
+        float * logits = llama_get_logits_ith(ctx, -1);
+        if (penalty != 1.0f) {
+            std::vector<llama_token> ids(recent);
+            std::sort(ids.begin(), ids.end());
+            ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+            for (const llama_token t : ids) {
+                logits[t] = logits[t] <= 0.0f ? logits[t] * penalty : logits[t] / penalty;
+            }
+        }
+
+        struct cand { float logit; llama_token id; };
+        const auto worse = [](const cand & a, const cand & b) { return a.logit > b.logit; };
+        const int k = std::min(40, n_vocab);
+        cand top[40];
+        for (int i = 0; i < k; i++) {
+            top[i] = { logits[i], i };
+        }
+        std::make_heap(top, top + k, worse);
+        for (int i = k; i < n_vocab; i++) {
+            if (logits[i] > top[0].logit) {
+                std::pop_heap(top, top + k, worse);
+                top[k - 1] = { logits[i], i };
+                std::push_heap(top, top + k, worse);
+            }
+        }
+
+        const cand best = *std::max_element(top, top + k, [](const cand & a, const cand & b) { return a.logit < b.logit; });
+        llama_token chosen = best.id;
+        if (temp > 0.0f) {
+            const float cut = best.logit + std::log(0.05f);
+            float probs[40];
+            float sum = 0.0f;
+            for (int i = 0; i < k; i++) {
+                probs[i] = top[i].logit >= cut ? std::exp((top[i].logit - best.logit) / temp) : 0.0f;
+                sum += probs[i];
+            }
+            float r = std::uniform_real_distribution<float>(0.0f, sum)(rng);
+            for (int i = 0; i < k; i++) {
+                if (probs[i] > 0.0f) {
+                    chosen = top[i].id;
+                    r -= probs[i];
+                    if (r <= 0.0f) {
+                        break;
+                    }
+                }
+            }
+        }
+        accept(chosen);
+        return chosen;
+    }
+};
+
 // evaluate tokens at consecutive positions from pos_0, keeping logits for the last one only
 static bool decode(llama_context * ctx, llama_batch_ext * batch, const llama_token * tokens, int n, llama_pos pos_0) {
     llama_batch_ext_clear(batch);
@@ -175,12 +257,8 @@ int main(int argc, char ** argv) {
     }
     const int n_ctx = (int) llama_n_ctx(ctx);
 
-    llama_sampler * smpl = llama_sampler_chain_init(llama_sampler_chain_default_params());
-    llama_sampler_chain_add(smpl, llama_sampler_init_penalties(llama_vocab_n_tokens(vocab), o.repeat_last, o.repeat_penalty, 0.0f, 0.0f));
-    llama_sampler_chain_add(smpl, llama_sampler_init_top_k(40));
-    llama_sampler_chain_add(smpl, llama_sampler_init_min_p(0.05f, 1));
-    llama_sampler_chain_add(smpl, llama_sampler_init_temp(o.temp));
-    llama_sampler_chain_add(smpl, llama_sampler_init_dist(o.seed));
+    fast_sampler smpl(o.repeat_penalty, o.repeat_last, o.temp, o.seed);
+    const int n_vocab = llama_vocab_n_tokens(vocab);
 
     llama_batch_ext * batch = llama_batch_ext_init(ctx);
     llama_memory_t mem = llama_get_memory(ctx);
@@ -262,13 +340,16 @@ int main(int argc, char ** argv) {
         const size_t n_prompt = tokens.size() - keep;
         evaluated = tokens;
 
-        llama_sampler_reset(smpl);
+        smpl.reset();
 
         std::string response;
         int n_generated = 0;
+        int64_t t_sample = 0, t_decode = 0;
         const char * stop = "";
         while (true) {
-            const llama_token id = llama_sampler_sample(smpl, ctx, -1);
+            const int64_t t_s0 = llama_time_us();
+            const llama_token id = smpl.sample(ctx, n_vocab);
+            t_sample += llama_time_us() - t_s0;
             if (llama_vocab_is_eog(vocab, id)) {
                 break;
             }
@@ -291,7 +372,10 @@ int main(int argc, char ** argv) {
                 stop = ", stopped because the context is full";
                 break;
             }
-            if (!decode(ctx, batch, &id, 1, (llama_pos) evaluated.size())) {
+            const int64_t t_d0 = llama_time_us();
+            const bool decoded = decode(ctx, batch, &id, 1, (llama_pos) evaluated.size());
+            t_decode += llama_time_us() - t_d0;
+            if (!decoded) {
                 stop = ", stopped by a decode error";
                 break;
             }
@@ -306,6 +390,10 @@ int main(int argc, char ** argv) {
                  n_generated, s_gen > 0 ? n_generated / s_gen : 0.0,
                  n_prompt, s_prompt > 0 ? n_prompt / s_prompt : 0.0, stop);
         stats = line;
+        if (getenv("SMOLCHAT_PROF")) {
+            fprintf(stderr, "[prof] sampling %.2f, decode %.2f, total %.2f ms/token\n",
+                    n_generated ? t_sample / 1e3 / n_generated : 0.0, n_generated ? t_decode / 1e3 / n_generated : 0.0, n_generated ? (t_end - t_prompt) / 1e3 / n_generated : 0.0);
+        }
         if (dropped > 0) {
             stats += "; context full, dropped the " + std::to_string(dropped) + " oldest messages";
         }
@@ -354,7 +442,6 @@ int main(int argc, char ** argv) {
     }
 
     llama_batch_ext_free(batch);
-    llama_sampler_free(smpl);
     llama_free(ctx);
     llama_model_free(model);
     llama_backend_free();
