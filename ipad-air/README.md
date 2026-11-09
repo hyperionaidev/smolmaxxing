@@ -1,0 +1,47 @@
+# Device #2: iPad Air (2013)
+
+llama.cpp, running locally on a first-generation iPad Air: A7 (2 cores, NEON, no dotprod), 1 GB of RAM, iOS 12.5.7, CPU only. The full write-up, including what failed, is in [`EXPERIMENT.md`](../EXPERIMENT.md) §21.
+
+## Results
+
+Every speed uses 2 threads and a 1,024-token context, through `smolchat` on a fixed three-turn conversation. The ranges are across those turns, on a run that didn't follow a large file copy.
+
+| Model | File | Generation | Prompt | Peak RSS | Three-question test |
+|---|---|---|---|---|---|
+| SmolLM2-135M-Instruct Q4_K_M | 101 MB | 18.6-29.3 tok/s | 42-52 tok/s | 141 MB | right on France and on recall, weak on tides |
+| Gemma 3 270M-it Q4_K_M | 241 MiB | 15.4-19.0 tok/s | 45-64 tok/s | 248-294 MB | wrong on tides, empty reply on recall |
+| **SmolLM2-360M-Instruct Q4_K_M** | 258 MiB | **10.9-12.5 tok/s** | 18-20 tok/s | 269-316 MB | **all three right: the one to use** |
+| Qwen3.5-0.8B Q4_K_M | 508 MiB | about 0.2 tok/s | n/a | 506 MB | thrashes the page cache, stopped by hand |
+
+`stories15M-q4_0` (18 MB) reaches about 290 tok/s in `llama-simple`.
+
+## Rebuilding it
+
+You need a jailbroken device. This one uses [Amethyst](https://github.com/staturnzz/amethyst), following the [cfw.guide instructions](https://ios.cfw.guide/installing-amethyst/). The jailbreak does not survive a reboot. Change the default `root` and `mobile` passwords before anything else, and install `ldid` from Procursus on the device.
+
+1. Put the Xcode 15.4 SDK at `third_party/iPhoneOS.sdk`. It is the last SDK that targets iOS 12. Only the SDK is used, so Xcode doesn't have to run.
+2. Clone llama.cpp to `third_party/llama.cpp`, check out `1945793e00c53f69eac0bfc89e37429a5503f12a`, and apply `patches/llama.cpp-ios12.patch`.
+3. Run `./build.sh`. Binaries land in `bin/`.
+4. Forward SSH over USB with `pymobiledevice3 usbmux forward 2222 22`, and authorize an SSH key for `root`. Point `IPAD_KEY` at it.
+5. Run `./deploy.sh models/SmolLM2-360M-Instruct-Q4_K_M.gguf`, then `./chat.sh SmolLM2-360M-Instruct-Q4_K_M.gguf`.
+
+`models/`, `bin/` and `third_party/` are not in git. The model comes from [bartowski/SmolLM2-360M-Instruct-GGUF](https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF), SHA-256 `2fa3f013dcdd7b99f9b237717fa0b12d75bbb89984cc1274be1471a465bac9c2`.
+
+## Files
+
+| Path | What |
+|---|---|
+| `smolchat.cpp` | interactive chat: repeat penalty, 2-thread default, drops the oldest turns when the context fills |
+| `build.sh` | CPU-only cross-compile for iOS 12 |
+| `deploy.sh` | copies binaries and models to the iPad and signs them |
+| `chat.sh` | opens a chat on the iPad over SSH |
+| `bench.sh` | the fixed three-turn test, with memory and time limits |
+| `ent.xml` | the entitlements binaries need to launch |
+| `patches/llama.cpp-ios12.patch` | compiles out `std::filesystem` (backend plugin loading) behind `GGML_NO_FS`, and adds `LLAMA_THREADS` to `llama-simple` |
+
+## What matters on this device
+
+- **Use 2 threads.** llama.cpp's default of 4 on these 2 cores made `stories15M` 540× slower (0.54 vs 290 tok/s).
+- **Sign with `ent.xml`.** Ad-hoc signing or a plain `ldid -S` gets the process killed at launch (exit 137).
+- **Don't time runs right after copying a large file.** Speeds were about 3× lower until the device settled.
+- **The model has to fit in RAM.** Roughly 650 MB is available with the iPad's normal apps running. A 508 MiB model that also needs working memory pages constantly.

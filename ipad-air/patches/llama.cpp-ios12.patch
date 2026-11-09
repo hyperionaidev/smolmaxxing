@@ -1,0 +1,140 @@
+diff --git a/examples/simple/simple.cpp b/examples/simple/simple.cpp
+index ebb1969..549730e 100644
+--- a/examples/simple/simple.cpp
++++ b/examples/simple/simple.cpp
+@@ -1,6 +1,7 @@
+ #include "llama.h"
+ #include <clocale>
+ #include <cstdio>
++#include <cstdlib>
+ #include <cstring>
+ #include <string>
+ #include <vector>
+@@ -118,6 +119,7 @@ int main(int argc, char ** argv) {
+     // initialize the context
+ 
+     llama_context_params ctx_params = llama_context_default_params();
++    if (const char * t = getenv("LLAMA_THREADS")) { ctx_params.n_threads = ctx_params.n_threads_batch = atoi(t); }
+     // n_ctx is the context size
+     ctx_params.n_ctx = n_prompt + n_predict - 1;
+     // n_batch is the maximum number of tokens that can be processed in a single call to llama_decode
+diff --git a/ggml/src/ggml-backend-dl.cpp b/ggml/src/ggml-backend-dl.cpp
+index a65cf00..b22c585 100644
+--- a/ggml/src/ggml-backend-dl.cpp
++++ b/ggml/src/ggml-backend-dl.cpp
+@@ -1,5 +1,7 @@
+ #include "ggml-backend-dl.h"
+ 
++#ifndef GGML_NO_FS
++
+ #ifdef _WIN32
+ 
+ dl_handle * dl_load_library(const fs::path & path) {
+@@ -46,3 +48,5 @@ const char * dl_error() {
+ }
+ 
+ #endif
++
++#endif // GGML_NO_FS
+diff --git a/ggml/src/ggml-backend-dl.h b/ggml/src/ggml-backend-dl.h
+index f74b7c9..8f91242 100644
+--- a/ggml/src/ggml-backend-dl.h
++++ b/ggml/src/ggml-backend-dl.h
+@@ -11,9 +11,13 @@
+ #    include <dlfcn.h>
+ #    include <unistd.h>
+ #endif
++#ifndef GGML_NO_FS
+ #include <filesystem>
+ 
+ namespace fs = std::filesystem;
++#endif
++#include <memory>
++#include <type_traits>
+ 
+ #ifdef _WIN32
+ 
+@@ -39,7 +43,9 @@ struct dl_handle_deleter {
+ 
+ using dl_handle_ptr = std::unique_ptr<dl_handle, dl_handle_deleter>;
+ 
++#ifndef GGML_NO_FS
+ dl_handle * dl_load_library(const fs::path & path);
++#endif
+ void * dl_get_sym(dl_handle * handle, const char * name);
+ const char * dl_error();
+ 
+diff --git a/ggml/src/ggml-backend-reg.cpp b/ggml/src/ggml-backend-reg.cpp
+index c3bc926..e6205fd 100644
+--- a/ggml/src/ggml-backend-reg.cpp
++++ b/ggml/src/ggml-backend-reg.cpp
+@@ -4,7 +4,9 @@
+ #include "ggml-impl.h"
+ #include <algorithm>
+ #include <cstring>
++#ifndef GGML_NO_FS
+ #include <filesystem>
++#endif
+ #include <memory>
+ #include <string>
+ #include <type_traits>
+@@ -90,6 +92,7 @@
+ #include "ggml-et.h"
+ #endif
+ 
++#ifndef GGML_NO_FS
+ namespace fs = std::filesystem;
+ 
+ static std::string path_str(const fs::path & path) {
+@@ -106,6 +109,7 @@ static std::string path_str(const fs::path & path) {
+         return std::string();
+     }
+ }
++#endif // GGML_NO_FS
+ 
+ struct ggml_backend_reg_entry {
+     ggml_backend_reg_t reg;
+@@ -217,6 +221,7 @@ struct ggml_backend_registry {
+         devices.push_back(device);
+     }
+ 
++#ifndef GGML_NO_FS
+     ggml_backend_reg_t load_backend(const fs::path & path, bool silent) {
+         dl_handle_ptr handle { dl_load_library(path) };
+         if (!handle) {
+@@ -262,6 +267,7 @@ struct ggml_backend_registry {
+ 
+         return reg;
+     }
++#endif // GGML_NO_FS
+ 
+     void unload_backend(ggml_backend_reg_t reg, bool silent) {
+         auto it = std::find_if(backends.begin(), backends.end(),
+@@ -391,13 +397,19 @@ ggml_backend_t ggml_backend_init_best(void) {
+ 
+ // Dynamic loading
+ ggml_backend_reg_t ggml_backend_load(const char * path) {
++#ifndef GGML_NO_FS
+     return get_reg().load_backend(path, false);
++#else
++    GGML_UNUSED(path);
++    return nullptr;
++#endif
+ }
+ 
+ void ggml_backend_unload(ggml_backend_reg_t reg) {
+     get_reg().unload_backend(reg, true);
+ }
+ 
++#ifndef GGML_NO_FS
+ static fs::path get_executable_path() {
+ #if defined(__APPLE__)
+     // get executable path
+@@ -597,3 +609,7 @@ void ggml_backend_load_all_from_path(const char * dir_path) {
+         ggml_backend_load(backend_path);
+     }
+ }
++#else // GGML_NO_FS: static-only build, nothing to discover at runtime
++void ggml_backend_load_all() {}
++void ggml_backend_load_all_from_path(const char * dir_path) { GGML_UNUSED(dir_path); }
++#endif // GGML_NO_FS

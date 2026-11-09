@@ -776,3 +776,42 @@ What matters on this box is the weight touched per token and the non-expert byte
 - **A shell chain deleted the intermediate file:** `build | tail && rm src` tests `tail`'s exit status, so a full disk still ran the `rm`. Six minutes lost.
 - **`adb exec-in` returns before the TV has the data:** the Mac side hands everything to the adb server and exits, so restarting the server twice truncated the file on the TV (4.7 and 2.3 of 5.5 GB). The model now goes through `adb push`, which checks completion.
 - **zsh doesn't word-split `set -- $cfg`** again: three Mac runs did nothing until rerun under bash.
+
+## 21. Device #2: a 2013 iPad Air (2026-11-09)
+
+**Goal (your call):** "run a small llm on it with llamacpp", then a real chat program and a bigger model.
+
+**The result: SmolLM2-360M runs at 10.9-12.5 tok/s in chat on a 13-year-old tablet**, on the CPU, peaking at 316 MB. It answered all three test questions correctly. Files and rebuild steps are in [`ipad-air/`](ipad-air/README.md).
+
+The device is an iPad Air 1 (`iPad4,1`): Apple A7, 2 cores, NEON without dotprod, 1,021 MB of RAM, iOS 12.5.7, which is its last version.
+
+### 21.1 Getting a binary to run
+
+| Blocker | What happened | Fix |
+|---|---|---|
+| Xcode | Xcode 16 and later only target iOS 15+. The last one for iOS 12 is 15.4, which officially needs macOS 14, and this Mac runs macOS 27. | Only the iPhoneOS SDK is taken from the 15.4 archive. The Command Line Tools `clang` compiles against it. Xcode itself never runs. |
+| App signing | A non-jailbroken iPad needs a signed app bundle for any native code. | Jailbreak with Amethyst, which supports A7 on 12.5.7 and re-applies from Safari after a reboot. Binaries then run from a root shell over SSH. |
+| llama.cpp on iOS 12 | The build script targets iOS 16.4, and `std::filesystem` needs a newer OS. | Static CPU-only build. `llama-simple` and `smolchat` skip `common/`. `std::filesystem` in the core is used only to find backend plugins, so a 26-line `GGML_NO_FS` switch compiles it out. |
+| CMake | Configure failed because iOS executables default to app bundles. | `-DCMAKE_MACOSX_BUNDLE=OFF`. |
+| Launch | Exit 137 at launch with ad-hoc signing, then with `ldid -S`. The kernel log showed `Sandbox: hook..execve() killing`. | `ldid -Sent.xml` with `platform-application` and `no-container`, the entitlements the jailbreak's own tools carry. |
+
+### 21.2 Experiments
+
+| # | Experiment | Result |
+|---|---|---|
+| E108 | First run: `stories15M-q4_0` in `llama-simple`, default thread count | Works, coherent, but **0.54 tok/s** (89 s for 48 tokens). The default of 4 threads on 2 cores fights over the cores. |
+| E109 | Thread count on `stories15M` | 1 thread 187 tok/s, **2 threads 290 tok/s**: about 540× faster than E108. |
+| E110 | SmolLM2-135M Q4_K_M in `llama-simple`, 2 threads | 31.5 tok/s, 124 MB peak RSS, 1.8 s load. Greedy sampling loops: "The capital of France is Paris" three times, and tides never answered. |
+| E111 | `smolchat` on the 135M, three turns plus `/reset` | Recalled the first question, no loops. Reply length now limited only by `-n`. |
+| E112 | Apparent slowdown: `smolchat` measured 9-12 tok/s against 31.5 | **False alarm.** Run back to back: `llama-simple` 34, `smolchat` 29.3 on the first turn. The low numbers came right after copying large files to flash. |
+| E113 | Does the repeat penalty or context size cost speed? (measured during the slow period of E112) | No: 8.93 tok/s with the 1.15 penalty, 8.54 without; a 256-token context 8.85 vs 8.93 at 1,024. |
+| E114 | Gemma 3 270M-it Q4_K_M (241 MiB) | 15.4-19.0 tok/s, 248-294 MB. Weak answers: tides blamed on "the ocean floor", and an empty reply to the recall question on every run. |
+| E115 | Qwen3.5-0.8B Q4_K_M (508 MiB), thinking off, under the guard | **Thrashed.** Stopped by hand after 8 m 40 s with the first of three replies not finished: about 0.2 tok/s, estimated from output size. 506 MB RSS, 33 % CPU, 11.3 million page-ins. It didn't trip the memory guard, because evictable file pages count as available, so `bench.sh` now has a time limit too. |
+| E116 | SmolLM2-360M-Instruct Q4_K_M (258 MiB) | **10.9-12.5 tok/s**, prompt 18-20 tok/s, 269-316 MB, about 360 MB still available. Correct on all three questions. The model to use. |
+
+### 21.3 Where it stands
+
+- The practical ceiling with iOS's normal apps running is a model of about 250-350 MB. SmolLM2-360M sits inside it.
+- An untried lead is the TV's headless idea: stopping iOS's UI processes to free RAM might make Qwen3.5-0.8B resident. It would blank the screen until a restart, so it hasn't been tried.
+- The TV's kernels mostly need dotprod, which the A7 lacks, so they don't carry over directly.
+- Speeds here come from a few short runs, and the first timed run after a file copy is unreliable. Treat them as approximate.
