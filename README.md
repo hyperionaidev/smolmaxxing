@@ -12,7 +12,7 @@
 - **A 16B mixture-of-experts model (Ling-mini-2.0): 5.1 tok/s** in real chat, coherent over 600-word answers, the same expert pager applied unchanged (§20). Twice Moon-Beam's size, but not better per byte: bigger only helps on this box when the model is also better.
 - **A dense 9B model: 0.27 tok/s**, streaming most of its weights from flash.
 
-Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E116).
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E117).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 

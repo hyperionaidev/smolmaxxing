@@ -808,9 +808,11 @@ The device is an iPad Air 1 (`iPad4,1`): Apple A7, 2 cores, NEON without dotprod
 | E114 | Gemma 3 270M-it Q4_K_M (241 MiB) | 15.4-19.0 tok/s, 248-294 MB. Weak answers: tides blamed on "the ocean floor", and an empty reply to the recall question on every run. |
 | E115 | Qwen3.5-0.8B Q4_K_M (508 MiB), thinking off, under the guard | **Thrashed.** Stopped by hand after 8 m 40 s with the first of three replies not finished: about 0.2 tok/s, estimated from output size. 506 MB RSS, 33 % CPU, 11.3 million page-ins. It didn't trip the memory guard, because evictable file pages count as available, so `bench.sh` now has a time limit too. |
 | E116 | SmolLM2-360M-Instruct Q4_K_M (258 MiB) | **10.9-12.5 tok/s**, prompt 18-20 tok/s, 269-316 MB, about 360 MB still available. Correct on all three questions. The model to use. |
+| E117 | Web chat: `smolchat --serve`, a one-request-at-a-time HTTP server with a Safari 12 page, instead of `llama-server` (needs `common/`, and its page is too modern) | Over HTTP from the Mac: tokens stream one by one at 12.9 tok/s, the same as the terminal; the second turn recalls the first; dropping the connection stops generation, and the next reply arrived within 2 s. 320 MB RSS. |
 
 ### 21.3 Where it stands
 
+- The web chat works in Safari on the iPad itself.
 - The practical ceiling with iOS's normal apps running is a model of about 250-350 MB. SmolLM2-360M sits inside it.
 - An untried lead is the TV's headless idea: stopping iOS's UI processes to free RAM might make Qwen3.5-0.8B resident. It would blank the screen until a restart, so it hasn't been tried.
 - The TV's kernels mostly need dotprod, which the A7 lacks, so they don't carry over directly.

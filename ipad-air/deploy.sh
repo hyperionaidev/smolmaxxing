@@ -14,6 +14,7 @@ ipad() {
       -o ConnectTimeout=10 -o "UserKnownHostsFile=$KNOWN" root@127.0.0.1 "$@"
 }
 
+# A running binary cannot be overwritten: stop any server first (./service.sh remove if installed).
 ipad "mkdir -p $DIR"
 ipad "cat > $DIR/ent.xml" < "$HERE/ent.xml"
 

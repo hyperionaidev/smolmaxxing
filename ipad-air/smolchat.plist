@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.smolmaxxing.smolchat</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/var/mobile/llama/smolchat</string>
+		<string>-m</string>
+		<string>/var/mobile/llama/SmolLM2-360M-Instruct-Q4_K_M.gguf</string>
+		<string>--serve</string>
+		<string>8080</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/var/mobile/llama</string>
+	<key>UserName</key>
+	<string>mobile</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+	<key>StandardOutPath</key>
+	<string>/var/mobile/llama/server.log</string>
+	<key>StandardErrorPath</key>
+	<string>/var/mobile/llama/server.log</string>
+</dict>
+</plist>

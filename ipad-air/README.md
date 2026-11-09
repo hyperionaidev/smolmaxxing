@@ -25,6 +25,16 @@ You need a jailbroken device. This one uses [Amethyst](https://github.com/statur
 4. Forward SSH over USB with `pymobiledevice3 usbmux forward 2222 22`, and authorize an SSH key for `root`. Point `IPAD_KEY` at it.
 5. Run `./deploy.sh models/SmolLM2-360M-Instruct-Q4_K_M.gguf`, then `./chat.sh SmolLM2-360M-Instruct-Q4_K_M.gguf`.
 
+### Web chat in Safari
+
+`smolchat --serve 8080` serves a chat page written for Safari 12. Start it on the iPad, then open `http://127.0.0.1:8080` in Safari:
+
+```sh
+cd /var/mobile/llama && ./smolchat -m SmolLM2-360M-Instruct-Q4_K_M.gguf --serve 8080
+```
+
+It listens only on the iPad itself unless you pass `--host`, and it has no login, so don't expose it to a network you don't trust. To have it start on its own without a terminal, run `./service.sh install` from the Mac. `./service.sh remove` undoes that.
+
 `models/`, `bin/` and `third_party/` are not in git. The model comes from [bartowski/SmolLM2-360M-Instruct-GGUF](https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF), SHA-256 `2fa3f013dcdd7b99f9b237717fa0b12d75bbb89984cc1274be1471a465bac9c2`.
 
 ## Files
@@ -32,6 +42,8 @@ You need a jailbroken device. This one uses [Amethyst](https://github.com/statur
 | Path | What |
 |---|---|
 | `smolchat.cpp` | interactive chat: repeat penalty, 2-thread default, drops the oldest turns when the context fills |
+| `web.h` | the `--serve` HTTP server and its Safari 12 chat page |
+| `service.sh`, `smolchat.plist` | optional background service for the web chat |
 | `build.sh` | CPU-only cross-compile for iOS 12 |
 | `deploy.sh` | copies binaries and models to the iPad and signs them |
 | `chat.sh` | opens a chat on the iPad over SSH |

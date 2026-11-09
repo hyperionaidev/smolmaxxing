@@ -5,9 +5,12 @@
 //
 // The whole history is re-rendered every turn and compared with what the model has
 // already evaluated, so only the new tokens are decoded. When the history no longer
-// fits, the oldest turns are dropped.
+// fits, the oldest turns are dropped. With --serve it also answers a chat page over
+// HTTP (see web.h), so it can be used from Safari.
 
 #include "llama.h"
+
+#include "web.h"
 
 #include <unistd.h>
 
@@ -31,6 +34,8 @@ struct options {
     float    temp           = 0.7f;
     uint32_t seed           = LLAMA_DEFAULT_SEED;
     bool     no_think       = false;
+    int         port = 0;           // 0 = terminal chat
+    std::string host = "127.0.0.1";
 };
 
 struct message {
@@ -51,6 +56,9 @@ static void usage(const char * name) {
            "  --repeat-last N     tokens the penalty looks back over (default 256)\n"
            "  --seed N            sampling seed\n"
            "  --no-think          skip the reasoning block on models that have one\n"
+           "  --serve PORT        serve a chat page over HTTP instead of the terminal chat\n"
+           "  --host ADDRESS      address to listen on (default 127.0.0.1; there is no login,\n"
+           "                      so anything else exposes the chat to the network)\n"
            "\nIn the chat: /reset clears the conversation, /quit exits.\n", name);
 }
 
@@ -74,6 +82,8 @@ static bool parse_args(int argc, char ** argv, options & o) {
         else if (a == "--repeat-penalty") { o.repeat_penalty = (float) atof(v); }
         else if (a == "--repeat-last")    { o.repeat_last = atoi(v); }
         else if (a == "--seed")           { o.seed = (uint32_t) strtoul(v, nullptr, 10); }
+        else if (a == "--serve")          { o.port = atoi(v); }
+        else if (a == "--host")           { o.host = v; }
         else                              { return false; }
     }
     return !o.model.empty() && o.n_threads > 0 && o.n_ctx > 0 && o.n_predict > 0;
@@ -184,66 +194,46 @@ int main(int argc, char ** argv) {
     std::vector<llama_token> evaluated; // exactly what the model's memory holds
     const int reserve = std::min(o.n_predict, n_ctx / 4); // room kept free for the reply
 
-    printf("smolchat ready. /reset clears the conversation, /quit exits.\n");
+    const auto reset_chat = [&]() {
+        history.resize(first_turn);
+        evaluated.clear();
+        llama_memory_clear(mem, true);
+    };
 
-    while (true) {
-        printf("%s> %s", c_user, c_reset);
-        fflush(stdout);
-
-        std::string user;
-        if (!std::getline(std::cin, user) || user == "/quit" || user == "/exit") {
-            break;
-        }
-        if (user.empty()) {
-            continue;
-        }
-        if (user == "/reset") {
-            history.resize(first_turn);
-            evaluated.clear();
-            llama_memory_clear(mem, true);
-            printf("%s[conversation cleared]%s\n", c_stats, c_reset);
-            continue;
-        }
-
+    // one user message, one reply. emit receives the text as it is generated and returns
+    // false to stop early. stats receives the speed line, or the reason the turn failed.
+    const turn_fn run_turn = [&](const std::string & user, const piece_fn & emit, std::string & stats) -> bool {
         history.push_back({ "user", user });
 
         // render the conversation, dropping the oldest turns until it fits
         std::string prompt;
         std::vector<llama_token> tokens;
-        bool ok = true;
         size_t dropped = 0;
         while (true) {
             if (!render(tmpl, history, prompt)) {
-                fprintf(stderr, "error: this model's chat template is not supported\n");
-                ok = false;
-                break;
+                stats = "this model's chat template is not supported";
+                history.pop_back();
+                return false;
             }
             if (o.no_think) {
                 prompt += EMPTY_THINK;
             }
             tokens = tokenize(vocab, prompt);
             if (tokens.empty()) {
-                fprintf(stderr, "error: failed to tokenize the conversation\n");
-                ok = false;
-                break;
+                stats = "failed to tokenize the conversation";
+                history.pop_back();
+                return false;
             }
             if ((int) tokens.size() + reserve <= n_ctx) {
                 break;
             }
             if (history.size() <= first_turn + 1) {
-                fprintf(stderr, "error: that message is too long for a context of %d tokens\n", n_ctx);
-                ok = false;
-                break;
+                stats = "that message is too long for a context of " + std::to_string(n_ctx) + " tokens";
+                history.pop_back();
+                return false;
             }
             history.erase(history.begin() + first_turn, history.begin() + first_turn + 2);
             dropped += 2;
-        }
-        if (!ok) {
-            history.pop_back();
-            continue;
-        }
-        if (dropped > 0) {
-            printf("%s[context full: dropped the %zu oldest messages]%s\n", c_stats, dropped, c_reset);
         }
 
         // keep whatever is already evaluated, always re-evaluating at least one token
@@ -262,17 +252,16 @@ int main(int argc, char ** argv) {
 
         const int64_t t_start = llama_time_us();
         if (!decode(ctx, batch, tokens.data() + keep, (int) (tokens.size() - keep), (llama_pos) keep)) {
-            fprintf(stderr, "error: failed to evaluate the prompt\n");
+            stats = "failed to evaluate the prompt";
             history.pop_back();
             evaluated.clear();
             llama_memory_clear(mem, true);
-            continue;
+            return false;
         }
         const int64_t t_prompt = llama_time_us();
         const size_t n_prompt = tokens.size() - keep;
         evaluated = tokens;
 
-        printf("%s", c_model);
         llama_sampler_reset(smpl);
 
         std::string response;
@@ -285,12 +274,14 @@ int main(int argc, char ** argv) {
             }
             char buf[256];
             const int n = llama_token_to_piece(vocab, id, buf, sizeof(buf), 0, false);
-            if (n > 0) {
-                fwrite(buf, 1, n, stdout);
-                fflush(stdout);
-                response.append(buf, n);
-            }
             n_generated++;
+            if (n > 0) {
+                response.append(buf, n);
+                if (!emit(buf, n)) {
+                    stop = ", stopped";
+                    break;
+                }
+            }
 
             if (n_generated >= o.n_predict) {
                 stop = ", stopped at the reply limit";
@@ -310,12 +301,56 @@ int main(int argc, char ** argv) {
 
         const double s_prompt = (t_prompt - t_start) / 1e6;
         const double s_gen    = (t_end - t_prompt) / 1e6;
-        printf("%s\n%s[%d tok, %.2f tok/s; prompt %zu tok, %.2f tok/s%s]%s\n", c_reset, c_stats,
-               n_generated, s_gen > 0 ? n_generated / s_gen : 0.0,
-               n_prompt, s_prompt > 0 ? n_prompt / s_prompt : 0.0, stop, c_reset);
+        char line[160];
+        snprintf(line, sizeof(line), "%d tok, %.2f tok/s; prompt %zu tok, %.2f tok/s%s",
+                 n_generated, s_gen > 0 ? n_generated / s_gen : 0.0,
+                 n_prompt, s_prompt > 0 ? n_prompt / s_prompt : 0.0, stop);
+        stats = line;
+        if (dropped > 0) {
+            stats += "; context full, dropped the " + std::to_string(dropped) + " oldest messages";
+        }
 
         // keep the empty reasoning block in the history so the next turn's tokens line up
         history.push_back({ "assistant", (o.no_think ? std::string(EMPTY_THINK) : std::string()) + response });
+        return true;
+    };
+
+    if (o.port > 0) {
+        return serve_http(o.host, o.port, run_turn, reset_chat);
+    }
+
+    printf("smolchat ready. /reset clears the conversation, /quit exits.\n");
+
+    while (true) {
+        printf("%s> %s", c_user, c_reset);
+        fflush(stdout);
+
+        std::string user;
+        if (!std::getline(std::cin, user) || user == "/quit" || user == "/exit") {
+            break;
+        }
+        if (user.empty()) {
+            continue;
+        }
+        if (user == "/reset") {
+            reset_chat();
+            printf("%s[conversation cleared]%s\n", c_stats, c_reset);
+            continue;
+        }
+
+        printf("%s", c_model);
+        std::string stats;
+        const bool ok = run_turn(user, [](const char * p, size_t n) {
+            fwrite(p, 1, n, stdout);
+            fflush(stdout);
+            return true;
+        }, stats);
+        if (ok) {
+            printf("%s\n%s[%s]%s\n", c_reset, c_stats, stats.c_str(), c_reset);
+        } else {
+            printf("%s", c_reset);
+            fprintf(stderr, "error: %s\n", stats.c_str());
+        }
     }
 
     llama_batch_ext_free(batch);
