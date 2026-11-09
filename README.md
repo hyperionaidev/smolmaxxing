@@ -12,6 +12,8 @@
 - **A 16B mixture-of-experts model (Ling-mini-2.0): 5.1 tok/s** in real chat, coherent over 600-word answers, the same expert pager applied unchanged (§20). Twice Moon-Beam's size, but not better per byte: bigger only helps on this box when the model is also better.
 - **A dense 9B model: 0.27 tok/s**, streaming most of its weights from flash.
 
+**Device #2 is a first-generation iPad Air (2013)**: Apple A7, 2 cores, NEON without dotprod, **1 GB of RAM**, iOS 12.5.7, jailbroken, CPU only. A 13-year-old tablet runs a 1.7B-parameter model at **24-26 tok/s** (18-22 in long chats), from a chat page in its own Safari. See [Results on device #2](#results-on-device-2).
+
 Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E128).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
@@ -24,7 +26,7 @@ Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIM
 | iPad Air (2013): Apple A7, 2 cores, 1 GB, iOS 12.5.7, jailbroken ([`ipad-air/`](ipad-air/)) | ✅ running: Bonsai-1.7B (1-bit) at 24-26 tok/s, 18-22 in long chats, CPU only |
 | More TV boxes, phones, single-board computers, routers… | 🔜 coming soon |
 
-The techniques aren't tied to this box. Any ARM chip with dotprod gets the kernels, and any Linux or Android device with more model than RAM can use the streaming engine.
+The techniques aren't tied to one box. The 1-bit lookup-table kernel needs only base NEON, as the iPad shows; any ARM chip with dotprod gets the other kernels; and any Linux or Android device with more model than RAM can use the streaming engine.
 
 ## Scoreboard
 
@@ -101,6 +103,34 @@ Granite 4.0 H 1B was the one model close to the 2B's quality. Rebuilt our way (E
 **Physics of the box:** one process can hold ~0.96 GB before Android starts killing things (~1.15 GB in headless mode, with the launchers and Google services force-stopped), and flash reads top out at **278 MB/s**, with a lone ~1 MB random read costing ~6 ms. A model that has to stream X MB per token can never beat 278 / X tokens per second. That, not the CPU, is what limits everything above 2B, and why a mixture-of-experts model, which touches ~1 B of its 8 B weights per token, is the way past it.
 
 **10 tok/s at 8 B?** Measured, not guessed (E98): Moon-Beam reaches 10.4 tok/s with 2 experts per token, but the text turns to gibberish; the best coherent setting is ~7-8 tok/s. Dense Qwen3-8B is Bonsai-8B at 1 bit, and the smallest Qwen MoE (35B-A3B) touches 3× Moon-Beam's weights per token.
+
+## Results on device #2
+
+A 2013 iPad Air: Apple A7, 2 cores, NEON without dotprod, 1 GB of RAM, iOS 12.5.7, jailbroken with [Amethyst](https://github.com/staturnzz/amethyst). Everything runs on the CPU with 2 threads and a 1,024-token context, cross-compiled from a Mac. The write-up is §21 of [`EXPERIMENT.md`](EXPERIMENT.md), and build steps are in [`ipad-air/README.md`](ipad-air/README.md).
+
+| Model | File | Generation (tok/s) | Peak RSS | Fixed three-question test |
+|---|---|---|---|---|
+| **Bonsai-1.7B Q1_0 (1-bit)** | 237 MiB | **23.7-25.8**, 18-22 through long chats | 605 MB | all three right, and writes correct code: the one to use |
+| SmolLM2-360M-Instruct Q4_K_M | 258 MiB | 10.9-12.5 | 269-316 MB | all three right; the lightest good option |
+| Gemma 3 270M-it Q4_K_M | 241 MiB | 15.4-19.0 | 248-294 MB | wrong on tides, empty reply on recall |
+| SmolLM2-135M-Instruct Q4_K_M | 101 MB | 18.6-29.3 | 141 MB | right on France and recall, weak on tides |
+| Qwen3.5-0.8B Q4_K_M | 508 MiB | about 0.2 | 506 MB | thrashes the page cache, stopped by hand |
+
+Only Bonsai was re-measured on the latest build. The other rows predate the attention and sampler work below.
+
+**How Bonsai-1.7B got from 2.75 to about 25 tok/s** (same model file throughout):
+
+| Step | tok/s | What changed |
+|---|---|---|
+| Stock llama.cpp, 2 threads | 2.75 | emulates dotprod with widening multiplies |
+| Multiplication-free NEON kernel | 3.45 | weights are ±1, so no multiply is needed; output identical |
+| Lookup-table kernel from device #1, ported to base NEON | about 11 | its dotprod requirement turned out to be only an assumption |
+| The output head on that kernel | 18-22 | 151,669 rows isn't a multiple of 32, so the tied head had never reached it: 45 of 72 ms per token |
+| Row-order attention with pruning, and a sampler that doesn't sort the vocabulary | **23.7-25.8** | the KV cache stores all heads of a row side by side, so one head at a time missed the cache constantly |
+
+In long chats (400-token answers), the three turns went from 15.4 / 7.6 / 8.2 to **21.8 / 17.9 / 18.4 tok/s** through the attention work alone. The pruning threshold that holds long chats above 17 costs +0.42 % perplexity at 1,024 tokens of context, near the ±0.3 % noise floor; `GGML_FA_EPS=0.0001` trades that back for about 15 tok/s.
+
+**Limits worth knowing.** Bonsai is a 1-bit model and still gets facts wrong (in one test it called Mercury the closest planet to Earth). The jailbreak doesn't survive a reboot. The fast output head adds 2-3 s to the first prompt after each launch.
 
 ## What's in here
 
@@ -248,7 +278,7 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 | `bench/` | `results.jsonl` (every chat benchmark: prompts, outputs, speeds) and `raw/` (logs of every experiment) |
 | `data/` | head-id lists and the two evaluation texts |
 | `zigcc/` | zig wrappers for cross-compiling static aarch64 binaries |
-| `ipad-air/` | device #2: cross-compile for iOS 12, the `smolchat` terminal chat, deploy and benchmark scripts ([README](ipad-air/README.md), §21) |
+| `ipad-air/` | device #2: cross-compile for iOS 12, `smolchat` (terminal chat and Safari web page), deploy and benchmark scripts ([README](ipad-air/README.md), §21) |
 | `screenshots/` | the web pages running on the TV |
 
 ## Lessons
