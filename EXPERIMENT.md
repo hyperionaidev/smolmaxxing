@@ -817,3 +817,18 @@ The device is an iPad Air 1 (`iPad4,1`): Apple A7, 2 cores, NEON without dotprod
 - An untried lead is the TV's headless idea: stopping iOS's UI processes to free RAM might make Qwen3.5-0.8B resident. It would blank the screen until a restart, so it hasn't been tried.
 - The TV's kernels mostly need dotprod, which the A7 lacks, so they don't carry over directly.
 - Speeds here come from a few short runs, and the first timed run after a file copy is unreliable. Treat them as approximate.
+
+### 21.4 A 2B-class model: Bonsai-1.7B (2026-11-09)
+
+**Goal (your call):** "go optimize a 2b model to run there nicely." Qwen3.5-2B took 0.99 GB on the TV even after optimization, and this iPad struggled at 508 MiB, so the same recipe can't fit. Bonsai-1.7B, trained for 1-bit weights, is 237 MiB.
+
+**The result: Bonsai-1.7B went from 2.75 to about 11 tok/s** on a chip without dotprod, and answered the test questions correctly.
+
+| # | Experiment | Result |
+|---|---|---|
+| E118 | Bonsai-1.7B Q1_0 baseline, stock Q1_0 NEON path, thinking off | 2.63-2.83 tok/s, prompt 3.5-3.8, 387 MB peak RSS. Correct answers. Stock code emulates dotprod with widening multiplies and byte tables. |
+| E119 | Multiplication-free Q1_0 kernel: bits become masks and sum(w * y) = 2 * sum(y where bit set) - sum(y), with lane sums matching the stock path | `kbench.c`: 206,006 vectors bit-identical, including extremes. 2.89 -> 3.44 G weights/s (×1.19). **The first reading was 118 G weights/s and was wrong:** the compiler had removed the repeated calls to a side-effect-free function, and a barrier fixed it. In chat, three alternating runs: 2.75 -> **3.45 tok/s**, word-for-word identical output. |
+| E120 | The TV's Four-Russians LUT kernel (§19), ported to base NEON. Its dotprod gate was only an assumption. Tensors needing at least 4 groups of 128 columns; the rest use E119 | Same binary, alternating runs: 3.5 -> **10.5-11.8 tok/s**, prompt 4.6 -> 19-33 tok/s. Peak RSS 454-506 MB, lowest available memory 255 MB, no kills. Output is no longer bit-identical (the kernel rounds differently) but stays correct. |
+| E121 | Long use through the web server, 1,024-token context | 400 tokens at 10.15 tok/s, then 26 at 8.08, then 297 at 6.21 as the conversation grew. Coherent, correct `is_prime`, most repeated 3-gram ×2 (no loops), 523 MB RSS, no kills. Whether the drop is longer context, heat, or both was not separated. |
+
+Quality here means the three-question test and the code answer. Perplexity was not measured on this build, because `llama-perplexity` needs `common/`. The TV measured this model at 1.158 bits/byte, against 0.909 for Qwen3.5-2B.

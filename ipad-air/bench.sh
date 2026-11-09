@@ -22,7 +22,7 @@ cd /var/mobile/llama
 printf 'What is the capital of France?\nWhy does the sea have tides? Answer in two sentences.\nWhat was my first question?\n/quit\n' > bench.q
 pages() { vm_stat | sed -n "s/^\$1: *\([0-9]*\)\.\$/\1/p"; }
 avail_mb() { echo \$(( (\$(pages 'Pages free') + \$(pages 'Pages inactive') + \$(pages 'Pages speculative')) * 4096 / 1048576 )); }
-./smolchat -m '$model' $args < bench.q > bench.out 2> bench.err &
+${IPAD_ENV:-} ./${BIN:-smolchat} -m '$model' $args < bench.q > bench.out 2> bench.err &
 p=\$!
 peak=0; low=\$(avail_mb); killed=0; n=0
 while kill -0 \$p 2>/dev/null; do

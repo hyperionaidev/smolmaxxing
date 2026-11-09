@@ -8,7 +8,8 @@
 	<array>
 		<string>/var/mobile/llama/smolchat</string>
 		<string>-m</string>
-		<string>/var/mobile/llama/SmolLM2-360M-Instruct-Q4_K_M.gguf</string>
+		<string>/var/mobile/llama/Bonsai-1.7B-Q1_0.gguf</string>
+		<string>--no-think</string>
 		<string>--serve</string>
 		<string>8080</string>
 	</array>

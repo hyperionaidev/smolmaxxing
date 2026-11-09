@@ -138,3 +138,326 @@ index c3bc926..e6205fd 100644
 +void ggml_backend_load_all() {}
 +void ggml_backend_load_all_from_path(const char * dir_path) { GGML_UNUSED(dir_path); }
 +#endif // GGML_NO_FS
+diff --git a/ggml/src/ggml-cpu/arch/arm/quants.c b/ggml/src/ggml-cpu/arch/arm/quants.c
+index f16505b..2736690 100644
+--- a/ggml/src/ggml-cpu/arch/arm/quants.c
++++ b/ggml/src/ggml-cpu/arch/arm/quants.c
+@@ -151,7 +151,39 @@ void ggml_vec_dot_q1_0_q8_0(int n, float * GGML_RESTRICT s, size_t bs, const voi
+     const block_q1_0 * GGML_RESTRICT x = vx;
+     const block_q8_0 * GGML_RESTRICT y = vy;
+ 
+-#if defined(__ARM_NEON)
++#if defined(__ARM_NEON) && !defined(__ARM_FEATURE_DOTPROD)
++    // q1_0: multiplication-free path for CPUs without dotprod. The weights are +1 or -1, so
++    // sum(w * y) = 2 * sum(y where the bit is set) - sum(y). The per-lane sums match the
++    // emulated-dotprod path below exactly, so the result is bit-identical.
++    static const uint8_t k_bit[16] = { 1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128 };
++    static const uint8_t k_lo[16]  = { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1 };
++    static const uint8_t k_hi[16]  = { 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3 };
++    const uint8x16_t bit = vld1q_u8(k_bit);
++    const uint8x16_t lo  = vld1q_u8(k_lo);
++    const uint8x16_t hi  = vld1q_u8(k_hi);
++
++    float32x4_t sumv = vdupq_n_f32(0.0f);
++    for (int i = 0; i < nb; i++) {
++        const float d0 = GGML_CPU_FP16_TO_FP32(x[i].d);
++        for (int k = 0; k < 4; k++) {
++            const block_q8_0 * GGML_RESTRICT yb = &y[i * 4 + k];
++            const float d1 = GGML_CPU_FP16_TO_FP32(yb->d);
++            uint32_t w;
++            memcpy(&w, &x[i].qs[k * 4], sizeof(w));
++            const uint8x16_t b  = vreinterpretq_u8_u32(vdupq_n_u32(w));
++            const int8x16_t  m0 = vreinterpretq_s8_u8(vtstq_u8(vqtbl1q_u8(b, lo), bit));
++            const int8x16_t  m1 = vreinterpretq_s8_u8(vtstq_u8(vqtbl1q_u8(b, hi), bit));
++            const int8x16_t  y0 = vld1q_s8(yb->qs);
++            const int8x16_t  y1 = vld1q_s8(yb->qs + 16);
++            const int16x8_t all = vpadalq_s8(vpaddlq_s8(y0), y1);
++            const int16x8_t set = vpadalq_s8(vpaddlq_s8(vandq_s8(y0, m0)), vandq_s8(y1, m1));
++            const int16x8_t q   = vsubq_s16(vshlq_n_s16(set, 1), all);
++            const int32x4_t p   = vaddl_s16(vget_low_s16(q), vget_high_s16(q));
++            sumv = vmlaq_n_f32(sumv, vcvtq_f32_s32(p), d0 * d1);
++        }
++    }
++    *s = vaddvq_f32(sumv);
++#elif defined(__ARM_NEON)
+     float32x4_t sumv = vdupq_n_f32(0.0f);
+ 
+     for (int i = 0; i < nb; i++) {
+diff --git a/ggml/src/ggml-cpu/repack-q1lut-tv.inc b/ggml/src/ggml-cpu/repack-q1lut-tv.inc
+new file mode 100644
+index 0000000..614dbd3
+--- /dev/null
++++ b/ggml/src/ggml-cpu/repack-q1lut-tv.inc
+@@ -0,0 +1,150 @@
++// tvbox patch: Four-Russians (T-MAC style) Q1_0 kernel for in-order ARM, EXPERIMENT.md section 19.
++// Groups of 32 rows. One 16-byte vector holds 32 weight nibbles, i.e. 4 columns of 32 rows (low nibble: rows 0-15, high
++// nibble: rows 16-31), so one 16-entry table of activation subset sums serves 32 rows x 4 columns = 128 multiply-adds with
++// about 8 NEON ops + 2 loads, vs 16 ops + 4 loads for the bit-plane kernel in repack-q1-tv.inc.
++//
++// Tables are built straight from the float activations, per 128 columns: is = 127 / (largest |x0|+|x1|+|x2|+|x3| of a tile),
++// T[n] = round(is * sum(+-x)) + 128, rounding once and exactly antisymmetric (only entries 0-7 are computed, T[15-n] mirrors
++// them), so there is no intermediate 8-bit activation and no bias. dot = d * (1 / is) * sum(T - 128).
++//
++// Layout, per group of 32 rows (same bytes as the bit-plane layout: 17 per 128 weights + 4 per row):
++//   ggml_half dmin[32], dstep[32];  then per 128 columns: uint8_t code[32]; uint8_t nib[32][16];
++// Activation row in wdata: float yd[nb128], padded to 64 bytes, then uint8_t T[nb128 * 32][16].
++static inline size_t q1lut_group_bytes(int64_t n) { return 128 + (size_t) (n / 128) * 544; }
++static inline size_t q1lut_row_bytes(int64_t n) { return GGML_PAD((size_t) (n / 128) * sizeof(float), 64) + (size_t) (n / 128) * 512 + 64; }
++
++static int repack_q1_0_to_q1lut_tv(struct ggml_tensor * t, const void * GGML_RESTRICT data, size_t data_size) {
++    GGML_ASSERT(t->type == GGML_TYPE_Q1_0);
++    const int nrow = ggml_nrows(t);
++    const int nb128 = t->ne[0] / 128;
++    GGML_ASSERT(data_size == (size_t) nrow * nb128 * sizeof(block_q1_0));
++    if (t->ne[1] % 32 != 0 || t->ne[0] % 128 != 0) {
++        return -1;
++    }
++    const block_q1_0 * src = (const block_q1_0 *) data;
++    uint8_t * dst = (uint8_t *) t->data;
++    for (int r = 0; r < nrow; r += 32) {
++        ggml_half * hdr = (ggml_half *) dst;
++        float mn[32], st[32];
++        for (int j = 0; j < 32; j++) {
++            float lo = INFINITY, hi = -INFINITY;
++            for (int b = 0; b < nb128; b++) {
++                const float d = GGML_CPU_FP16_TO_FP32(src[(size_t) (r + j) * nb128 + b].d);
++                lo = std::min(lo, d); hi = std::max(hi, d);
++            }
++            hdr[j]      = GGML_CPU_FP32_TO_FP16(lo);
++            hdr[32 + j] = GGML_CPU_FP32_TO_FP16((hi - lo) / 255.0f);
++            mn[j] = GGML_CPU_FP16_TO_FP32(hdr[j]);
++            st[j] = GGML_CPU_FP16_TO_FP32(hdr[32 + j]);
++        }
++        uint8_t * o = dst + 128;
++        for (int b = 0; b < nb128; b++, o += 544) {
++            uint8_t tmp[544];
++            memset(tmp, 0, sizeof tmp);
++            for (int j = 0; j < 32; j++) {
++                const block_q1_0 * in = &src[(size_t) (r + j) * nb128 + b];
++                const float d = GGML_CPU_FP16_TO_FP32(in->d);
++                const int q = st[j] > 0 ? (int) lroundf((d - mn[j]) / st[j]) : 0;
++                tmp[j] = (uint8_t) std::max(0, std::min(255, q));
++                for (int m = 0; m < 128; m++) {
++                    if ((in->qs[m / 8] >> (m % 8)) & 1) {
++                        tmp[32 + (m / 4) * 16 + (j & 15)] |= (uint8_t) (1u << (m % 4 + (j >= 16 ? 4 : 0)));
++                    }
++                }
++            }
++            memcpy(o, tmp, sizeof tmp);
++        }
++        dst += q1lut_group_bytes(t->ne[0]);
++    }
++    return 0;
++}
++
++#if defined(__ARM_NEON) // base ARMv8 NEON only, so it also runs on CPUs without dotprod (iPad Air)
++// Tables of 128-column groups g0..g1-1 of one activation row.
++static void q1lut_tables(const float * GGML_RESTRICT x, void * GGML_RESTRICT wrow, int64_t n, int64_t g0, int64_t g1) {
++    const int64_t nb128 = n / 128;
++    float * yd = (float *) wrow;
++    uint8_t * tables = (uint8_t *) wrow + GGML_PAD((size_t) nb128 * sizeof(float), 64);
++    static const int16_t P0[8] = {-1, 1,-1, 1,-1, 1,-1, 1}, P1[8] = {-1,-1, 1, 1,-1,-1, 1, 1}, P2[8] = {-1,-1,-1,-1, 1, 1, 1, 1};
++    const int16x8_t p0 = vld1q_s16(P0), p1 = vld1q_s16(P1), p2 = vld1q_s16(P2);
++    const uint8x8_t rev = vcreate_u8(0x0001020304050607ull);
++    for (int64_t g = g0; g < g1; g++) {
++        const float * xg = x + g * 128;
++        float mx = 0.0f;
++        for (int t = 0; t < 32; t++) {
++            mx = std::max(mx, vaddvq_f32(vabsq_f32(vld1q_f32(xg + t * 4))));
++        }
++        const float is = mx > 0.0f ? 16.0f * 127.0f / mx : 0.0f;   // 4 extra bits before the single rounding
++        yd[g] = mx / 127.0f;
++        uint8_t * T = tables + g * 512;
++        for (int t = 0; t < 32; t++, T += 16) {
++            const int16x4_t q = vmovn_s32(vcvtnq_s32_f32(vmulq_n_f32(vld1q_f32(xg + t * 4), is)));
++            int16x8_t s = vmulq_lane_s16(p0, q, 0);
++            s = vmlaq_lane_s16(s, p1, q, 1);
++            s = vmlaq_lane_s16(s, p2, q, 2);
++            s = vsubq_s16(s, vdupq_lane_s16(q, 3));   // entries 0-7 have bit 3 clear
++            const int8x8_t lo = vrshrn_n_s16(s, 4);
++            const uint8x8_t ulo = vreinterpret_u8_s8(vadd_s8(lo, vdup_n_s8((int8_t) 128)));
++            const uint8x8_t uhi = vtbl1_u8(vreinterpret_u8_s8(vsub_s8(vdup_n_s8((int8_t) 128), lo)), rev);
++            vst1q_u8(T, vcombine_u8(ulo, uhi));
++        }
++    }
++}
++
++// Row groups [gr0, gr1) of the matrix x activation rows. Loop interchange: every activation row walks the same 128-column
++// block before the next block is loaded, so a batch reads the weights from DRAM once.
++static void q1lut_gemm(int64_t n, const uint8_t * GGML_RESTRICT vx, const char * GGML_RESTRICT wdata, size_t row_bytes, int64_t nact,
++                       char * dst, size_t dst_row, int64_t gr0, int64_t gr1) {
++    const int64_t nb128 = n / 128;
++    const size_t tab_off = GGML_PAD((size_t) nb128 * sizeof(float), 64);
++    const uint8x16_t m0f = vdupq_n_u8(0x0f);
++    const uint16x8_t off = vdupq_n_u16(32 * 128);
++    for (int64_t x = gr0; x < gr1; x++) {
++        const uint8_t * grp = vx + (size_t) x * q1lut_group_bytes(n);
++        const __fp16 * hdr = (const __fp16 *) grp;
++        float32x4_t mn[8], st[8];
++        for (int i = 0; i < 8; i++) {
++            mn[i] = vcvt_f32_f16(vld1_f16(hdr + i * 4));
++            st[i] = vcvt_f32_f16(vld1_f16(hdr + 32 + i * 4));
++        }
++        for (int64_t r = 0; r < nact; r++) {
++            memset(dst + (size_t) r * dst_row + (size_t) x * 32 * sizeof(float), 0, 32 * sizeof(float));
++        }
++        const uint8_t * o = grp + 128;
++        for (int64_t g = 0; g < nb128; g++, o += 544) {
++            float32x4_t d[8];
++            for (int i = 0; i < 4; i++) {
++                const uint16x8_t c16 = vmovl_u8(vld1_u8(o + i * 8));
++                d[i * 2]     = vfmaq_f32(mn[i * 2],     vcvtq_f32_u32(vmovl_u16(vget_low_u16(c16))),  st[i * 2]);
++                d[i * 2 + 1] = vfmaq_f32(mn[i * 2 + 1], vcvtq_f32_u32(vmovl_u16(vget_high_u16(c16))), st[i * 2 + 1]);
++            }
++            for (int64_t r = 0; r < nact; r++) {
++                const char * wrow = wdata + (size_t) r * row_bytes;
++                const uint8_t * tb = (const uint8_t *) wrow + tab_off + (size_t) g * 512;
++                const uint8_t * w = o + 32;
++                // four accumulators in turn, so no add waits on the previous one's latency
++                uint16x8_t a0 = vdupq_n_u16(0), a1 = a0, a2 = a0, a3 = a0;
++                for (int t = 0; t < 32; t++, w += 16, tb += 16) {
++                    const uint8x16_t v = vld1q_u8(w), tv = vld1q_u8(tb);
++                    const uint8x16_t r0 = vqtbl1q_u8(tv, vandq_u8(v, m0f));
++                    const uint8x16_t r1 = vqtbl1q_u8(tv, vshrq_n_u8(v, 4));
++                    a0 = vaddw_u8(a0, vget_low_u8(r0)); a2 = vaddw_u8(a2, vget_low_u8(r1));
++                    a1 = vaddw_high_u8(a1, r0);         a3 = vaddw_high_u8(a3, r1);
++                }
++                const float yd = ((const float *) wrow)[g];
++                float * s = (float *) (dst + (size_t) r * dst_row) + x * 32;
++                const uint16x8_t A[4] = { a0, a1, a2, a3 };
++                for (int i = 0; i < 4; i++, s += 8) {
++                    const int16x8_t si = vreinterpretq_s16_u16(vsubq_u16(A[i], off));
++                    vst1q_f32(s,     vfmaq_f32(vld1q_f32(s),     vmulq_n_f32(d[i * 2],     yd), vcvtq_f32_s32(vmovl_s16(vget_low_s16(si)))));
++                    vst1q_f32(s + 4, vfmaq_f32(vld1q_f32(s + 4), vmulq_n_f32(d[i * 2 + 1], yd), vcvtq_f32_s32(vmovl_s16(vget_high_s16(si)))));
++                }
++            }
++        }
++    }
++}
++#else
++static void q1lut_tables(const float *, void *, int64_t, int64_t, int64_t) { GGML_ABORT("q1lut needs NEON"); }
++static void q1lut_gemm(int64_t, const uint8_t *, const char *, size_t, int64_t, char *, size_t, int64_t, int64_t) { GGML_ABORT("q1lut needs NEON"); }
++#endif
++
+diff --git a/ggml/src/ggml-cpu/repack.cpp b/ggml/src/ggml-cpu/repack.cpp
+index 9282ca2..5af993e 100644
+--- a/ggml/src/ggml-cpu/repack.cpp
++++ b/ggml/src/ggml-cpu/repack.cpp
+@@ -4238,6 +4238,18 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS>
+ int repack(struct ggml_tensor *, const void *, size_t);
+ 
+ // TODO: generalise.
++#include "repack-q1lut-tv.inc"
++
++// Four-Russians Q1_0 kernel from the TV work (repack-q1lut-tv.inc); NB_COLS = 32 selects it.
++// GGML_Q1_LUT=0 turns it off, for comparisons.
++static bool q1lut_enabled() {
++    static const bool on = getenv("GGML_Q1_LUT") == nullptr || atoi(getenv("GGML_Q1_LUT")) != 0;
++    return on;
++}
++template <> int repack<block_q1_0, 4, 32>(struct ggml_tensor * t, const void * data, size_t data_size) {
++    return repack_q1_0_to_q1lut_tv(t, data, data_size);
++}
++
+ template <> int repack<block_q1_0, 4, 4>(struct ggml_tensor * t, const void * data, size_t data_size) {
+     return repack_q1_0_to_q1_0_4_bl(t, 4, data, data_size);
+ }
+@@ -4349,6 +4361,8 @@ template <> void gemv<block_q1_0, 8, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t
+     ggml_gemv_q1_0_4x8_q8_0(n, s, bs, vx, vy, nr, nc);
+ }
+ 
++template <> void gemv<block_q1_0, 4, 32, GGML_TYPE_Q8_K>(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("q1lut has its own forward"); }
++
+ template <> void gemv<block_q4_0, 4, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
+     ggml_gemv_q4_0_4x4_q8_0(n, s, bs, vx, vy, nr, nc);
+ }
+@@ -4454,6 +4468,8 @@ template <> void gemm<block_q1_0, 8, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t
+     ggml_gemm_q1_0_4x8_q8_0(n, s, bs, vx, vy, nr, nc);
+ }
+ 
++template <> void gemm<block_q1_0, 4, 32, GGML_TYPE_Q8_K>(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("q1lut has its own forward"); }
++
+ template <> void gemm<block_q4_0, 4, 4, GGML_TYPE_Q8_0>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
+     ggml_gemm_q4_0_4x4_q8_0(n, s, bs, vx, vy, nr, nc);
+ }
+@@ -4560,6 +4576,9 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+             case GGML_OP_MUL_MAT:
+                 {
+                     size = ggml_row_size(PARAM_TYPE, ggml_nelements(op->src[1]));
++                    if constexpr (std::is_same_v<BLOC_TYPE, block_q1_0> && NB_COLS == 32) {
++                        size = q1lut_row_bytes(op->src[1]->ne[0]) * (size_t) (op->src[1]->ne[1] * op->src[1]->ne[2]);
++                    }
+                     return true;
+                 }
+             case GGML_OP_MUL_MAT_ID:
+@@ -4647,7 +4666,50 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+         }
+     }
+ 
++    // The LUT Q1_0 path (repack-q1lut-tv.inc). Rows of all planes are consecutive activation rows.
++    void forward_mul_mat_q1lut(ggml_compute_params * params, ggml_tensor * op) {
++        const ggml_tensor * src0 = op->src[0];
++        const ggml_tensor * src1 = op->src[1];
++        const int ith = params->ith, nth = params->nth;
++        const int64_t ne10 = src1->ne[0], nact = src1->ne[1] * src1->ne[2], nb128 = ne10 / 128;
++        GGML_ASSERT(src1->type == GGML_TYPE_F32 && ne10 == src0->ne[0] && src1->nb[2] == src1->nb[1] * src1->ne[1] && op->nb[2] == op->nb[1] * op->ne[1]);
++        char * wdata = static_cast<char *>(params->wdata);
++        const size_t row_bytes = q1lut_row_bytes(ne10);
++        GGML_ASSERT(params->wsize >= row_bytes * (size_t) nact);
++        if (nact < nth) {   // one row (a generated token): split its 128-column groups between the threads
++            for (int64_t r = 0; r < nact; r++) {
++                q1lut_tables((const float *) ((const char *) src1->data + r * src1->nb[1]), wdata + r * row_bytes, ne10, nb128 * ith / nth, nb128 * (ith + 1) / nth);
++            }
++        } else {
++            for (int64_t r = ith; r < nact; r += nth) {
++                q1lut_tables((const float *) ((const char *) src1->data + r * src1->nb[1]), wdata + r * row_bytes, ne10, 0, nb128);
++            }
++        }
++        if (ith == 0) {
++            ggml_threadpool_chunk_set(params->threadpool, 0);
++        }
++        ggml_barrier(params->threadpool);
++        const int64_t ngroups = ggml_nrows(src0) / 32;
++        const int64_t min_g = MAX(1, ngroups / (16 * nth));
++        while (true) {
++            const int64_t seen = ggml_threadpool_chunk_add(params->threadpool, 0);
++            if (seen >= ngroups) {
++                break;
++            }
++            const int64_t size = MAX(min_g, (ngroups - seen) / (2 * nth));
++            const int64_t start = ggml_threadpool_chunk_add(params->threadpool, (int) size);
++            if (start >= ngroups) {
++                break;
++            }
++            q1lut_gemm(ne10, (const uint8_t *) src0->data, wdata, row_bytes, nact, (char *) op->data, op->nb[1], start, MIN(start + size, ngroups));
++        }
++    }
++
+     void forward_mul_mat(ggml_compute_params * params, ggml_tensor * op) {
++        if constexpr (std::is_same_v<BLOC_TYPE, block_q1_0> && NB_COLS == 32) {
++            forward_mul_mat_q1lut(params, op);
++            return;
++        }
+         const ggml_tensor * src0 = op->src[0];
+         const ggml_tensor * src1 = op->src[1];
+         ggml_tensor *       dst  = op;
+@@ -4930,6 +4992,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(const struct ggml_tensor * cur) {
+     // instance for Q1_0
+     static const ggml::cpu::repack::tensor_traits<block_q1_0, 4, 4, GGML_TYPE_Q8_0> q1_0_4x4_q8_0;
++    static const ggml::cpu::repack::tensor_traits<block_q1_0, 4, 32, GGML_TYPE_Q8_K> q1_0_lut;
+     static const ggml::cpu::repack::tensor_traits<block_q1_0, 8, 4, GGML_TYPE_Q8_0> q1_0_4x8_q8_0;
+ 
+     // instance for Q4
+@@ -5130,6 +5193,11 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+             #endif
+         }
+     } else if (cur->type == GGML_TYPE_Q1_0) {
++        // the layout only fits the original allocation from 4 groups of 128 columns up
++        if (ggml_cpu_has_neon() && !ggml_cpu_has_dotprod() && ggml::cpu::repack::q1lut_enabled() &&
++            cur->ne[1] % 32 == 0 && cur->ne[0] % QK_K == 0 && cur->ne[0] >= 512) {
++            return &q1_0_lut;
++        }
+         if (ggml_cpu_has_neon() && ggml_cpu_has_matmul_int8()) {
+             if (cur->ne[1] % 4 == 0) {
+                 return &q1_0_4x8_q8_0;

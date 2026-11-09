@@ -10,10 +10,13 @@ Every speed uses 2 threads and a 1,024-token context, through `smolchat` on a fi
 |---|---|---|---|---|---|
 | SmolLM2-135M-Instruct Q4_K_M | 101 MB | 18.6-29.3 tok/s | 42-52 tok/s | 141 MB | right on France and on recall, weak on tides |
 | Gemma 3 270M-it Q4_K_M | 241 MiB | 15.4-19.0 tok/s | 45-64 tok/s | 248-294 MB | wrong on tides, empty reply on recall |
-| **SmolLM2-360M-Instruct Q4_K_M** | 258 MiB | **10.9-12.5 tok/s** | 18-20 tok/s | 269-316 MB | **all three right: the one to use** |
+| SmolLM2-360M-Instruct Q4_K_M | 258 MiB | 10.9-12.5 tok/s | 18-20 tok/s | 269-316 MB | all three right; the lightest good option |
+| **Bonsai-1.7B Q1_0 (1-bit, LUT kernel)** | 237 MiB | **10.5-11.8 tok/s**, falling to about 6 in long chats | 19-33 tok/s | 454-523 MB | **all three right, and writes correct code: the one to use** |
 | Qwen3.5-0.8B Q4_K_M | 508 MiB | about 0.2 tok/s | n/a | 506 MB | thrashes the page cache, stopped by hand |
 
 `stories15M-q4_0` (18 MB) reaches about 290 tok/s in `llama-simple`.
+
+Bonsai-1.7B started at 2.75 tok/s. A multiplication-free NEON kernel took it to 3.45 with identical output, and the TV's lookup-table kernel, ported to CPUs without dotprod, took it to about 11. See `EXPERIMENT.md` §21.4.
 
 ## Rebuilding it
 
@@ -30,12 +33,12 @@ You need a jailbroken device. This one uses [Amethyst](https://github.com/statur
 `smolchat --serve 8080` serves a chat page written for Safari 12. Start it on the iPad, then open `http://127.0.0.1:8080` in Safari:
 
 ```sh
-cd /var/mobile/llama && ./smolchat -m SmolLM2-360M-Instruct-Q4_K_M.gguf --serve 8080
+cd /var/mobile/llama && ./smolchat -m Bonsai-1.7B-Q1_0.gguf --no-think --serve 8080
 ```
 
 It listens only on the iPad itself unless you pass `--host`, and it has no login, so don't expose it to a network you don't trust. To have it start on its own without a terminal, run `./service.sh install` from the Mac. `./service.sh remove` undoes that.
 
-`models/`, `bin/` and `third_party/` are not in git. The model comes from [bartowski/SmolLM2-360M-Instruct-GGUF](https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF), SHA-256 `2fa3f013dcdd7b99f9b237717fa0b12d75bbb89984cc1274be1471a465bac9c2`.
+`models/`, `bin/` and `third_party/` are not in git. The models are [prism-ml/Bonsai-1.7B-gguf](https://huggingface.co/prism-ml/Bonsai-1.7B-gguf), SHA-256 `3d7c6c90dd98717a203adb22d5eacd2581850e40aa5327e144b97766cae5f7e3`, and [bartowski/SmolLM2-360M-Instruct-GGUF](https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF), SHA-256 `2fa3f013dcdd7b99f9b237717fa0b12d75bbb89984cc1274be1471a465bac9c2`.
 
 ## Files
 
@@ -49,7 +52,8 @@ It listens only on the iPad itself unless you pass `--host`, and it has no login
 | `chat.sh` | opens a chat on the iPad over SSH |
 | `bench.sh` | the fixed three-turn test, with memory and time limits |
 | `ent.xml` | the entitlements binaries need to launch |
-| `patches/llama.cpp-ios12.patch` | compiles out `std::filesystem` (backend plugin loading) behind `GGML_NO_FS`, and adds `LLAMA_THREADS` to `llama-simple` |
+| `kbench.c` | checks the new 1-bit kernel against the old one for exact equality, and times both |
+| `patches/llama.cpp-ios12.patch` | compiles out `std::filesystem` behind `GGML_NO_FS`, adds `LLAMA_THREADS` to `llama-simple`, and adds the two 1-bit kernels (`GGML_Q1_LUT=0` turns the LUT one off) |
 
 ## What matters on this device
 
