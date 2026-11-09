@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 544" width="760" height="544" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<style>
+  .bg{fill:#ffffff} .ink{fill:#1f2328} .mut{fill:#59636e} .grid{stroke:#d8dee4} .bar{stroke:#2a78d6}
+  .start{fill:#ffffff;stroke:#8c959f} .now{fill:#2a78d6} .gain{fill:#1a7f37}
+  .s1{fill:#2a78d6} .s2{fill:#eb6834} .s3{fill:#1baf7a} .s4{fill:#eda100} .s5{fill:#e87ba4}
+  @media (prefers-color-scheme: dark){
+    .bg{fill:#0d1117} .ink{fill:#e6edf3} .mut{fill:#9198a1} .grid{stroke:#30363d} .bar{stroke:#3987e5}
+    .start{fill:#0d1117;stroke:#9198a1} .now{fill:#3987e5} .gain{fill:#3fb950}
+    .s1{fill:#3987e5} .s2{fill:#d95926} .s3{fill:#199e70} .s4{fill:#c98500} .s5{fill:#d55181}
+  }
+  text{font-size:12px}
+</style>
+<rect class="bg" width="760" height="544" rx="8"/>
+<text class="ink" x="16" y="26" style="font-size:16px;font-weight:600">Best model per size class: first run on the TV box → now</text>
+<text class="mut" x="16" y="44">generation speed, tokens per second (log scale); ○ first run, ● now; gain on the right</text>
+<line class="grid" x1="185.8" x2="185.8" y1="80" y2="368" stroke-width="1"/>
+<text class="mut" x="185.8" y="74" text-anchor="middle">0.1</text>
+<line class="grid" x1="273.3" x2="273.3" y1="80" y2="368" stroke-width="1"/>
+<text class="mut" x="273.3" y="74" text-anchor="middle">0.3</text>
+<line class="grid" x1="369.1" x2="369.1" y1="80" y2="368" stroke-width="1"/>
+<text class="mut" x="369.1" y="74" text-anchor="middle">1</text>
+<line class="grid" x1="456.6" x2="456.6" y1="80" y2="368" stroke-width="1"/>
+<text class="mut" x="456.6" y="74" text-anchor="middle">3</text>
+<line class="grid" x1="552.5" x2="552.5" y1="80" y2="368" stroke-width="1"/>
+<text class="mut" x="552.5" y="74" text-anchor="middle">10</text>
+<line class="grid" x1="640.0" x2="640.0" y1="80" y2="368" stroke-width="1"/>
+<text class="mut" x="640.0" y="74" text-anchor="middle">30</text>
+<text class="ink" x="16" y="105.0" style="font-size:13px;font-weight:600">0.8B</text>
+<text class="mut" x="16" y="120.0" style="font-size:11px">Qwen3.5-0.8B</text>
+<line class="bar" x1="529.6" x2="593.8" y1="108.0" y2="108.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="529.6" cy="108.0" r="5" stroke-width="2"/>
+<circle class="now" cx="593.8" cy="108.0" r="6"/>
+<text class="mut" x="519.6" y="112.0" text-anchor="end">7.5</text>
+<text class="ink" x="604.8" y="112.0" style="font-weight:600">16.8 <tspan class="mut" style="font-weight:400;font-size:11px">bench</tspan></text>
+<text class="gain" x="744" y="112.0" text-anchor="end" style="font-weight:600">×2.2</text>
+<text class="ink" x="16" y="145.0" style="font-size:13px;font-weight:600">2B</text>
+<text class="mut" x="16" y="160.0" style="font-size:11px">Qwen3.5-2B</text>
+<line class="bar" x1="185.8" x2="531.7" y1="148.0" y2="148.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="185.8" cy="148.0" r="5" stroke-width="2"/>
+<circle class="now" cx="531.7" cy="148.0" r="6"/>
+<text class="mut" x="175.8" y="152.0" text-anchor="end">0.1</text>
+<text class="ink" x="542.7" y="152.0" style="font-weight:600">7.7 <tspan class="mut" style="font-weight:400;font-size:11px">chat</tspan></text>
+<text class="gain" x="744" y="152.0" text-anchor="end" style="font-weight:600">×77</text>
+<text class="ink" x="16" y="185.0" style="font-size:13px;font-weight:600">4B</text>
+<text class="mut" x="16" y="200.0" style="font-size:11px">Ternary-Bonsai-4B</text>
+<line class="bar" x1="431.9" x2="485.3" y1="188.0" y2="188.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="431.9" cy="188.0" r="5" stroke-width="2"/>
+<circle class="now" cx="485.3" cy="188.0" r="6"/>
+<text class="mut" x="421.9" y="192.0" text-anchor="end">2.2</text>
+<text class="ink" x="496.3" y="192.0" style="font-weight:600">4.3 <tspan class="mut" style="font-weight:400;font-size:11px">chat</tspan></text>
+<text class="gain" x="744" y="192.0" text-anchor="end" style="font-weight:600">×2.0</text>
+<text class="ink" x="16" y="225.0" style="font-size:13px;font-weight:600">8B dense</text>
+<text class="mut" x="16" y="240.0" style="font-size:11px">Bonsai-8B (1-bit)</text>
+<line class="bar" x1="384.3" x2="500.4" y1="228.0" y2="228.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="384.3" cy="228.0" r="5" stroke-width="2"/>
+<circle class="now" cx="500.4" cy="228.0" r="6"/>
+<text class="mut" x="374.3" y="232.0" text-anchor="end">1.21</text>
+<text class="ink" x="511.4" y="232.0" style="font-weight:600">5.2 <tspan class="mut" style="font-weight:400;font-size:11px">chat</tspan></text>
+<text class="gain" x="744" y="232.0" text-anchor="end" style="font-weight:600">×4.3</text>
+<text class="ink" x="16" y="265.0" style="font-size:13px;font-weight:600">8B MoE</text>
+<text class="mut" x="16" y="280.0" style="font-size:11px">Moon-Beam-8B-A1B</text>
+<line class="bar" x1="419.0" x2="526.3" y1="268.0" y2="268.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="419.0" cy="268.0" r="5" stroke-width="2"/>
+<circle class="now" cx="526.3" cy="268.0" r="6"/>
+<text class="mut" x="409.0" y="272.0" text-anchor="end">1.87</text>
+<text class="ink" x="537.3" y="272.0" style="font-weight:600">7.2 <tspan class="mut" style="font-weight:400;font-size:11px">chat</tspan></text>
+<text class="gain" x="744" y="272.0" text-anchor="end" style="font-weight:600">×3.9</text>
+<text class="ink" x="16" y="305.0" style="font-size:13px;font-weight:600">9B</text>
+<text class="mut" x="16" y="320.0" style="font-size:11px">Qwen3.5-9B</text>
+<line class="bar" x1="223.2" x2="264.9" y1="308.0" y2="308.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="223.2" cy="308.0" r="5" stroke-width="2"/>
+<circle class="now" cx="264.9" cy="308.0" r="6"/>
+<text class="mut" x="213.2" y="312.0" text-anchor="end">0.16</text>
+<text class="ink" x="275.9" y="312.0" style="font-weight:600">0.27 <tspan class="mut" style="font-weight:400;font-size:11px">chat</tspan></text>
+<text class="gain" x="744" y="312.0" text-anchor="end" style="font-weight:600">×1.7</text>
+<text class="ink" x="16" y="345.0" style="font-size:13px;font-weight:600">16B MoE</text>
+<text class="mut" x="16" y="360.0" style="font-size:11px">Ling-mini-2.0</text>
+<line class="bar" x1="481.5" x2="498.9" y1="348.0" y2="348.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="481.5" cy="348.0" r="5" stroke-width="2"/>
+<circle class="now" cx="498.9" cy="348.0" r="6"/>
+<text class="mut" x="471.5" y="352.0" text-anchor="end">4.1</text>
+<text class="ink" x="509.9" y="352.0" style="font-weight:600">5.1 <tspan class="mut" style="font-weight:400;font-size:11px">chat</tspan></text>
+<text class="gain" x="744" y="352.0" text-anchor="end" style="font-weight:600">×1.2</text>
+<text class="ink" x="16" y="408" style="font-size:14px;font-weight:600">Where one Moon-Beam-8B-A1B token's 144 ms go (≈7 tok/s, E104)</text>
+<rect class="s1" x="16.0" y="424" width="250.8" height="26" rx="4"/>
+<text class="ink" x="18.0" y="470" style="font-weight:600">50 ms</text>
+<text class="mut" x="18.0" y="486" style="font-size:11px">Q4_K non-expert weights</text>
+<rect class="s2" x="268.8" y="424" width="159.8" height="26" rx="0"/>
+<text class="ink" x="270.8" y="470" style="font-weight:600">32 ms</text>
+<text class="mut" x="270.8" y="486" style="font-size:11px">flash waits</text>
+<rect class="s3" x="430.6" y="424" width="129.4" height="26" rx="0"/>
+<text class="ink" x="432.6" y="470" style="font-weight:600">26 ms</text>
+<text class="mut" x="432.6" y="486" style="font-size:11px">Q2_K experts</text>
+<rect class="s4" x="562.0" y="424" width="89.0" height="26" rx="0"/>
+<text class="ink" x="564.0" y="470" style="font-weight:600">18 ms</text>
+<text class="mut" x="564.0" y="486" style="font-size:11px">DeltaNet, attn</text>
+<rect class="s5" x="653.0" y="424" width="89.0" height="26" rx="4"/>
+<text class="ink" x="655.0" y="470" style="font-weight:600">18 ms</text>
+<text class="mut" x="655.0" y="486" style="font-size:11px">other</text>
+<text class="mut" x="16" y="516" style="font-size:11px">Flash waits: 4.7 expert misses per token × ~6.8 ms. The non-expert weights are RAM-bound; the experts are flash-bound.</text>
+</svg>

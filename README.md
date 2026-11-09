@@ -25,6 +25,40 @@ Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIM
 
 The techniques aren't tied to this box. Any ARM chip with dotprod gets the kernels, and any Linux or Android device with more model than RAM can use the streaming engine.
 
+## Scoreboard
+
+<p align="center"><img src="assets/scoreboard.svg" width="760" alt="Best model per size class, first run on the TV box to now: 0.8B 7.5 to 16.8 tok/s, 2B 0.1 to 7.7, 4B 2.2 to 4.3, 8B dense 1.21 to 5.2, 8B MoE 1.87 to 7.2, 9B 0.16 to 0.27, 16B MoE 4.1 to 5.1; and where one Moon-Beam token's 144 ms go"></p>
+
+| Class | Best model | First run → now (tok/s) | Gain | Bits/byte | What got it there | Download |
+|---|---|---|---|---|---|---|
+| 0.8B | Qwen3.5-0.8B | 7.5 → **16.8** bench | ×2.2 | ≈1.00 | all-Q4_K, padded 65K head, fp16 DeltaNet state | [HF](https://huggingface.co/hyperionaidev/Qwen3.5-0.8B-tvbox-GGUF) |
+| 2B | Qwen3.5-2B | 0.1 → **7.7** chat | ×77 | 0.909 | all-Q4_K, padded 65K head, fused DeltaNet | [HF](https://huggingface.co/hyperionaidev/Qwen3.5-2B-tvbox-GGUF) |
+| 4B | Ternary-Bonsai-4B | 2.2 → **4.3** chat | ×2.0 | ≈0.965 | ternary weights in 2-bit fields, merged scales | [HF](https://huggingface.co/hyperionaidev/Ternary-Bonsai-4B-tvbox-GGUF) |
+| 8B dense | Bonsai-8B (1-bit) | 1.21 → **5.2** chat | ×4.3 | 0.974 | 1-bit LUT kernel, fully resident in headless mode | [HF](https://huggingface.co/hyperionaidev/Bonsai-8B-tvbox-GGUF) |
+| 8B MoE | Moon-Beam-8B-A1B | 1.87 → **7.2** chat | ×3.9 | 0.996 | Q2_K experts paged from flash, cache-aware routing, prefetch | [HF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF) |
+| 9B | Qwen3.5-9B | 0.16 → **0.27** chat | ×1.7 | **0.885** | weight streaming plus its own MTP head | rebuild (`q9`) |
+| 16B MoE | Ling-mini-2.0 | 4.1 → **5.1** chat | ×1.2 | 1.054 | the Moon-Beam recipe, unchanged | [HF](https://huggingface.co/hyperionaidev/Ling-mini-2.0-tvbox-GGUF) |
+
+"First run" is the first time each model ran on the box:
+- **0.8B:** the stock Q4_K_M file.
+- **2B:** the stock file, streamed from flash because it didn't fit in RAM. Its first build that fit ran at 4.8, so from there the gain is ×1.6.
+- **4B:** the stock file, which thrashed.
+- **8B dense:** the last 0.1 GB streamed from flash.
+- **8B MoE:** the first expert-pager run, without routing bias.
+- **9B:** streamed.
+- **16B:** started on the Moon-Beam recipe, so its gain is small.
+
+On this box, the 2B is the best speed-quality balance. Ling-mini-2.0 shows that bigger isn't automatically better: it is twice Moon-Beam's size, but scores worse per byte and runs slower.
+
+**What we built, grouped by the bottleneck it attacks** (details and numbers in [What's in here](#whats-in-here)):
+
+| Bottleneck | Innovations | Biggest wins |
+|---|---|---|
+| **Compute** (in-order A55, 10 items) | Q2_K and ternary repacks for `vdotq_laneq`, 1-bit bit planes, a 1-bit lookup-table kernel, ternary in 2-bit fields, Q8_0 attention with a skip threshold, fused Gated-DeltaNet, DeltaNet state read by id / fp16, the LM head on the fast kernel, guided matmul scheduling | Q2_K 7.8 → 13.9 G weights/s; Bonsai-8B 3.77 → 5.1-5.4; 4B 3.2 → 4.3; long answers no longer halve the speed |
+| **RAM** (~1 GB, 5 items) | pruned LM head, lossless 1.875-bit ternary, headless mode, a fork-free memory guard, a repack cache on flash | −0.2 to −0.5 GB per model; free RAM ~1,000 → ~1,300 MB; Bonsai-8B 1.2 → 3.6 before any kernel work |
+| **Flash** (278 MB/s, 5 items) | weight streaming with O_DIRECT, MTP speculation when flash-bound, expert pager, cache-aware routing, pre-gated prefetch | 9B +69 %; expert misses 13 % → ~2 %; Moon-Beam 4.4 → 7.2 |
+| **Output quality** (2 items) | a long-answer degeneration test, a repeat penalty of 1.15 over 256 tokens | degenerate long answers 12/13 → 1/13 |
+
 ## Results on device #1
 
 Quality is English perplexity on a fixed 22 KB text, converted to **bits per byte** so models with different tokenizers compare fairly (lower is better). Speed is generation on the TV, measured either through llama-server with real chat requests ("chat") or with llama-bench ("bench").
@@ -171,15 +205,18 @@ Everything on the box lives in `/data/local/tmp/llm` and runs as the adb `shell`
 
 The model files (0.5-4 GB each) are not in this repo. [`tools/rebuild-models.sh`](tools/rebuild-models.sh) recreates every one from public Hugging Face files, streaming them through `tools/gguf_build.py` onto the TV. The SHA-256s below are of the files used in the experiments. Rebuilds of the 4B, Bonsai-8B and 9B files were checked **byte-identical**.
 
-**Ready-made downloads.** The three best files are on Hugging Face exactly as the TV runs them (they need the patched llama.cpp above; stock llama.cpp can't load the pruned head). Each card has the run command and the measured numbers:
+**Ready-made downloads.** The best file of each size class is on Hugging Face exactly as the TV runs it. They need the patched llama.cpp above; stock llama.cpp can't load the pruned head. Each card has the run command and the measured numbers:
 
 | Model | Hugging Face | File |
 |---|---|---|
+| Qwen3.5-0.8B, 16.8 tok/s | [hyperionaidev/Qwen3.5-0.8B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Qwen3.5-0.8B-tvbox-GGUF) | `q08-q4k-h65p8.gguf` |
+| Qwen3.5-2B, 7.7 tok/s | [hyperionaidev/Qwen3.5-2B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Qwen3.5-2B-tvbox-GGUF) | `w-q4k-h65p8.gguf` |
+| Ternary-Bonsai-4B, 4.3 tok/s | [hyperionaidev/Ternary-Bonsai-4B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Ternary-Bonsai-4B-tvbox-GGUF) | `tb4-q20-hml.gguf` |
 | Moon-Beam-8B-A1B (MoE), 7.2 tok/s | [hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF) | `mb-q2-h60.gguf` + `moe-warm-moonbeam.txt` |
 | Bonsai-8B (1-bit), 5.2 tok/s | [hyperionaidev/Bonsai-8B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Bonsai-8B-tvbox-GGUF) | `b8-q1-hml.gguf` |
 | Ling-mini-2.0 (16B MoE), 5.1 tok/s | [hyperionaidev/Ling-mini-2.0-tvbox-GGUF](https://huggingface.co/hyperionaidev/Ling-mini-2.0-tvbox-GGUF) | `lm2-q2-h60.gguf` + `moe-warm-ling.txt` |
 
-Download with `hf download hyperionaidev/<repo> --local-dir models/`, then `adb push` the files to `/data/local/tmp/llm/` (and `moe-warm-*.txt` next to them) instead of running the `mb` / `b8` / `lm` targets. The first start writes the repack cache.
+Download with `hf download hyperionaidev/<repo> --local-dir models/`, then `adb push` the files to `/data/local/tmp/llm/`, with `moe-warm-*.txt` next to them. That replaces the `08` / `2b` / `4b` / `mb` / `b8` / `lm` targets. For the 8B and 16B models, the first start writes the repack cache.
 
 | File on the TV | Target | Built from | SHA-256 |
 |---|---|---|---|

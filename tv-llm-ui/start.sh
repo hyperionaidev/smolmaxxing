@@ -19,8 +19,7 @@ IP="${S%%:*}"                 # used for the health check (127.0.0.1 with "adb f
 LAN_IP="${TV_IP:-$(adb -s "$S" shell "ip -4 addr show wlan0" | awk '/inet /{sub(/\/.*/,"",$2); print $2}')}"
 D=/data/local/tmp/llm
 PORT=8090
-MODEL="${MODEL:-b8-q1-hml.gguf}"     # Bonsai-8B (§19). The earlier default, the 2B w-q4k-h65p8.gguf, and the other older models were deleted from
-                                     # the TV at the user's request on 2026-11-07: tools/rebuild-models.sh 2b / 08 / 4b ... brings them back
+MODEL="${MODEL:-w-q4k-h65p8.gguf}"   # Qwen3.5-2B, the best overall (§11, §16, §17); tools/rebuild-models.sh 2b builds it
 if [ -z "${BIN:-}" ] && [ "$MODEL" = tb4-q20-hml.gguf ]; then
   # Ternary-Bonsai-4B (EXPERIMENT.md §18, E77): one averaged scale per 128 weights, all layers in 2-bit fields.
   BIN=patched29
