@@ -892,4 +892,49 @@ Quality here means the three-question test and the code answer. Perplexity was n
 
 **And the 4B as a server.** Twice the Bonsai-4B web server died while idle, once after about 30 minutes and once 2 minutes after loading. The second time iOS wrote a `SystemMemoryReset` report (02:00:07): *"User reclaimable memory dropped below the limit. User reclaimable current: 27 %. User reclaimable minimum: 55 %"*, with `smolchat` the largest process at 576 MB. This is a separate watchdog from Jetsam's per-process kills. **So the 4B works for a session but not as an always-on server here.** The 1.7B server (about 450-500 MB once warm) ran for hours without it, and is back as the server.
 
-**What would work:** an expert pager that never maps the expert tensors. Load the non-expert tensors (about 470 MB) normally, and before each `MUL_MAT_ID` read the experts the router picked into a fixed pool of slots with `pread`, then run the stock kernel on the pool with remapped ids. On the TV, E89-E103 did the same with mapped overlays, which this address-space limit rules out. An estimate from E84's routing data: about 45 % of a token's experts were used by the previous token, so a pool of about 250 MB would still miss about 100 of 184 experts per token. At 0.77 MB each that's about 78 MB, or 0.3 s from flash, plus about 0.37 s of compute measured on the 40-expert file: **about 1.5 tok/s**, or roughly 2-2.5 with the TV's cache-aware routing bias (E90: misses down to about 10 %, perplexity +4 %). Not built yet.
+**What would work:** an expert pager that never maps the expert tensors. Load the non-expert tensors (about 470 MB) normally, and before each `MUL_MAT_ID` read the experts the router picked into a fixed pool of slots with `pread`, then run the stock kernel on the pool with remapped ids. On the TV, E89-E103 did the same with mapped overlays, which this address-space limit rules out. An estimate from E84's routing data: about 45 % of a token's experts were used by the previous token, so a pool of about 250 MB would still miss about 100 of 184 experts per token. At 0.77 MB each that's about 78 MB, or 0.3 s from flash, plus about 0.37 s of compute measured on the 40-expert file: **about 1.5 tok/s**, or roughly 2-2.5 with the TV's cache-aware routing bias (E90: misses down to about 10 %, perplexity +4 %). Built in §21.8.
+
+### 21.8 The expert pager: Moon-Beam-8B-A1B on the iPad (2026-11-10)
+
+**Goal (your call):** "build the expert pager and try to go 8-9B again."
+
+**The result: Moon-Beam, a 7.9 B mixture of experts, runs on this 1 GB iPad at 2.4-2.8 tok/s on longer answers, using about 600 MB.** It answers all three test questions correctly and writes coherent stories. That's 30× dense Bonsai-8B (0.08 tok/s, E135), and the first 8B-class model that's usable here.
+
+**Built:**
+- **Experts last.** `tools/gguf_experts_last.py` rewrites the GGUF so all 69 `*_exps` tensors come after everything else. The bytes are unchanged; tensors and their infos are reordered. For `mb-q2-h60` the non-expert part is the first 474 MB of 2,753 MB, and each expert (gate, up and down together) is 0.774 MB.
+- **Partial mapping.** With `GGML_MOE_PAGER=1`, llama.cpp maps only that first part (`llama_mmap_limit_next`, set in the loader). Expert tensors past the mapping go to the pager.
+- **Slot pools.** The pager (`ggml-cpu/moe-pager-ios.inc`) gives each expert tensor a pool of `GGML_MOE_POOL` slots per layer, shared by gate, up and down, and points the tensor at it.
+- **Paged `MUL_MAT_ID`.** It asks for the experts its rows use, in groups no larger than the pool. Missing experts go into least-recently-used slots by `pread` from 4 reader threads, with `F_NOCACHE`. The stock kernel then reads each expert from its slot. When generating, the gate op also queues the up and down reads at once.
+- **Cache-aware routing.** `GGML_MOE_BIAS` ports the TV's E87 to the argsort that picks experts.
+- **Pre-gating prefetch** (the TV's E103). `GGML_MOE_PREFETCH=1` and `GGML_MOE_PREFETCH_K` apply the next layer's router, with the model's full decision (sigmoid, selection bias, group limit, top 8), to the current router input.
+
+| # | Experiment | Result |
+|---|---|---|
+| E138 | **Exactness** (Mac, `eval-en.txt`, c = 128, 6 chunks) | Plain file and pager give the same perplexity: **7.9836 batched**, at pools 12 and 8 (pool 8 with 64-token batches forces several groups per op), and `GGML_MOE_VERIFY` is clean. One token at a time it's 7.9548 at every pool size with no bias, with or without prefetch. |
+| E139 | **Pool size and routing bias** (Mac, one token at a time, the same 768 tokens) | **Misses with no bias:** pool 8 53.4 %, 10 49.0 %, 12 45.1 %, 14 41.5 %, 16 38.2 %. **Bias costs** (PPL, misses): 0.03 at pool 12: 8.06, 37.8 %; **0.03 at pool 14: 7.98 (+0.3 %, inside the ±0.3 % noise floor of E86), 34.1 %**; 0.05: 8.23-8.29 (+4 %); 0.1: 8.28-8.45 (+4-6 %); 0.2: 8.54-9.64 (+7-21 %). The bias costs more here than on the TV. |
+| E140 | **iPad, pool 8** (142 MB of slots), `-c 512 -b 64`, repeat penalty 1.15 over 256 | **Runs, and all three answers are right:** "The capital of France is Paris." / a correct two-sentence answer on tides / "The first question was 'What is the capital of France?'". **1.59-1.88 tok/s**, prompt 1.9-3.1, **peak RSS 495 MB**, lowest available 325 MB. 73.7 % misses including prompts, 7.2 GB read in 48 s. Reading through the page cache instead (`GGML_MOE_NOCACHE=0`): **0.69-0.94 tok/s**, half the speed, probably because cached expert pages push out the mapped non-expert weights. |
+| E141 | **iPad, pool 16** (285 MB of slots) | **Kernel panic** about 35 s in: `vm_map_delete(...): attempt to remove permanent VM map entry` in `kernel_task` (`panic-full-2026-11-10-103908`). The iPad rebooted, which removes the jailbreak, so it had to be run again. Expected peak was about 640 MB, under E129's 700 MB ceiling, so this isn't a plain out-of-memory kill. Cause unknown; pools 12 and 14 ran many times without it. |
+| E142 | **Pool 12 and 14** (short answers / a 220-token story) | Pool 12: 1.71-2.11 tok/s short, **2.37** long, peak 561-575 MB. Pool 14: **2.42-2.47** long (five runs), peak 591-596 MB, lowest available 293 MB. Bias 0.1 at pool 12: 1.9-2.6 short, but the recall answer degrades ("The capital of France."). |
+| E143 | **Where a token goes** (`GGML_OPPROF`, pool 14, 220 tokens) | About 0.46 s per token: **waiting on flash ~0.22 s**, Q2_K expert matmuls ~0.10, Q4_K non-expert matmuls ~0.08, the rest ~0.05. Each token reads about 70 MB. **Random-read speed** (`probes/rrbench.c`, uncached, expert region): 258 KB reads 151 / 255 / **272** / 265 MB/s at 1 / 2 / 4 / 8 threads; 774 KB reads 192 / 275 / 279 / 281. With 4 readers, reading each expert in one piece would gain almost nothing. |
+| E144 | **Pre-gating prefetch** | Mac, pool 14: top-2 / 4 / 6 / 8 predictions **97 / 94 / 89 / 80 % used**, extra reads +0.4 / +3 / +10 / +26 %; misses a token waits on 41.5 → 33.7 / 25.8 / 18.3 / 13.7 %. **iPad: no faster.** Pool 12 top-8: 2.24 vs 2.37 (two runs each). Pool 14 top-4 vs off, alternated three times: **2.40 / 2.42 / 2.43 vs 2.43 / 2.47 / 2.44**. The flash is busy most of the token anyway, so moving reads earlier doesn't shorten it. Off by default. Single runs vary by up to ±10 % (one plain run gave 2.21), so only alternated repeats count. |
+| E145 | **Bias 0.03 at pool 14** (the free point from E139) | 220-token prompt: the story ends on its own at 141 tokens, coherent, at **2.76 tok/s** (misses 38.2 %, from 45.4 %). Three-question test with `--no-think`: all right, 1.75 (cold) / 2.42 / 2.23 tok/s, prompt 3.2-3.6, peak RSS 594 MB. Without `--no-think` the model writes a visible reasoning block first: the template thinks unless the prompt ends in `<think></think>`. |
+
+**Where it stands:**
+
+| Moon-Beam-8B-A1B on the iPad | Long answers | Short answers | Peak RSS | Quality |
+|---|---|---|---|---|
+| Plain mapping | can't load (E136) | | | |
+| 40 of 128 experts (E137) | 2.70 tok/s | | | broken |
+| **Pager, pool 14, bias 0.03 (recommended)** | **2.4-2.8 tok/s** | 1.8-2.4 | **~600 MB** | all three right; PPL within noise of the full model |
+
+**To use it:** `python3 tools/gguf_experts_last.py mb-q2-h60.gguf mb-q2-h60-xl.gguf`, copy it over, then:
+
+```sh
+GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_BIAS=0.03 ./smolchat -m mb-q2-h60-xl.gguf -c 512 -b 64 --no-think --repeat-penalty 1.15 --repeat-last 256
+```
+
+Like the 4B, it's for a chat session, not the always-on server: at about 600 MB it's above the 576 MB at which iOS's `SystemMemoryReset` watchdog reset the 4B server (§21.7). The 1.7B is still the server.
+
+**What would make it faster:** fewer bytes per token, since the flash is the limit. The options are a bigger pool (pool 16 is where the panic happened), more bias (quality drops fast past 0.03), or a smaller expert format that this CPU runs fast. Overlapping reads with compute (E144) doesn't help once the flash is saturated.
+
+**What went wrong:** my first `gguf_experts_last.py` reordered only the data, not the tensor infos, and llama.cpp rejected the file (`tensor ... has offset ..., expected ...`). The first pool/bias sweep ran under zsh, where `set -- $cfg` doesn't split words, so the bias runs were really bias 0; they were rerun under bash. The pool-16 panic cost a re-jailbreak.

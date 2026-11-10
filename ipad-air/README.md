@@ -11,6 +11,7 @@ Every speed uses 2 threads and a 1,024-token context, through `smolchat` on a fi
 | SmolLM2-135M-Instruct Q4_K_M | 101 MB | 18.6-29.3 tok/s | 42-52 tok/s | 141 MB | right on France and on recall, weak on tides |
 | Gemma 3 270M-it Q4_K_M | 241 MiB | 15.4-19.0 tok/s | 45-64 tok/s | 248-294 MB | wrong on tides, empty reply on recall |
 | Bonsai-4B Q1_0 (1-bit, `-c 512 -b 64`) | 546 MiB | 9.4-11.4 tok/s, 9.2-10.3 through long chats; as a server, iOS resets it within minutes | 11-14 tok/s (first about 3.5) | 615-682 MB | right on France, tides mostly right, fails recall every run; better per byte than the 1.7B |
+| Moon-Beam-8B-A1B (MoE, Q2_K experts, expert pager, `-c 512 -b 64`) | 2.6 GiB, 474 MB mapped | 2.4-2.8 tok/s on longer answers, 1.8-2.4 on short ones | 3.2-3.7 tok/s | about 600 MB | all three right; a session model, not for the always-on server |
 | SmolLM2-360M-Instruct Q4_K_M | 258 MiB | 10.9-12.5 tok/s | 18-20 tok/s | 269-316 MB | all three right; the lightest good option |
 | **Bonsai-1.7B Q1_0 (1-bit, LUT kernel)** | 237 MiB | **23.7-25.8 tok/s**, 18-22 through long chats | 29-33 tok/s (first prompt about 7) | 605 MB | **all three right, and writes correct code: the one to use** |
 | Qwen3.5-0.8B Q4_K_M | 508 MiB | about 0.2 tok/s | n/a | 506 MB | thrashes the page cache, stopped by hand |
@@ -18,6 +19,17 @@ Every speed uses 2 threads and a 1,024-token context, through `smolchat` on a fi
 `stories15M-q4_0` (18 MB) reaches about 290 tok/s in `llama-simple`.
 
 Bonsai-1.7B started at 2.75 tok/s. A multiplication-free NEON kernel took it to 3.45 with identical output, and the TV's lookup-table kernel, ported to CPUs without dotprod, took it to about 11. Giving the shared output head that kernel, reading attention row by row with pruning, and a faster sampler then took it to about 25. See `EXPERIMENT.md` §21.4 and §21.5. Bonsai-4B needs `-c 512 -b 64`: about 700 MB is the practical memory ceiling here, and a longer context crosses it (§21.6).
+
+### Moon-Beam-8B-A1B with the expert pager
+
+The model is bigger than a process may even map on iOS 12, so its experts are read from flash as the router picks them (§21.8). Rewrite the file once with its experts last, copy it over, then run:
+
+```sh
+python3 ../tools/gguf_experts_last.py models/mb-q2-h60.gguf models/mb-q2-h60-xl.gguf
+GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_BIAS=0.03 ./smolchat -m mb-q2-h60-xl.gguf -c 512 -b 64 --no-think --repeat-penalty 1.15 --repeat-last 256
+```
+
+`GGML_MOE_POOL` is experts kept in RAM per layer (17.8 MB each across the model). 14 is the tested maximum; at 16 the iPad once kernel-panicked and rebooted. `GGML_MOE_STATS=1` prints hits, misses and flash time at exit. The source file is `mb-q2-h60.gguf` from [hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF).
 
 ## Rebuilding it
 
@@ -46,7 +58,7 @@ It listens only on the iPad itself unless you pass `--host`, and it has no login
 | Path | What |
 |---|---|
 | `smolchat.cpp` | interactive chat: repeat penalty, 2-thread default, drops the oldest turns when the context fills |
-| `probes/` | `fbench.c` (uncached flash read speed) and `vmprobe.c` (largest mapping a process can make) |
+| `probes/` | `fbench.c` (uncached sequential flash reads), `rrbench.c` (uncached random reads, as the expert pager does them) and `vmprobe.c` (largest mapping a process can make) |
 | `web.h` | the `--serve` HTTP server and its Safari 12 chat page |
 | `service.sh`, `smolchat.plist` | optional background service for the web chat |
 | `build.sh` | CPU-only cross-compile for iOS 12 |
@@ -55,7 +67,7 @@ It listens only on the iPad itself unless you pass `--host`, and it has no login
 | `bench.sh` | the fixed three-turn test, with memory and time limits |
 | `ent.xml` | the entitlements binaries need to launch |
 | `kbench.c` | checks the new 1-bit kernel against the old one for exact equality, and times both |
-| `patches/llama.cpp-ios12.patch` | compiles out `std::filesystem` behind `GGML_NO_FS`, adds `LLAMA_THREADS` to `llama-simple`, and adds the two 1-bit kernels (`GGML_Q1_LUT=0` turns the LUT one off) |
+| `patches/llama.cpp-ios12.patch` | compiles out `std::filesystem` behind `GGML_NO_FS`, adds `LLAMA_THREADS` to `llama-simple`, the two 1-bit kernels (`GGML_Q1_LUT=0` turns the LUT one off), pruned attention, and the expert pager (`GGML_MOE_PAGER`) |
 
 ## What matters on this device
 

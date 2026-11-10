@@ -184,7 +184,7 @@ index f16505b..2736690 100644
  
      for (int i = 0; i < nb; i++) {
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index 40e93cc..ec586fb 100644
+index 40e93cc..eb43c23 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
 @@ -1261,6 +1261,8 @@ static void ggml_compute_forward_mul_mat_one_chunk(
@@ -207,7 +207,87 @@ index 40e93cc..ec586fb 100644
      // If tiled is supported, it will execute the full op here and we return
      if (ggml_compute_forward_mul_mat_tiled(params, dst)) {
          return;
-@@ -3123,10 +3129,35 @@ static int ggml_cpu_try_fuse_ops(
+@@ -1563,6 +1569,14 @@ static void * incr_ptr_aligned(void ** p, size_t size, size_t align) {
+     return ptr;
+ }
+ 
++// ipad-air: expert pager (moe-pager-ios.inc, in repack.cpp)
++extern int ggml_moe_pager_active;
++void *        ggml_moe_pager_find(const struct ggml_tensor * t);
++int           ggml_moe_pager_pool(const void * pg);
++const char ** ggml_moe_pager_load(void * pg, const int32_t * experts, int n, bool siblings);
++void          ggml_moe_pager_pregate(const struct ggml_tensor * w, const struct ggml_tensor * x, int il);
++void          ggml_moe_pager_selbias(int il, const struct ggml_tensor * b);
++
+ static void ggml_compute_forward_mul_mat_id(
+         const struct ggml_compute_params * params,
+               struct ggml_tensor * dst) {
+@@ -1688,19 +1702,43 @@ static void ggml_compute_forward_mul_mat_id(
+ 
+     ggml_barrier(params->threadpool);
+ 
++    // ipad-air: a paged expert tensor holds only a pool of slots. Its active experts are made resident in groups of at most the
++    // pool's size (one group when generating), and the kernel reads each expert from its slot.
++    void * pager = ggml_moe_pager_active ? ggml_moe_pager_find(src0) : NULL;
++    int32_t active[1024];
++    int n_active = 0;
+     for (int cur_a = 0; cur_a < n_as; ++cur_a) {
++        if (matrix_row_counts[cur_a] > 0) {
++            GGML_ASSERT(n_active < 1024);
++            active[n_active++] = cur_a;
++        }
++    }
++    const int group = pager ? ggml_moe_pager_pool(pager) : (n_active > 0 ? n_active : 1);
++    const char ** slot_ptrs = NULL;
++
++    for (int ia = 0; ia < n_active; ++ia) {
++        const int cur_a = active[ia];
+         const int64_t cne1 = matrix_row_counts[cur_a];
+ 
+-        if (cne1 == 0) {
+-            continue;
++        if (pager && ia % group == 0) {
++            if (ia > 0) {
++                ggml_barrier(params->threadpool);   // everyone is done with the previous group's slots
++            }
++            if (ith == 0) {
++                slot_ptrs = ggml_moe_pager_load(pager, active + ia, MIN(group, n_active - ia), n_active <= group);
++            }
++            ggml_barrier(params->threadpool);
++            if (ith != 0) {
++                slot_ptrs = ggml_moe_pager_load(NULL, NULL, 0, false);   // the pointer array (filled by thread 0)
++            }
+         }
+ 
+         // tiled takes over if profitable for this expert (see tiled.h)
+-        if (ggml_compute_forward_mul_mat_id_tiled(params, dst, cur_a, cne1, (const int32_t *) &MMID_MATRIX_ROW(cur_a, 0), tiled_scratch)) {
++        if (!pager && ggml_compute_forward_mul_mat_id_tiled(params, dst, cur_a, cne1, (const int32_t *) &MMID_MATRIX_ROW(cur_a, 0), tiled_scratch)) {
+             continue;
+         }
+ 
+-        const char * src0_cur = (const char *) src0->data + cur_a * nb02;
++        const char * src0_cur = pager ? slot_ptrs[ia % group] : (const char *) src0->data + cur_a * nb02;
+         const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+         const size_t row_size = ggml_row_size(vec_dot_type, ne10);
+ 
+@@ -1760,6 +1798,16 @@ static void ggml_compute_forward_mul_mat_id(
+ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
+     GGML_ASSERT(params);
+ 
++    // ipad-air: expert pager hooks (moe-pager-ios.inc): the router's input predicts the next layer's experts; the selection bias is
++    // remembered so that prediction makes the router's own decision
++    if (ggml_moe_pager_active && params->ith == 0) {
++        if (tensor->op == GGML_OP_MUL_MAT && strncmp(tensor->name, "ffn_moe_logits-", 15) == 0) {
++            ggml_moe_pager_pregate(tensor->src[0], tensor->src[1], atoi(tensor->name + 15));
++        } else if (tensor->op == GGML_OP_ADD && strncmp(tensor->name, "ffn_moe_probs_biased-", 21) == 0) {
++            ggml_moe_pager_selbias(atoi(tensor->name + 21), tensor->src[1]);
++        }
++    }
++
+     if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
+         return;
+     }
+@@ -3123,10 +3171,35 @@ static int ggml_cpu_try_fuse_ops(
      return 0;
  }
  
@@ -243,7 +323,7 @@ index 40e93cc..ec586fb 100644
      const struct ggml_cgraph * cgraph = tp->cgraph;
      const struct ggml_cplan  * cplan  = tp->cplan;
  
-@@ -3151,6 +3182,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3151,6 +3224,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
      GGML_PRINT_DEBUG("thread #%d compute-start cplan %p last-graph %d\n", state->ith, (const void *)cplan, state->last_graph);
  #endif
  
@@ -251,7 +331,7 @@ index 40e93cc..ec586fb 100644
      for (int node_n = 0; node_n < cgraph->n_nodes && atomic_load_explicit(&tp->abort, memory_order_relaxed) != node_n; node_n++) {
          struct ggml_tensor * node = cgraph->nodes[node_n];
  
-@@ -3165,6 +3197,9 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3165,6 +3239,9 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
  
          // TODO: move fused-op detection into ggml_graph_plan so fusion decisions are made once at planning time
          // Try fused ops, fall back to normal compute
@@ -261,7 +341,7 @@ index 40e93cc..ec586fb 100644
          const int n_fused = ggml_cpu_try_fuse_ops(cgraph, node_n, &params, cplan);
          if (n_fused > 0) {
              node_n += n_fused;
-@@ -3178,10 +3213,18 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3178,10 +3255,18 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
              tp->ec    = GGML_STATUS_ABORTED;
          }
  
@@ -280,11 +360,379 @@ index 40e93cc..ec586fb 100644
  
  #ifdef GGML_USE_OPENMP
      GGML_PRINT_DEBUG("thread #%d compute-done cplan %p\n", state->ith, (const void *)cplan);
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.cpp b/ggml/src/ggml-cpu/ggml-cpu.cpp
+index 2978340..44adaa3 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.cpp
++++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
+@@ -656,6 +656,8 @@ static ggml_backend_feature * ggml_backend_cpu_get_features(ggml_backend_reg_t r
+     GGML_UNUSED(reg);
+ }
+ 
++extern "C" void ggml_backend_cpu_moe_pager_register(struct ggml_tensor * t, int fd, int64_t off);   // ipad-air: moe-pager-ios.inc
++
+ static void * ggml_backend_cpu_get_proc_address(ggml_backend_reg_t reg, const char * name) {
+     if (strcmp(name, "ggml_backend_set_n_threads") == 0) {
+         ggml_backend_set_n_threads_t fct = ggml_backend_cpu_set_n_threads;
+@@ -680,6 +682,9 @@ static void * ggml_backend_cpu_get_proc_address(ggml_backend_reg_t reg, const ch
+     if (strcmp(name, "ggml_backend_cpu_set_use_ref") == 0) {
+         return (void *)ggml_backend_cpu_set_use_ref;
+     }
++    if (strcmp(name, "ggml_backend_cpu_moe_pager_register") == 0) {   // ipad-air: expert pager (moe-pager-ios.inc)
++        return (void *)ggml_backend_cpu_moe_pager_register;
++    }
+ 
+     // threadpool - TODO:  move to ggml-base
+     if (strcmp(name, "ggml_threadpool_new") == 0) {
+diff --git a/ggml/src/ggml-cpu/moe-pager-ios.inc b/ggml/src/ggml-cpu/moe-pager-ios.inc
+new file mode 100644
+index 0000000..724f307
+--- /dev/null
++++ b/ggml/src/ggml-cpu/moe-pager-ios.inc
+@@ -0,0 +1,303 @@
++// ipad-air: expert pager for mixture-of-experts models bigger than the address space (EXPERIMENT.md section 21.8, included in
++// repack.cpp). iOS caps a process at about 1.7 GB of mappings (E136), so experts can't be mapped at all, not even lazily:
++//  * the GGUF has its expert tensors last (tools/gguf_experts_last.py) and llama.cpp maps only the part before them;
++//  * each *_exps tensor gets a pool of GGML_MOE_POOL slots (per layer, shared by gate/up/down: slot s of each holds the same expert);
++//  * MUL_MAT_ID asks for the experts its rows use (ggml_moe_pager_load), in groups of at most a pool's size; missing ones are read
++//    into least recently used slots with pread by GGML_MOE_READERS threads, and the kernel runs on the slots;
++//  * with one group (token generation), the layer's other expert tensors are queued for the same experts right away, so the up and
++//    down reads overlap the gate matmul;
++//  * cache-aware routing (GGML_MOE_BIAS, from the TV's E87/E90): the argsort that picks experts adds a bonus to experts in the pool.
++// GGML_MOE_NOCACHE=0 reads through the page cache (default: F_NOCACHE), GGML_MOE_STATS=1 prints totals at exit,
++// GGML_MOE_VERIFY=1 compares every load with a second read.
++#include <algorithm>
++#include <atomic>
++#include <cmath>
++#include <condition_variable>
++#include <deque>
++#include <mutex>
++#include <thread>
++#include <vector>
++#include <fcntl.h>
++#include <time.h>
++#include <unistd.h>
++
++namespace {
++enum : uint8_t { MPI_EMPTY = 0, MPI_PENDING = 1, MPI_FILLED = 2 };
++struct mpi_tensor {
++    const ggml_tensor * t = nullptr; int layer = 0; int fd = -1; int64_t off = 0; size_t stride = 0; char * pool = nullptr;
++    std::unique_ptr<std::atomic<uint8_t>[]> st;
++};
++struct mpi_layer {
++    int P = 0;
++    std::vector<int> slot_exp, exp_slot; std::vector<uint64_t> slot_use;
++    std::vector<mpi_tensor *> t;
++    const mpi_tensor * first = nullptr;   // the layer's first MUL_MAT_ID (gate): hits and misses are counted there
++    const float * router = nullptr; int64_t router_ne0 = 0, router_ne1 = 0; const float * selbias = nullptr;
++    std::vector<uint8_t> pf;              // slot was filled by a prefetch and not used yet
++};
++struct mpi_job { mpi_tensor * t; int slot, e; };
++struct mpi_state {
++    std::vector<mpi_layer> layers = std::vector<mpi_layer>(256);
++    std::vector<std::unique_ptr<mpi_tensor>> tensors;
++    std::mutex mu; std::condition_variable cv_work, cv_done;
++    std::deque<mpi_job> q;
++    int pool = 0; bool verify = false; uint64_t stamp = 0;
++    std::vector<const char *> ptrs = std::vector<const char *>(1024);
++    std::atomic<long> rd_bytes{0}, hits{0}, miss{0}, wait_ns{0}, loads{0}, sib{0}, pf_req{0}, pf_used{0};
++};
++mpi_state & mpi_get() { static mpi_state s; return s; }
++int64_t mpi_now() { timespec t; clock_gettime(CLOCK_MONOTONIC, &t); return (int64_t) t.tv_sec * 1000000000 + t.tv_nsec; }
++
++void mpi_read(int fd, char * dst, size_t n, int64_t off) {
++    while (n) {
++        const ssize_t r = pread(fd, dst, n, (off_t) off);
++        if (r <= 0) { GGML_ABORT("moe pager: read failed at %lld", (long long) off); }
++        dst += r; n -= (size_t) r; off += r;
++    }
++}
++void mpi_reader() {
++    mpi_state & s = mpi_get();
++    for (;;) {
++        mpi_job j;
++        {
++            std::unique_lock<std::mutex> lk(s.mu);
++            s.cv_work.wait(lk, [&] { return !s.q.empty(); });
++            j = s.q.front(); s.q.pop_front();
++        }
++        mpi_tensor & t = *j.t;
++        char * dst = t.pool + (size_t) j.slot * t.stride;
++        mpi_read(t.fd, dst, t.stride, t.off + (int64_t) j.e * (int64_t) t.stride);
++        s.rd_bytes += (long) t.stride;
++        if (s.verify) {
++            std::vector<char> ref(t.stride);
++            mpi_read(t.fd, ref.data(), t.stride, t.off + (int64_t) j.e * (int64_t) t.stride);
++            if (memcmp(ref.data(), dst, t.stride) != 0) { GGML_ABORT("moe pager VERIFY: %s expert %d differs", t.t->name, j.e); }
++        }
++        {
++            std::lock_guard<std::mutex> lk(s.mu);
++            t.st[j.slot].store(MPI_FILLED, std::memory_order_release);
++        }
++        s.cv_done.notify_all();
++    }
++}
++void mpi_stats() {
++    mpi_state & s = mpi_get();
++    fprintf(stderr, "moe-pager: pool %d per layer: %ld hits, %ld misses (%.1f %%), %ld loads (%ld ahead of use), read %.1f MB, waited %.2f s; prefetched %ld, %ld used\n",
++            s.pool, s.hits.load(), s.miss.load(), 100.0 * s.miss.load() / (s.hits.load() + s.miss.load() + 1e-9), s.loads.load(), s.sib.load(),
++            s.rd_bytes.load() / 1e6, s.wait_ns.load() / 1e9, s.pf_req.load(), s.pf_used.load());
++}
++bool mpi_slot_busy(const mpi_layer & L, int slot) {
++    for (auto * t : L.t) { if (t->st[slot].load(std::memory_order_acquire) == MPI_PENDING) { return true; } }
++    return false;
++}
++// queue reads for slot s of tensor t (caller holds s.mu)
++void mpi_queue(mpi_state & s, mpi_tensor & t, int slot, int e, bool front) {
++    if (t.st[slot].load(std::memory_order_acquire) != MPI_EMPTY) { return; }
++    t.st[slot].store(MPI_PENDING, std::memory_order_release);
++    if (front) { s.q.push_front({ &t, slot, e }); } else { s.q.push_back({ &t, slot, e }); }
++    s.loads++;
++}
++}  // namespace
++
++extern "C" {
++int ggml_moe_pager_active = 0;
++
++void ggml_backend_cpu_moe_pager_register(struct ggml_tensor * t, int fd, int64_t off) {
++    mpi_state & s = mpi_get();
++    if (s.pool == 0) {
++        s.pool = getenv("GGML_MOE_POOL") ? atoi(getenv("GGML_MOE_POOL")) : 16;
++        s.verify = getenv("GGML_MOE_VERIFY") != nullptr;
++        const int n = getenv("GGML_MOE_READERS") ? atoi(getenv("GGML_MOE_READERS")) : 4;
++        for (int i = 0; i < n; i++) { std::thread(mpi_reader).detach(); }
++        if (getenv("GGML_MOE_STATS")) { atexit(mpi_stats); }
++    }
++    GGML_ASSERT(ggml_n_dims(t) == 3 && strncmp(t->name, "blk.", 4) == 0);
++    auto x = std::make_unique<mpi_tensor>();
++    x->t = t; x->layer = atoi(t->name + 4) & 255; x->off = off; x->stride = t->nb[2];
++    GGML_ASSERT(x->stride * (size_t) t->ne[2] == ggml_nbytes(t));
++    // a separate descriptor per tensor file: F_NOCACHE is per open file, and the model loader keeps reading through its own
++    x->fd = -1;
++#if defined(__APPLE__)
++    char path[PATH_MAX];
++    if (fcntl(fd, F_GETPATH, path) == 0) { x->fd = open(path, O_RDONLY); }
++#endif
++    if (x->fd < 0) { x->fd = dup(fd); }
++    GGML_ASSERT(x->fd >= 0);
++#if defined(__APPLE__)
++    if (!getenv("GGML_MOE_NOCACHE") || atoi(getenv("GGML_MOE_NOCACHE"))) { fcntl(x->fd, F_NOCACHE, 1); }
++#endif
++    mpi_layer & L = s.layers[x->layer];
++    const int P = std::min(s.pool, (int) t->ne[2]);
++    if (L.P == 0) {
++        L.P = P; L.slot_exp.assign(P, -1); L.exp_slot.assign((size_t) t->ne[2], -1); L.slot_use.assign(P, 0); L.pf.assign(P, 0);
++    }
++    GGML_ASSERT(L.P == P && (int) L.exp_slot.size() == (int) t->ne[2]);
++    void * mem = nullptr;
++    GGML_ASSERT(posix_memalign(&mem, 16384, (size_t) P * x->stride) == 0);
++    x->pool = (char *) mem;
++    x->st.reset(new std::atomic<uint8_t>[P]);
++    for (int i = 0; i < P; i++) { x->st[i].store(MPI_EMPTY); }
++    t->data = x->pool;   // only slots < P are ever addressed: MUL_MAT_ID goes through ggml_moe_pager_load
++    L.t.push_back(x.get());
++    s.tensors.push_back(std::move(x));
++    ggml_moe_pager_active = 1;
++}
++
++void * ggml_moe_pager_find(const struct ggml_tensor * t) {
++    for (auto & x : mpi_get().tensors) { if (x->t == t) { return x.get(); } }
++    return nullptr;
++}
++int ggml_moe_pager_pool(const void * pg) { return mpi_get().layers[((const mpi_tensor *) pg)->layer].P; }
++
++// is expert e of layer il in its pool (for cache-aware routing)?
++bool ggml_moe_pager_cached(int il, int e) {
++    const mpi_layer & L = mpi_get().layers[il & 255];
++    return L.P > 0 && e >= 0 && e < (int) L.exp_slot.size() && L.exp_slot[e] >= 0;
++}
++
++// thread 0 of MUL_MAT_ID: make experts[0..n) of tensor pg resident (n <= pool); returns their data pointers.
++// siblings: also queue the layer's other expert tensors for the same experts (token generation).
++const char ** ggml_moe_pager_load(void * pg, const int32_t * experts, int n, bool siblings) {
++    mpi_state & s = mpi_get();
++    if (!pg) { return s.ptrs.data(); }
++    mpi_tensor & T = *(mpi_tensor *) pg;
++    mpi_layer & L = s.layers[T.layer];
++    GGML_ASSERT(n <= L.P);
++    const int64_t t0 = mpi_now();
++    if (!L.first) { L.first = &T; }
++    const uint64_t stamp = ++s.stamp;
++    std::unique_lock<std::mutex> lk(s.mu);
++    for (int i = 0; i < n; i++) {
++        const int e = experts[i];
++        if (L.exp_slot[e] >= 0) { L.slot_use[L.exp_slot[e]] = stamp; }
++    }
++    for (int i = 0; i < n; i++) {
++        const int e = experts[i];
++        if (L.exp_slot[e] >= 0) {
++            if (&T == L.first) { s.hits++; }
++            if (L.pf[L.exp_slot[e]]) { L.pf[L.exp_slot[e]] = 0; s.pf_used++; }
++            continue;
++        }
++        if (&T == L.first) { s.miss++; }
++        int v = -1;
++        for (;;) {
++            for (int x = 0; x < L.P; x++) {
++                if (L.slot_use[x] == stamp || mpi_slot_busy(L, x)) { continue; }
++                if (v < 0 || L.slot_use[x] < L.slot_use[v]) { v = x; }
++            }
++            if (v >= 0) { break; }
++            s.cv_done.wait(lk);   // every free slot has a read in flight: wait for one
++        }
++        if (L.slot_exp[v] >= 0) { L.exp_slot[L.slot_exp[v]] = -1; }
++        for (auto * t : L.t) { t->st[v].store(MPI_EMPTY, std::memory_order_release); }
++        L.slot_exp[v] = e; L.exp_slot[e] = v; L.slot_use[v] = stamp; L.pf[v] = 0;
++    }
++    // this tensor's reads first (front of the queue, in order), then the siblings' at the back
++    for (int i = n - 1; i >= 0; i--) { mpi_queue(s, T, L.exp_slot[experts[i]], experts[i], true); }
++    if (siblings) {
++        for (auto * t : L.t) {
++            if (t == &T) { continue; }
++            for (int i = 0; i < n; i++) {
++                const long before = s.loads.load();
++                mpi_queue(s, *t, L.exp_slot[experts[i]], experts[i], false);
++                if (s.loads.load() != before) { s.sib++; }
++            }
++        }
++    }
++    lk.unlock();
++    s.cv_work.notify_all();
++    for (int i = 0; i < n; i++) {
++        const int slot = L.exp_slot[experts[i]];
++        if (T.st[slot].load(std::memory_order_acquire) != MPI_FILLED) {
++            std::unique_lock<std::mutex> lw(s.mu);
++            s.cv_done.wait(lw, [&] { return T.st[slot].load(std::memory_order_acquire) == MPI_FILLED; });
++        }
++        s.ptrs[i] = T.pool + (size_t) slot * T.stride;
++    }
++    s.wait_ns += mpi_now() - t0;
++    return s.ptrs.data();
++}
++
++void ggml_moe_pager_selbias(int il, const struct ggml_tensor * b) {
++    mpi_layer & L = mpi_get().layers[il & 255];
++    if (L.P > 0 && b->type == GGML_TYPE_F32 && b->ne[0] == (int64_t) L.exp_slot.size()) { L.selbias = (const float *) b->data; }
++}
++
++// pre-gating (the TV's E103), thread 0 at layer il's router: w is that router, x its input (one token). Layer il+1's router is applied
++// to x with the same decision the model makes (sigmoid, selection bias, group limit, top-k, cache bonus), and its predicted experts
++// that aren't in the pool are read in the background, behind any urgent reads. GGML_MOE_PREFETCH=1 turns it on (off by default: the
++// iPad's flash is already the bottleneck, E144); GGML_MOE_PREFETCH_K=k prefetches only the k most likely.
++void ggml_moe_pager_pregate(const struct ggml_tensor * w, const struct ggml_tensor * x, int il) {
++    static const int on = getenv("GGML_MOE_PREFETCH") ? atoi(getenv("GGML_MOE_PREFETCH")) : 0;   // off: no faster on the iPad (E144)
++    static const int n_group = getenv("GGML_MOE_GROUPS") ? atoi(getenv("GGML_MOE_GROUPS")) : 8;
++    static const int n_group_used = getenv("GGML_MOE_GROUPS_USED") ? atoi(getenv("GGML_MOE_GROUPS_USED")) : 4;
++    static const int k = getenv("GGML_MOE_USED") ? atoi(getenv("GGML_MOE_USED")) : 8;
++    static const float bonus = getenv("GGML_MOE_BIAS") ? (float) atof(getenv("GGML_MOE_BIAS")) : 0.0f;
++    static const int max_inflight = getenv("GGML_MOE_PREFETCH_INFLIGHT") ? atoi(getenv("GGML_MOE_PREFETCH_INFLIGHT")) : 48;
++    mpi_state & s = mpi_get();
++    mpi_layer & Lc = s.layers[il & 255];
++    if (w->type != GGML_TYPE_F32 || Lc.P == 0) { return; }
++    Lc.router = (const float *) w->data; Lc.router_ne0 = w->ne[0]; Lc.router_ne1 = w->ne[1];
++    if (!on || il + 1 > 255 || x->ne[1] != 1 || x->type != GGML_TYPE_F32) { return; }
++    mpi_layer & L = s.layers[il + 1];
++    if (L.P == 0 || !L.router || L.router_ne0 != x->ne[0] || L.router_ne1 != (int64_t) L.exp_slot.size()) { return; }
++    const int n_exp = (int) L.router_ne1;
++    const float * xv = (const float *) x->data;
++    std::vector<float> sc(n_exp);
++    for (int e = 0; e < n_exp; e++) {
++        const float * r = L.router + (int64_t) e * L.router_ne0;
++        float a = 0.0f;
++        int64_t j = 0;
++#if defined(__ARM_NEON)
++        float32x4_t s0 = vdupq_n_f32(0), s1 = s0, s2 = s0, s3 = s0;
++        for (; j + 16 <= L.router_ne0; j += 16) {
++            s0 = vfmaq_f32(s0, vld1q_f32(r + j), vld1q_f32(xv + j));         s1 = vfmaq_f32(s1, vld1q_f32(r + j + 4), vld1q_f32(xv + j + 4));
++            s2 = vfmaq_f32(s2, vld1q_f32(r + j + 8), vld1q_f32(xv + j + 8)); s3 = vfmaq_f32(s3, vld1q_f32(r + j + 12), vld1q_f32(xv + j + 12));
++        }
++        a = vaddvq_f32(vaddq_f32(vaddq_f32(s0, s1), vaddq_f32(s2, s3)));
++#endif
++        for (; j < L.router_ne0; j++) { a += r[j] * xv[j]; }
++        float p = 1.0f / (1.0f + expf(-a));
++        if (L.selbias) { p += L.selbias[e]; }
++        if (bonus != 0.0f && L.exp_slot[e] >= 0) { p += bonus; }
++        sc[e] = p;
++    }
++    // group limit: groups ranked by the sum of their two best scores, the best n_group_used kept
++    if (n_group > 1 && n_exp % n_group == 0 && n_group_used < n_group) {
++        const int gs = n_exp / n_group;
++        std::vector<std::pair<float, int>> gscore(n_group);
++        for (int g = 0; g < n_group; g++) {
++            float b1 = -INFINITY, b2 = -INFINITY;
++            for (int e = g * gs; e < (g + 1) * gs; e++) { if (sc[e] > b1) { b2 = b1; b1 = sc[e]; } else if (sc[e] > b2) { b2 = sc[e]; } }
++            gscore[g] = { b1 + b2, g };
++        }
++        std::sort(gscore.begin(), gscore.end(), [](auto & a, auto & b) { return a.first > b.first; });
++        for (int i = n_group_used; i < n_group; i++) { const int g = gscore[i].second; for (int e = g * gs; e < (g + 1) * gs; e++) { sc[e] = -INFINITY; } }
++    }
++    std::vector<int> idx(n_exp);
++    for (int e = 0; e < n_exp; e++) { idx[e] = e; }
++    std::partial_sort(idx.begin(), idx.begin() + k, idx.end(), [&](int a, int b) { return sc[a] > sc[b]; });
++    std::unique_lock<std::mutex> lk(s.mu);
++    const uint64_t stamp = ++s.stamp;
++    for (int i = 0; i < k; i++) { const int e = idx[i]; if (L.exp_slot[e] >= 0) { L.slot_use[L.exp_slot[e]] = stamp; } }
++    bool queued = false;
++    static const int kpf = getenv("GGML_MOE_PREFETCH_K") ? atoi(getenv("GGML_MOE_PREFETCH_K")) : k;   // only the kpf most likely
++    for (int i = 0; i < std::min(k, kpf) && (int) s.q.size() + 3 <= max_inflight; i++) {
++        const int e = idx[i];
++        if (L.exp_slot[e] >= 0) { continue; }
++        int v = -1;
++        for (int x2 = 0; x2 < L.P; x2++) {
++            if (L.slot_use[x2] == stamp || mpi_slot_busy(L, x2)) { continue; }
++            if (v < 0 || L.slot_use[x2] < L.slot_use[v]) { v = x2; }
++        }
++        if (v < 0) { break; }
++        if (L.slot_exp[v] >= 0) { L.exp_slot[L.slot_exp[v]] = -1; }
++        for (auto * t : L.t) { t->st[v].store(MPI_EMPTY, std::memory_order_release); }
++        L.slot_exp[v] = e; L.exp_slot[e] = v; L.slot_use[v] = stamp; L.pf[v] = 1;
++        for (auto * t : L.t) { mpi_queue(s, *t, v, e, false); }
++        s.pf_req++; queued = true;
++    }
++    lk.unlock();
++    if (queued) { s.cv_work.notify_all(); }
++}
++}  // extern "C"
 diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
-index 1884600..7f49b69 100644
+index 1884600..5d1dd0b 100644
 --- a/ggml/src/ggml-cpu/ops.cpp
 +++ b/ggml/src/ggml-cpu/ops.cpp
-@@ -9426,10 +9426,308 @@ static void ggml_flash_attn_ext_reduce_partials(
+@@ -8687,6 +8687,9 @@ struct cmp_argsort {
+     }
+ };
+ 
++extern "C" int ggml_moe_pager_active;                     // ipad-air: expert pager (moe-pager-ios.inc)
++extern "C" bool ggml_moe_pager_cached(int il, int e);
++
+ static void ggml_compute_forward_argsort_f32(
+     const ggml_compute_params * params,
+     ggml_tensor * dst) {
+@@ -8704,6 +8707,25 @@ static void ggml_compute_forward_argsort_f32(
+ 
+     ggml_sort_order order = (ggml_sort_order) ggml_get_op_params_i32(dst, 0);
+ 
++    // ipad-air: cache-aware MoE routing (the TV's E87/E90). With the expert pager, GGML_MOE_BIAS=d adds d to the selection score of
++    // experts already in the layer's pool, so routing prefers what is in RAM. Experts the router's groups masked out (-inf) stay out.
++    static const float moe_bias = getenv("GGML_MOE_BIAS") ? (float) atof(getenv("GGML_MOE_BIAS")) : 0.0f;
++    if (moe_bias != 0.0f && ggml_moe_pager_active && strncmp(dst->name, "ffn_moe_argsort-", 16) == 0 && order == GGML_SORT_ORDER_DESC) {
++        const int il = atoi(dst->name + 16);
++        std::vector<float> score(ne0);
++        for (int64_t i = ith; i < nr; i += nth) {
++            const float * src_data = (float *)((char *) src0->data + i*nb01);
++            int32_t * dst_data = (int32_t *)((char *) dst->data + i*nb1);
++            for (int64_t j = 0; j < ne0; j++) {
++                score[j] = src_data[j];
++                if (score[j] != -INFINITY && ggml_moe_pager_cached(il, (int) j)) { score[j] += moe_bias; }
++                dst_data[j] = j;
++            }
++            std::sort(dst_data, dst_data + ne0, cmp_argsort<GGML_SORT_ORDER_DESC>{score.data()});
++        }
++        return;
++    }
++
+     for (int64_t i = ith; i < nr; i += nth) {
+         const float * src_data = (float *)((char *) src0->data + i*nb01);
+ 
+@@ -9426,10 +9448,308 @@ static void ggml_flash_attn_ext_reduce_partials(
      }
  }
  
@@ -755,7 +1203,7 @@ index 0000000..8987ba9
 +#endif
 +
 diff --git a/ggml/src/ggml-cpu/repack.cpp b/ggml/src/ggml-cpu/repack.cpp
-index 9282ca2..40d3108 100644
+index 9282ca2..72b5bfc 100644
 --- a/ggml/src/ggml-cpu/repack.cpp
 +++ b/ggml/src/ggml-cpu/repack.cpp
 @@ -4238,6 +4238,35 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS>
@@ -952,6 +1400,13 @@ index 9282ca2..40d3108 100644
          if (ggml_cpu_has_neon() && ggml_cpu_has_matmul_int8()) {
              if (cur->ne[1] % 4 == 0) {
                  return &q1_0_4x8_q8_0;
+@@ -5258,3 +5399,6 @@ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
+ 
+     return &ggml_backend_cpu_buffer_type_repack;
+ }
++
++// ipad-air: expert pager (EXPERIMENT.md section 21.8)
++#include "moe-pager-ios.inc"
 diff --git a/src/llama-arch.cpp b/src/llama-arch.cpp
 index 6dcf34e..0c871ed 100644
 --- a/src/llama-arch.cpp
@@ -984,6 +1439,135 @@ index 3b8f45d..a930177 100644
      LLM_TENSOR_OUTPUT_NORM,
      LLM_TENSOR_OUTPUT_NORM_LFM2, // fix for wrong tensor name
      LLM_TENSOR_ROPE_FREQS,
+diff --git a/src/llama-mmap.cpp b/src/llama-mmap.cpp
+index 4d1cd31..ecd22f3 100644
+--- a/src/llama-mmap.cpp
++++ b/src/llama-mmap.cpp
+@@ -475,12 +475,16 @@ static llama_mmap::ranges ranges_complement(llama_mmap::ranges ranges, size_t li
+ }
+ #endif
+ 
++size_t llama_mmap_limit_next = 0;
++
+ struct llama_mmap::impl {
+ #ifdef _POSIX_MAPPED_FILES
+     std::vector<std::pair<size_t, size_t>> mapped_fragments;
+ 
+     impl(struct llama_file * file, size_t prefetch, bool numa, const llama_mmap::ranges & lazy_ranges) {
+-        size = file->size();
++        // ipad-air: map only the first llama_mmap_limit_next bytes (the expert pager reads the rest with pread)
++        size = llama_mmap_limit_next && llama_mmap_limit_next < file->size() ? llama_mmap_limit_next : file->size();
++        llama_mmap_limit_next = 0;
+         int fd = file->file_id();
+         int flags = MAP_SHARED;
+         if (numa) { prefetch = 0; }
+@@ -492,7 +496,7 @@ struct llama_mmap::impl {
+         // MAP_POPULATE would fault in the lazy ranges too
+         if (prefetch && lazy_ranges.empty()) { flags |= MAP_POPULATE; }
+ #endif
+-        addr = mmap(NULL, file->size(), PROT_READ, flags, fd, 0);
++        addr = mmap(NULL, size, PROT_READ, flags, fd, 0);
+         if (addr == MAP_FAILED) {
+             throw std::runtime_error(format("mmap failed: %s", strerror(errno)));
+         }
+@@ -501,7 +505,7 @@ struct llama_mmap::impl {
+         auto advise = [&](size_t beg, size_t end, int advice, const char * name) {
+             const size_t page_size = sysconf(_SC_PAGESIZE);
+             beg = beg & ~(page_size - 1);
+-            end = std::min((end + page_size - 1) & ~(page_size - 1), file->size());
++            end = std::min((end + page_size - 1) & ~(page_size - 1), size);
+             if (beg >= end) {
+                 return;
+             }
+@@ -511,7 +515,7 @@ struct llama_mmap::impl {
+         };
+ 
+         if (prefetch > 0) {
+-            for (const auto & range : ranges_complement(lazy_ranges, std::min(file->size(), prefetch))) {
++            for (const auto & range : ranges_complement(lazy_ranges, std::min(size, prefetch))) {
+                 advise(range.first, range.second, POSIX_MADV_WILLNEED, "POSIX_MADV_WILLNEED");
+             }
+         }
+@@ -519,13 +523,13 @@ struct llama_mmap::impl {
+             advise(range.first, range.second, POSIX_MADV_RANDOM, "POSIX_MADV_RANDOM");
+         }
+         if (numa) {
+-            if (posix_madvise(addr, file->size(), POSIX_MADV_RANDOM)) {
++            if (posix_madvise(addr, size, POSIX_MADV_RANDOM)) {
+                 LLAMA_LOG_WARN("warning: posix_madvise(.., POSIX_MADV_RANDOM) failed: %s\n",
+                         strerror(errno));
+             }
+         }
+ 
+-        mapped_fragments.emplace_back(0, file->size());
++        mapped_fragments.emplace_back(0, size);
+     }
+ 
+     static void align_range(size_t * first, size_t * last, size_t page_size) {
+diff --git a/src/llama-mmap.h b/src/llama-mmap.h
+index 6c6393d..8054a3a 100644
+--- a/src/llama-mmap.h
++++ b/src/llama-mmap.h
+@@ -44,6 +44,9 @@ private:
+     std::unique_ptr<impl> pimpl;
+ };
+ 
++// ipad-air: if non-zero, the next llama_mmap maps only this many leading bytes of its file
++extern size_t llama_mmap_limit_next;
++
+ struct llama_mmap {
+     // list of [first, last) byte ranges within a file
+     using ranges = std::vector<std::pair<size_t, size_t>>;
+diff --git a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
+index 485483b..f863db9 100644
+--- a/src/llama-model-loader.cpp
++++ b/src/llama-model-loader.cpp
+@@ -1441,6 +1441,23 @@ void llama_model_loader::init_mappings(bool prefetch, llama_mlocks * mlock_mmaps
+ 
+             const size_t prefetch_size = prefetch && use_mmap ? -1 : 0;
+ 
++            // ipad-air: GGML_MOE_PAGER=1 with a file whose expert tensors all come last (tools/gguf_experts_last.py):
++            // map only the part before them; the expert pager (ggml-cpu/moe-pager-ios.inc) reads experts with pread
++            if (getenv("GGML_MOE_PAGER") && atoi(getenv("GGML_MOE_PAGER"))) {
++                size_t first_exp = SIZE_MAX, last_other = 0;
++                for (const auto & it : weights_map) {
++                    if (it.second.idx != idx) { continue; }
++                    const size_t beg = it.second.offs, end = beg + ggml_nbytes(it.second.tensor);
++                    if (it.first.find("_exps.") != std::string::npos) { first_exp = std::min(first_exp, beg); } else { last_other = std::max(last_other, end); }
++                }
++                if (first_exp != SIZE_MAX && last_other <= first_exp) {
++                    llama_mmap_limit_next = first_exp;
++                    LLAMA_LOG_INFO("%s: expert pager: mapping %.1f MB of %.1f MB\n", __func__, first_exp / 1e6, file->size() / 1e6);
++                } else if (first_exp != SIZE_MAX) {
++                    LLAMA_LOG_WARN("%s: expert pager: experts are not at the end of the file, mapping all of it (see tools/gguf_experts_last.py)\n", __func__);
++                }
++            }
++
+             std::unique_ptr<llama_mmap> mapping = std::make_unique<llama_mmap>(file.get(), prefetch_size, is_numa,
+                     lazy.for_file(idx));
+             mmaps_used.emplace_back(mapping->size(), 0);
+@@ -1736,6 +1753,21 @@ bool llama_model_loader::load_all_data(
+             if (buf_mmap && cur->data == nullptr) {
+                 ggml_backend_tensor_alloc(buf_mmap, cur, data);
+ 
++                // ipad-air: an expert tensor past the mapped part goes to the expert pager, which points it at a pool of slots
++                if (weight->offs >= mapping->size()) {
++                    static void (*reg)(struct ggml_tensor *, int, int64_t) = [] {
++                        void (*f)(struct ggml_tensor *, int, int64_t) = nullptr;
++                        if (auto * dev = ggml_backend_dev_by_type(GGML_BACKEND_DEVICE_TYPE_CPU)) {
++                            f = (void (*)(struct ggml_tensor *, int, int64_t)) ggml_backend_reg_get_proc_address(ggml_backend_dev_backend_reg(dev), "ggml_backend_cpu_moe_pager_register");
++                        }
++                        return f;
++                    }();
++                    GGML_ASSERT(reg && "tensor outside the mapping but no expert pager");
++                    reg(cur, files.at(weight->idx)->file_id(), (int64_t) weight->offs);
++                    size_done += n_size;
++                    continue;
++                }
++
+                 // locking a lazy tensor would fault all of it in, which is what lazy avoids
+                 if (lmlocks && !lazy.has(cur)) {
+                     const auto & lmlock = lmlocks->at(weight->idx);
 diff --git a/src/llama-model.h b/src/llama-model.h
 index 9c0a51f..cdca1ee 100644
 --- a/src/llama-model.h
