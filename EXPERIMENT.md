@@ -994,3 +994,47 @@ GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_BIAS=0.03 GGML_MOE_PREFETCH=1 ./smolc
 **What's left for 5 tok/s:** the reads (about 0.2 s per token) and the compute (about 0.17 s outside the waits) each need to shrink, and overlap better. Options: (1) trade quality: bias 0.05 (+1.2 %) or top-7 (+1.8 %), measured on the Mac; (2) if E149's hypothesis holds, stop the soft faults without wiring memory, for example by copying the hot non-expert weights into anonymous memory or making them smaller; that would recover about 60 ms of Q4_K time and most of the router's; (3) more precise LUT tables (int8 tables cost +0.1 %, so there's room to try coarser ones too).
 
 **What went wrong:** E144 concluded that prefetch can't help because the flash is saturated. The real problem was the queue order: prefetches blocked urgent reads. The Q4_K kernel was benchmarked in isolation first and looked promising; in the model it lost. `LLAMA_MLOCK_HOT` cost a second panic and re-jailbreak; after E141 the hazard of non-reclaimable memory should have ruled it out.
+
+### 21.10 Moon-Beam round 3: the cache policy, and what 5 tok/s costs (2026-11-10)
+
+**Goal (your call):** "keep going" on getting Moon-Beam past 5 tok/s.
+
+**The result: 3.5 tok/s with no quality cost (a frequency-based cache policy), and 4.9-5.1 tok/s with 4 experts per token instead of 8, at +27 % perplexity.** Nothing lossless gets close to 5: the compute left is about 190 ms per token, the flash about 200 ms, and both kernels already run at 75-90 % of what this CPU does on the bare kernel. Choosing a variable number of experts per token (adaptive routing) is no better than a fixed count at the same average.
+
+**Built:**
+- **Fault counter in the op profiler.** `GGML_OPPROF=2` adds page faults per call for each op, from `task_info(TASK_EVENTS_INFO)`.
+- **Expert trace.** `GGML_MOE_TRACE=file` writes each layer's experts per call, for cache-policy simulation offline.
+- **Decayed-frequency eviction.** `GGML_MOE_LFU=a`: each use adds 1 to an expert's score, which decays by `a` per layer call; the slot with the lowest score is evicted (empty slots first). The default stays least recently used.
+- **`smolchat --experts N`** overrides `<arch>.expert_used_count` and sets `GGML_MOE_USED` for the prefetch.
+- **Adaptive expert count.** `GGML_MOE_TOPP=p` (with `GGML_MOE_KMIN`, default 4), in the argsort hook: keep the selected experts, best first, until they hold a share p of the top 8's routing weight (unbiased sigmoid probabilities: the selection bias and the cache bonus are subtracted), and give the rest id -1. `GET_ROWS` turns -1 into weight 0, so the weight normalization rescales over the kept experts, and `MUL_MAT_ID` already skips -1.
+
+| # | Experiment | Result |
+|---|---|---|
+| E152 | **Testing E149's soft-fault hypothesis** (`GGML_OPPROF=2`, pool 14, LUT file, top-8 prefetch, 185 tokens) | **Wrong.** Q4_K matmuls take **2.2 faults per call** (about 3 µs of 439), `MUL_MAT_ID` 6.6, the router 1.5. E149's "half speed" came from a wrong weight count: about 695 M non-expert Q4_K weights per token in 99 ms is **about 7 G weights/s**, against `q4kbench`'s 9 warm. The two runs straight after a deploy read 2.50 and 2.36 tok/s, with Q4_K at 698 µs per call and `q4kbench` at 7.4 G/s; 20 minutes later they were back to 3.25-3.35 and 9.1. |
+| E153 | **Cache policy** (Mac trace of 3,072 tokens, one at a time, no bias; then the Mac and the iPad) | Simulated miss rates at pool 14: **least recently used 42.0 %** (measured: 41.9 %), decayed frequency 0.5 / 0.8 / 0.9 / **0.95** / 0.98: 41.3 / 39.0 / 38.1 / **37.7** / 37.6 %, the clairvoyant optimum 30.0 %. Mac with bias 0.03 and prefetch: **8.7 % fewer expert loads**, perplexity 18.52 vs 18.69 (noise); with no bias 18.63 vs 18.62, and 37.6 % misses as simulated. **iPad, seed 7, alternated three times: 3.54 / 3.52 / 3.33 tok/s vs 3.31 / 3.34 / 2.90**, about 56-61 MB read per token vs 66. With this policy the text varies from run to run even at a fixed seed: the slot it evicts depends on which reads are still in flight, and the bias then sees a different cache. |
+| E154 | **Fewer experts per token** (`--experts N`, decayed frequency 0.95, prefetch, seed 7; perplexity on the Mac, 3,072 tokens, against 18.62 for top-8 with no bias) | See the table below. **The three questions:** right at top-6, top-5 and top-4. Top-4's story is fluent but drifts (it changes a character's gender mid-scene). |
+| E155 | **Adaptive expert count** (`GGML_MOE_TOPP`, same settings) | Perplexity at the average expert count, against fixed top-k interpolated to the same count: P 0.9: 6.49 experts, **19.13** (fixed ~19.23); P 0.85: 5.80, **19.40** (~19.70); P 0.8: 5.22, **20.21** (~20.31; KMIN 3: 20.31); P 0.7: 4.40, **22.40** (~22.38). At most 1.5 % better, inside the noise. iPad: P 0.8 4.12-4.35 tok/s, P 0.7 4.49 (4.61 experts): speed follows the average count too. Moon-Beam's routing weight is spread fairly evenly over its top experts, so dropping the small ones costs as much as dropping fixed ranks. |
+| E156 | **An SSH drop mid-sweep** | No panic and no Jetsam report, but the sweep's SSH sessions were closed, and `longbench.sh` had started smolchat in the background, so **two Moon-Beam runs ended up running at once** (about 600 MB each in a 1 GB device). They were killed by hand within a minute. The bench now kills any leftover Moon-Beam run before starting and stops its own run if its session dies. |
+
+**Speed against quality (E154):**
+
+| Experts per token | Bias | iPad tok/s (story prompt) | Mac perplexity | vs top-8 |
+|---|---|---|---|---|
+| **8 (recommended)** | 0.03 | **3.47-3.60** | 18.52 | ±0 |
+| 8 | 0.05 | 3.66-3.76 | (12.94 vs 12.79 on the full text, E151) | +1.2 % |
+| 7 | 0.03 / 0.05 | 3.73-3.86 / 4.02-4.04 | 18.97 / 18.70 | +0.5-1.9 % |
+| 6 | 0.03 / 0.05 | 4.23-4.26 / 4.32 | 19.49 / 19.33 | +4-5 % |
+| 5 | 0.03 / 0.05 | 4.54 / 4.52-4.62 | 20.54 | +10 % |
+| **4** | 0.03 | **4.92-5.12** | 23.60 (bias 0: 23.41) | **+27 %** |
+
+**To use it:**
+
+```sh
+# best quality, about 3.5 tok/s
+GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_BIAS=0.03 GGML_MOE_PREFETCH=1 GGML_MOE_LFU=0.95 ./smolchat -m mb-q2-h60-lut.gguf -c 512 -b 64 --no-think --repeat-penalty 1.15 --repeat-last 256
+# faster: add --experts 7 (about 3.9 tok/s, +1-2 %) or --experts 6 (about 4.3, +4-5 %); --experts 4 reaches 5 tok/s at +27 %
+```
+
+**What's left:** the lossless options are small: the router (14 ms per token where its size suggests a few), a better Q4_K kernel (at most about 20 ms), and a cache policy closer to the optimum (30 % misses vs 37.7 %). Even all of them together would leave this model short of 5 tok/s at full quality on this iPad. A bigger expert pool is the only large lever, and memory rules it out (pool 16 panicked, E141).
+
+**What went wrong:** E149's soft-fault hypothesis rested on a miscounted weight total; measuring faults directly took one run. Two orphaned runs at once on a 1 GB device was a real panic risk; the bench should have guarded against a dropped session from the start. A sweep loop again lost its arguments, this time because an `ssh` inside a here-document read the rest of the script as its input.

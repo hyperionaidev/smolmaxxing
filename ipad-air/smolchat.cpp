@@ -9,6 +9,7 @@
 // HTTP (see web.h), so it can be used from Safari.
 
 #include "llama.h"
+#include "gguf.h"
 
 #include "web.h"
 
@@ -37,6 +38,7 @@ struct options {
     float    temp           = 0.7f;
     uint32_t seed           = LLAMA_DEFAULT_SEED;
     bool     no_think       = false;
+    int      n_experts      = 0;      // mixture of experts: experts used per token (0 = the model's own)
     int         port = 0;           // 0 = terminal chat
     std::string host = "127.0.0.1";
 };
@@ -59,6 +61,7 @@ static void usage(const char * name) {
            "  --repeat-penalty X  repeat penalty, 1.0 turns it off (default 1.15)\n"
            "  --repeat-last N     tokens the penalty looks back over (default 256)\n"
            "  --seed N            sampling seed\n"
+           "  --experts N         mixture-of-experts models: use N experts per token (fewer is faster, lower quality)\n"
            "  --no-think          skip the reasoning block on models that have one\n"
            "  --serve PORT        serve a chat page over HTTP instead of the terminal chat\n"
            "  --host ADDRESS      address to listen on (default 127.0.0.1; there is no login,\n"
@@ -86,6 +89,7 @@ static bool parse_args(int argc, char ** argv, options & o) {
         else if (a == "--temp")           { o.temp = (float) atof(v); }
         else if (a == "--repeat-penalty") { o.repeat_penalty = (float) atof(v); }
         else if (a == "--repeat-last")    { o.repeat_last = atoi(v); }
+        else if (a == "--experts")        { o.n_experts = atoi(v); }
         else if (a == "--seed")           { o.seed = (uint32_t) strtoul(v, nullptr, 10); }
         else if (a == "--serve")          { o.port = atoi(v); }
         else if (a == "--host")           { o.host = v; }
@@ -240,6 +244,25 @@ int main(int argc, char ** argv) {
 
     llama_model_params model_params = llama_model_default_params();
     model_params.n_gpu_layers = 0;
+    std::vector<llama_model_kv_override> kvo;
+    if (o.n_experts > 0) {
+        // override <arch>.expert_used_count; the expert pager's prefetch reads GGML_MOE_USED
+        std::string arch;
+        gguf_init_params gp = { /*.no_alloc =*/ true, /*.ctx =*/ nullptr };
+        if (gguf_context * g = gguf_init_from_file(o.model.c_str(), gp)) {
+            const int64_t k = gguf_find_key(g, "general.architecture");
+            if (k >= 0) { arch = gguf_get_val_str(g, k); }
+            gguf_free(g);
+        }
+        llama_model_kv_override ov = {};
+        ov.tag = LLAMA_KV_OVERRIDE_TYPE_INT;
+        snprintf(ov.key, sizeof(ov.key), "%s.expert_used_count", arch.c_str());
+        ov.val_i64 = o.n_experts;
+        kvo.push_back(ov);
+        kvo.push_back({});
+        model_params.kv_overrides = kvo.data();
+        setenv("GGML_MOE_USED", std::to_string(o.n_experts).c_str(), 0);
+    }
     llama_model * model = llama_model_load_from_file(o.model.c_str(), model_params);
     if (!model) {
         fprintf(stderr, "error: unable to load %s\n", o.model.c_str());

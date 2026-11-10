@@ -239,7 +239,7 @@ index f16505b..dfe6bb9 100644
      const uint8x16_t m4b = vdupq_n_u8(0xf);
      const int32x4_t mzero = vdupq_n_s32(0);
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index 40e93cc..64bc2f5 100644
+index 40e93cc..e80d653 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
 @@ -1261,6 +1261,8 @@ static void ggml_compute_forward_mul_mat_one_chunk(
@@ -362,7 +362,7 @@ index 40e93cc..64bc2f5 100644
      if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
          return;
      }
-@@ -3123,10 +3188,35 @@ static int ggml_cpu_try_fuse_ops(
+@@ -3123,10 +3188,49 @@ static int ggml_cpu_try_fuse_ops(
      return 0;
  }
  
@@ -374,14 +374,28 @@ index 40e93cc..64bc2f5 100644
 +static long   g_opprof_graphs;
 +static double g_opprof_loop;
 +static double opprof_now(void) { struct timespec ts; clock_gettime(CLOCK_MONOTONIC, &ts); return ts.tv_sec + ts.tv_nsec * 1e-9; }
++// GGML_OPPROF=2 also counts the process's page faults (soft ones included) during each node, from task_info: all threads, so the
++// pager's reader threads add their own (ipad-air, EXPERIMENT.md section 21.10).
++static double g_opprof_f[GGML_OP_COUNT][GGML_TYPE_COUNT];
++#if defined(__APPLE__)
++#include <mach/mach.h>
++static long opprof_faults(void) {
++    task_events_info_data_t ev; mach_msg_type_number_t n = TASK_EVENTS_INFO_COUNT;
++    return task_info(mach_task_self(), TASK_EVENTS_INFO, (task_info_t) &ev, &n) == KERN_SUCCESS ? (long) ev.faults : 0;
++}
++#else
++static long opprof_faults(void) { return 0; }
++#endif
 +static void ggml_opprof_dump(void) {
 +    fprintf(stderr, "[opprof] %ld graphs, %.3f s in node loops\n[opprof] %-16s %-6s %8s %10s %10s %6s %9s\n", g_opprof_graphs, g_opprof_loop, "op", "src0", "calls", "total ms", "compute", "%", "us/call");
++    if (g_opprof > 1) { fprintf(stderr, "[opprof] (last column: page faults per call)\n"); }
 +    for (int k = 0; k < 24; k++) {
 +        int bo = -1, bt = -1; double bv = 0;
 +        for (int o = 0; o < GGML_OP_COUNT; o++) for (int t = 0; t < GGML_TYPE_COUNT; t++) if (g_opprof_t[o][t] > bv) { bv = g_opprof_t[o][t]; bo = o; bt = t; }
 +        if (bo < 0) break;
 +        fprintf(stderr, "[opprof] %-16s %-6s %8ld %10.1f %10.1f %5.1f%% %9.1f\n", ggml_op_name((enum ggml_op) bo), ggml_type_name((enum ggml_type) bt),
 +                g_opprof_n[bo][bt], bv * 1e3, g_opprof_c[bo][bt] * 1e3, 100 * bv / g_opprof_loop, bv * 1e6 / g_opprof_n[bo][bt]);
++        if (g_opprof > 1) { fprintf(stderr, "[opprof]   faults/call %.1f\n", g_opprof_f[bo][bt] / g_opprof_n[bo][bt]); }
 +        g_opprof_t[bo][bt] = 0;
 +    }
 +}
@@ -398,7 +412,7 @@ index 40e93cc..64bc2f5 100644
      const struct ggml_cgraph * cgraph = tp->cgraph;
      const struct ggml_cplan  * cplan  = tp->cplan;
  
-@@ -3151,6 +3241,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3151,6 +3255,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
      GGML_PRINT_DEBUG("thread #%d compute-start cplan %p last-graph %d\n", state->ith, (const void *)cplan, state->last_graph);
  #endif
  
@@ -406,17 +420,18 @@ index 40e93cc..64bc2f5 100644
      for (int node_n = 0; node_n < cgraph->n_nodes && atomic_load_explicit(&tp->abort, memory_order_relaxed) != node_n; node_n++) {
          struct ggml_tensor * node = cgraph->nodes[node_n];
  
-@@ -3165,6 +3256,9 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3165,6 +3270,10 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
  
          // TODO: move fused-op detection into ggml_graph_plan so fusion decisions are made once at planning time
          // Try fused ops, fall back to normal compute
 +        const int    prof    = state->ith == 0 && g_opprof > 0;
 +        const double prof_t0 = prof ? opprof_now() : 0;
++        const long   prof_f0 = prof && g_opprof > 1 ? opprof_faults() : 0;
 +        const struct ggml_tensor * prof_node = node;
          const int n_fused = ggml_cpu_try_fuse_ops(cgraph, node_n, &params, cplan);
          if (n_fused > 0) {
              node_n += n_fused;
-@@ -3178,10 +3272,18 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3178,10 +3287,19 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
              tp->ec    = GGML_STATUS_ABORTED;
          }
  
@@ -429,6 +444,7 @@ index 40e93cc..64bc2f5 100644
 +            g_opprof_c[prof_node->op][pt] += prof_t1 - prof_t0;
 +            g_opprof_t[prof_node->op][pt] += opprof_now() - prof_t0;
 +            g_opprof_n[prof_node->op][pt] += 1;
++            if (g_opprof > 1) { g_opprof_f[prof_node->op][pt] += opprof_faults() - prof_f0; }
 +        }
      }
 +    if (state->ith == 0 && g_opprof > 0) { g_opprof_loop += opprof_now() - loop_t0; g_opprof_graphs++; }
@@ -464,10 +480,10 @@ index 2978340..bdc4755 100644
      if (strcmp(name, "ggml_threadpool_new") == 0) {
 diff --git a/ggml/src/ggml-cpu/moe-pager-ios.inc b/ggml/src/ggml-cpu/moe-pager-ios.inc
 new file mode 100644
-index 0000000..83e19d1
+index 0000000..16adbb2
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/moe-pager-ios.inc
-@@ -0,0 +1,472 @@
+@@ -0,0 +1,498 @@
 +// ipad-air: expert pager for mixture-of-experts models bigger than the address space (EXPERIMENT.md section 21.8, included in
 +// repack.cpp). iOS caps a process at about 1.7 GB of mappings (E136), so experts can't be mapped at all, not even lazily:
 +//  * the GGUF has its expert tensors last (tools/gguf_experts_last.py) and llama.cpp maps only the part before them;
@@ -505,7 +521,17 @@ index 0000000..83e19d1
 +    int ranks = 0;                        // tensors of this layer seen so far, in the order the graph runs them
 +    const float * router = nullptr; int64_t router_ne0 = 0, router_ne1 = 0; const float * selbias = nullptr;
 +    std::vector<uint8_t> pf;              // slot was filled by a prefetch and not used yet
++    std::vector<float> fs; std::vector<uint32_t> ft; uint32_t step = 0;   // GGML_MOE_LFU: per-expert use score, decayed per call
 +};
++// Eviction order. Default: least recently used. GGML_MOE_LFU=a (0 < a < 1): least frequently used, each use adding 1 to a score that
++// decays by a per layer call (E153: at pool 14, a = 0.95 misses 10 % less than LRU on a trace of 3,072 tokens). Empty slots go first.
++float mpi_lfu_alpha() { static const float a = getenv("GGML_MOE_LFU") ? (float) atof(getenv("GGML_MOE_LFU")) : 0.0f; return a; }
++double mpi_evict_key(const mpi_layer & L, int x) {
++    const int e = L.slot_exp[x];
++    const float a = mpi_lfu_alpha();
++    if (a <= 0.0f || e < 0 || L.fs.empty()) { return e < 0 ? -1.0 : (double) L.slot_use[x]; }
++    return L.fs[e] * std::pow((double) a, (double) (L.step - L.ft[e])) + 1e-12 * (double) L.slot_use[x];
++}
 +struct mpi_job { mpi_tensor * t; int slot, e; int prio; };
 +struct mpi_state {
 +    std::vector<mpi_layer> layers = std::vector<mpi_layer>(256);
@@ -639,6 +665,9 @@ index 0000000..83e19d1
 +    return L.P > 0 && e >= 0 && e < (int) L.exp_slot.size() && L.exp_slot[e] >= 0;
 +}
 +
++// the layer's expert selection bias (exp_probs_b), or null: the adaptive expert count needs the unbiased probabilities
++const float * ggml_moe_pager_selbias_ptr(int il) { return mpi_get().layers[il & 255].selbias; }
++
 +// thread 0 of MUL_MAT_ID: make experts[0..n) of tensor pg resident (n <= pool); returns their data pointers.
 +// siblings: also queue the layer's other expert tensors for the same experts (token generation).
 +const char ** ggml_moe_pager_load(void * pg, const int32_t * experts, int n, bool siblings) {
@@ -649,6 +678,10 @@ index 0000000..83e19d1
 +    GGML_ASSERT(n <= L.P);
 +    const int64_t t0 = mpi_now();
 +    if (!L.first) { L.first = &T; }
++    if (&T == L.first) {   // GGML_MOE_TRACE=file: one line per layer call, "layer e0 e1 ...", for offline cache-policy studies
++        static FILE * tr = getenv("GGML_MOE_TRACE") ? fopen(getenv("GGML_MOE_TRACE"), "w") : nullptr;
++        if (tr) { fprintf(tr, "%d", T.layer); for (int i = 0; i < n; i++) { fprintf(tr, " %d", experts[i]); } fputc('\n', tr); }
++    }
 +    std::unique_lock<std::mutex> lk(s.mu);
 +    if (T.rank == 3 && L.ranks < 3) { T.rank = L.ranks++; }
 +    s.now_layer = T.layer;
@@ -656,6 +689,15 @@ index 0000000..83e19d1
 +    for (int i = 0; i < n; i++) {
 +        const int e = experts[i];
 +        if (L.exp_slot[e] >= 0) { L.slot_use[L.exp_slot[e]] = stamp; }
++    }
++    if (&T == L.first && mpi_lfu_alpha() > 0.0f) {
++        if (L.fs.empty()) { L.fs.assign(L.exp_slot.size(), 0.0f); L.ft.assign(L.exp_slot.size(), 0); }
++        L.step++;
++        const double a = mpi_lfu_alpha();
++        for (int i = 0; i < n; i++) {
++            const int e = experts[i];
++            L.fs[e] = (float) (L.fs[e] * std::pow(a, (double) (L.step - L.ft[e])) + 1.0); L.ft[e] = L.step;
++        }
 +    }
 +    for (int i = 0; i < n; i++) {
 +        const int e = experts[i];
@@ -669,7 +711,7 @@ index 0000000..83e19d1
 +        for (;;) {
 +            for (int x = 0; x < L.P; x++) {
 +                if (L.slot_use[x] == stamp || mpi_slot_busy(L, x)) { continue; }
-+                if (v < 0 || L.slot_use[x] < L.slot_use[v]) { v = x; }
++                if (v < 0 || mpi_evict_key(L, x) < mpi_evict_key(L, v)) { v = x; }
 +            }
 +            if (v >= 0) { break; }
 +            s.cv_done.wait(lk);   // every free slot has a read in flight: wait for one
@@ -782,7 +824,7 @@ index 0000000..83e19d1
 +        int v = -1;
 +        for (int x2 = 0; x2 < L.P; x2++) {
 +            if (L.slot_use[x2] == stamp || mpi_slot_busy(L, x2)) { continue; }
-+            if (v < 0 || L.slot_use[x2] < L.slot_use[v]) { v = x2; }
++            if (v < 0 || mpi_evict_key(L, x2) < mpi_evict_key(L, v)) { v = x2; }
 +        }
 +        if (v < 0) { break; }
 +        if (L.slot_exp[v] >= 0) { L.exp_slot[L.slot_exp[v]] = -1; }
@@ -941,28 +983,61 @@ index 0000000..83e19d1
 +}  // extern "C"
 +#endif
 diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
-index 1884600..5d1dd0b 100644
+index 1884600..896dd8e 100644
 --- a/ggml/src/ggml-cpu/ops.cpp
 +++ b/ggml/src/ggml-cpu/ops.cpp
-@@ -8687,6 +8687,9 @@ struct cmp_argsort {
+@@ -9,6 +9,7 @@
+ #include "vec.h"
+ 
+ #include <algorithm>
++#include <atomic>
+ #include <cfloat>
+ #include <cmath>
+ 
+@@ -5343,6 +5344,10 @@ static void ggml_compute_forward_get_rows_f32(
+         const int64_t i10 = (i - i12*ne11*ne10 - i11*ne10);
+         const int64_t i01 = *(int32_t *) ((char *) src1->data + i10*nb10 + i11*nb11 + i12*nb12);
+ 
++        if (i01 == -1) {   // ipad-air: an expert dropped by GGML_MOE_TOPP gets weight 0
++            memset((char *) dst->data + i10*nb1 + i11*nb2 + i12*nb3, 0, nc*sizeof(float));
++            continue;
++        }
+         GGML_ASSERT(i01 >= 0 && i01 < ne01);
+ 
+         ggml_vec_cpy_f32(nc,
+@@ -8687,6 +8692,14 @@ struct cmp_argsort {
      }
  };
  
 +extern "C" int ggml_moe_pager_active;                     // ipad-air: expert pager (moe-pager-ios.inc)
 +extern "C" bool ggml_moe_pager_cached(int il, int e);
++extern "C" const float * ggml_moe_pager_selbias_ptr(int il);
++static std::atomic<long> g_moe_kept{0}, g_moe_rows{0};
++static void moe_topp_stats() {
++    if (g_moe_rows > 0) { fprintf(stderr, "moe-topp: %.2f experts per token on average (%ld routings)\n", (double) g_moe_kept / g_moe_rows, (long) g_moe_rows); }
++}
 +
  static void ggml_compute_forward_argsort_f32(
      const ggml_compute_params * params,
      ggml_tensor * dst) {
-@@ -8704,6 +8707,25 @@ static void ggml_compute_forward_argsort_f32(
+@@ -8704,6 +8717,48 @@ static void ggml_compute_forward_argsort_f32(
  
      ggml_sort_order order = (ggml_sort_order) ggml_get_op_params_i32(dst, 0);
  
 +    // ipad-air: cache-aware MoE routing (the TV's E87/E90). With the expert pager, GGML_MOE_BIAS=d adds d to the selection score of
 +    // experts already in the layer's pool, so routing prefers what is in RAM. Experts the router's groups masked out (-inf) stay out.
 +    static const float moe_bias = getenv("GGML_MOE_BIAS") ? (float) atof(getenv("GGML_MOE_BIAS")) : 0.0f;
-+    if (moe_bias != 0.0f && ggml_moe_pager_active && strncmp(dst->name, "ffn_moe_argsort-", 16) == 0 && order == GGML_SORT_ORDER_DESC) {
++    // ipad-air: adaptive expert count (EXPERIMENT.md section 21.10). GGML_MOE_TOPP=p keeps the selected experts, best first, until they
++    // hold a share p of the top-k's total routing weight, but at least GGML_MOE_KMIN (default 4); the others get id -1, which GET_ROWS
++    // turns into weight 0 (so the weight normalization rescales over the kept experts) and MUL_MAT_ID skips. k is GGML_MOE_USED (8).
++    static const float moe_topp = getenv("GGML_MOE_TOPP") ? (float) atof(getenv("GGML_MOE_TOPP")) : 0.0f;
++    static const int   moe_kmin = getenv("GGML_MOE_KMIN") ? atoi(getenv("GGML_MOE_KMIN")) : 4;
++    static const int   moe_k    = getenv("GGML_MOE_USED") ? atoi(getenv("GGML_MOE_USED")) : 8;
++    if ((moe_bias != 0.0f || moe_topp > 0.0f) && ggml_moe_pager_active && strncmp(dst->name, "ffn_moe_argsort-", 16) == 0 && order == GGML_SORT_ORDER_DESC) {
 +        const int il = atoi(dst->name + 16);
++        const float * sb = ggml_moe_pager_selbias_ptr(il);
++        static bool once = (moe_topp > 0.0f && atexit(moe_topp_stats) == 0);
++        (void) once;
 +        std::vector<float> score(ne0);
 +        for (int64_t i = ith; i < nr; i += nth) {
 +            const float * src_data = (float *)((char *) src0->data + i*nb01);
@@ -973,6 +1048,20 @@ index 1884600..5d1dd0b 100644
 +                dst_data[j] = j;
 +            }
 +            std::sort(dst_data, dst_data + ne0, cmp_argsort<GGML_SORT_ORDER_DESC>{score.data()});
++            if (moe_topp > 0.0f && moe_k <= ne0 && moe_k <= 64) {
++                float p[64]; float total = 0.0f;
++                for (int r = 0; r < moe_k; r++) {
++                    const int e = dst_data[r];
++                    p[r] = std::max(0.0f, src_data[e] - (sb ? sb[e] : 0.0f));
++                    total += p[r];
++                }
++                float cum = 0.0f; int kept = 0;
++                for (int r = 0; r < moe_k; r++) {
++                    if (r >= moe_kmin && cum >= moe_topp * total) { dst_data[r] = -1; continue; }
++                    cum += p[r]; kept++;
++                }
++                g_moe_kept += kept; g_moe_rows += 1;
++            }
 +        }
 +        return;
 +    }
@@ -980,7 +1069,7 @@ index 1884600..5d1dd0b 100644
      for (int64_t i = ith; i < nr; i += nth) {
          const float * src_data = (float *)((char *) src0->data + i*nb01);
  
-@@ -9426,10 +9448,308 @@ static void ggml_flash_attn_ext_reduce_partials(
+@@ -9426,10 +9481,308 @@ static void ggml_flash_attn_ext_reduce_partials(
      }
  }
  
