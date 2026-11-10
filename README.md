@@ -14,7 +14,7 @@
 
 **Device #2 is a first-generation iPad Air (2013)**: Apple A7, 2 cores, NEON without dotprod, **1 GB of RAM**, iOS 12.5.7, jailbroken, CPU only. A 13-year-old tablet runs a 1.7B-parameter model at **24-26 tok/s** (18-22 in long chats) and a 4B one at **about 10 tok/s**, from a chat page in its own Safari. See [Results on device #2](#results-on-device-2).
 
-Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E133).
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E137).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
@@ -111,7 +111,7 @@ A 2013 iPad Air: Apple A7, 2 cores, NEON without dotprod, 1 GB of RAM, iOS 12.5.
 | Model | File | Generation (tok/s) | Peak RSS | Fixed three-question test |
 |---|---|---|---|---|
 | **Bonsai-1.7B Q1_0 (1-bit)** | 237 MiB | **23.7-25.8**, 18-22 through long chats | 605 MB | all three right, and writes correct code: the one to use |
-| Bonsai-4B Q1_0 (1-bit), `-c 512 -b 64` | 546 MiB | 9.4-11.4, 9.2-10.3 through long chats | 615-682 MB | right on France, tides mostly right, **fails recall every run**; better per byte (1.073 vs 1.158 bits/byte) |
+| Bonsai-4B Q1_0 (1-bit), `-c 512 -b 64` | 546 MiB | 9.4-11.4, 9.2-10.3 through long chats; as a server, iOS resets it within minutes | 615-682 MB | right on France, tides mostly right, **fails recall every run**; better per byte (1.073 vs 1.158 bits/byte) |
 | SmolLM2-360M-Instruct Q4_K_M | 258 MiB | 10.9-12.5 | 269-316 MB | all three right; the lightest good option |
 | Gemma 3 270M-it Q4_K_M | 241 MiB | 15.4-19.0 | 248-294 MB | wrong on tides, empty reply on recall |
 | SmolLM2-135M-Instruct Q4_K_M | 101 MB | 18.6-29.3 | 141 MB | right on France and recall, weak on tides |
@@ -130,6 +130,8 @@ Only the two Bonsai models were measured on the latest build. The other rows pre
 | Row-order attention with pruning, and a sampler that doesn't sort the vocabulary | **23.7-25.8** | the KV cache stores all heads of a row side by side, so one head at a time missed the cache constantly |
 
 In long chats (400-token answers), the three turns went from 15.4 / 7.6 / 8.2 to **21.8 / 17.9 / 18.4 tok/s** through the attention work alone. The pruning threshold that holds long chats above 17 costs +0.42 % perplexity at 1,024 tokens of context, near the ±0.3 % noise floor; `GGML_FA_EPS=0.0001` trades that back for about 15 tok/s.
+
+**8-9B models don't fit yet.** iOS 12 caps a process at about 1.7 GB of mapped address space (1.3 GB for the web server's user), so Moon-Beam-8B's 2.6 GB file can't even be mapped, and keeping fewer experts to make it fit more than doubles its perplexity. Dense Bonsai-8B runs at 0.08 tok/s from flash. An expert pager written for this limit is the open lead (§21.7).
 
 **Limits worth knowing.** Bonsai is a 1-bit model and still gets facts wrong (in one test it called Mercury the closest planet to Earth). About 700 MB is the practical memory ceiling: 1-bit weights don't compress, so iOS starts killing processes past it, which is why the 4B needs a 512-token context. The jailbreak doesn't survive a reboot. The fast output head adds 2-3 s to the first prompt after each launch.
 

@@ -952,3 +952,117 @@ index 9282ca2..40d3108 100644
          if (ggml_cpu_has_neon() && ggml_cpu_has_matmul_int8()) {
              if (cur->ne[1] % 4 == 0) {
                  return &q1_0_4x8_q8_0;
+diff --git a/src/llama-arch.cpp b/src/llama-arch.cpp
+index 6dcf34e..0c871ed 100644
+--- a/src/llama-arch.cpp
++++ b/src/llama-arch.cpp
+@@ -521,6 +521,7 @@ static const std::map<llm_tensor, const char *> LLM_TENSOR_NAMES = {
+     { LLM_TENSOR_OUTPUT_NORM,                            "output_norm" },
+     { LLM_TENSOR_OUTPUT_NORM_LFM2,                       "token_embd_norm" }, // fix for wrong tensor name
+     { LLM_TENSOR_OUTPUT,                                 "output" },
++    { LLM_TENSOR_OUTPUT_IDS,                             "output_ids" },
+     { LLM_TENSOR_ROPE_FREQS,                             "rope_freqs" },
+     { LLM_TENSOR_HRM_Z_L_INIT,                           "hrm.z_l_init" },
+     { LLM_TENSOR_ATTN_NORM,                              "blk.%d.attn_norm" },
+@@ -904,6 +905,7 @@ static const std::map<llm_tensor, llm_tensor_info> LLM_TENSOR_INFOS = {
+     {LLM_TENSOR_HRM_Z_L_INIT,               {LLM_TENSOR_LAYER_REPEATING, GGML_OP_ADD}},
+     {LLM_TENSOR_TOKEN_EMBD_NORM,            {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL}},  // do the norms on the first layer (not the input layer)
+     {LLM_TENSOR_OUTPUT,                     {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL_MAT}},
++    {LLM_TENSOR_OUTPUT_IDS,                 {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_SET_ROWS}},
+     {LLM_TENSOR_CLS,                        {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL_MAT}},
+     {LLM_TENSOR_CLS_OUT,                    {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL_MAT}},
+     {LLM_TENSOR_CLS_NORM,                   {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL}},
+diff --git a/src/llama-arch.h b/src/llama-arch.h
+index 3b8f45d..a930177 100644
+--- a/src/llama-arch.h
++++ b/src/llama-arch.h
+@@ -527,6 +527,7 @@ enum llm_tensor {
+     LLM_TENSOR_DENSE_2_OUT,
+     LLM_TENSOR_DENSE_3_OUT,
+     LLM_TENSOR_OUTPUT,
++    LLM_TENSOR_OUTPUT_IDS,   // pruned LM head: vocab ids of the rows kept in output.weight
+     LLM_TENSOR_OUTPUT_NORM,
+     LLM_TENSOR_OUTPUT_NORM_LFM2, // fix for wrong tensor name
+     LLM_TENSOR_ROPE_FREQS,
+diff --git a/src/llama-model.h b/src/llama-model.h
+index 9c0a51f..cdca1ee 100644
+--- a/src/llama-model.h
++++ b/src/llama-model.h
+@@ -797,6 +797,7 @@ struct llama_model {
+     struct ggml_tensor * output_res_score = nullptr; // kimi-k3: final cross-layer residual mix
+     struct ggml_tensor * output_norm_b   = nullptr;
+     struct ggml_tensor * output          = nullptr;
++    struct ggml_tensor * output_ids      = nullptr; // pruned LM head: I32 [n_keep] vocab ids of output rows
+     struct ggml_tensor * output_b        = nullptr;
+     struct ggml_tensor * output_norm_enc = nullptr;
+ 
+diff --git a/src/models/bailingmoe3.cpp b/src/models/bailingmoe3.cpp
+index ad1f0ee..8c41a7d 100644
+--- a/src/models/bailingmoe3.cpp
++++ b/src/models/bailingmoe3.cpp
+@@ -1,3 +1,4 @@
++#include <cmath>
+ #include "models.h"
+ #include "llama-memory-recurrent.h"
+ 
+@@ -47,12 +48,20 @@ void llama_model_bailingmoe3::load_arch_hparams(llama_model_loader & ml) {
+ void llama_model_bailingmoe3::load_arch_tensors(llama_model_loader & ml) {
+     LLAMA_LOAD_LOCALS;
+ 
+-    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), { n_embd, n_vocab }, 0);
++    // a pruned LM head keeps only some vocabulary rows, so token_embd is read row by row and can be a lazy mapping
++    const ggml_tensor * ids_meta = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str());
++    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), { n_embd, n_vocab }, ids_meta ? TENSOR_READ_LAZY : 0);
+ 
+     output_norm = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), { n_embd }, 0);
+-    output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), { n_embd, n_vocab }, TENSOR_NOT_REQUIRED);
+-    if (output == nullptr) {
+-        output = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), { n_embd, n_vocab }, TENSOR_DUPLICATED);
++    if (ids_meta) {
++        const int64_t n_keep = ids_meta->ne[0];
++        output_ids = create_tensor(tn(LLM_TENSOR_OUTPUT_IDS, "weight"), { n_keep }, 0);
++        output     = create_tensor(tn(LLM_TENSOR_OUTPUT,     "weight"), { n_embd, n_keep }, 0);
++    } else {
++        output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), { n_embd, n_vocab }, TENSOR_NOT_REQUIRED);
++        if (output == nullptr) {
++            output = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), { n_embd, n_vocab }, TENSOR_DUPLICATED);
++        }
+     }
+ 
+     const int64_t head_dim = hparams.n_embd_head_kda;
+@@ -153,6 +162,19 @@ void llama_model_bailingmoe3::load_arch_tensors(llama_model_loader & ml) {
+     }
+ }
+ 
++// a pruned LM head outputs [n_keep, n_out]: scatter into [n_vocab, n_out], with -inf for the dropped tokens
++static ggml_tensor * bailingmoe3_scatter_pruned_logits(ggml_context * ctx0, ggml_tensor * cur, const llama_model & model) {
++    if (!model.output_ids) {
++        return cur;
++    }
++    const int64_t n_vocab_full = model.tok_embd->ne[1];
++    ggml_tensor * lt   = ggml_cont(ctx0, ggml_transpose(ctx0, cur));
++    ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, lt->ne[0], n_vocab_full);
++    full = ggml_fill_inplace(ctx0, full, -INFINITY);
++    full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++    return ggml_cont(ctx0, ggml_transpose(ctx0, full));
++}
++
+ std::unique_ptr<llm_graph_context> llama_model_bailingmoe3::build_arch_graph(const llm_graph_params & params) const {
+     if (params.gtype == LLM_GRAPH_TYPE_DECODER_MTP) {
+         return std::make_unique<graph_mtp>(params);
+@@ -372,6 +394,7 @@ llama_model_bailingmoe3::graph::graph(const llm_graph_params & params) :
+     res->t_embd = cur;
+ 
+     cur = ggml_mul_mat(ctx0, model.output, cur);
++    cur = bailingmoe3_scatter_pruned_logits(ctx0, cur, model);
+     cb(cur, "result_output", -1);
+     res->t_logits = cur;
+ }
+@@ -499,6 +522,7 @@ llama_model_bailingmoe3::graph_mtp::graph_mtp(const llm_graph_params & params) :
+ 
+     cur = ggml_get_rows(ctx0, cur, inp_out_ids);
+     cur = ggml_mul_mat(ctx0, model.output, cur);
++    cur = bailingmoe3_scatter_pruned_logits(ctx0, cur, model);
+     cb(cur, "result_output", -1);
+     res->t_logits = cur;
+ }

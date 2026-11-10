@@ -10,7 +10,7 @@ Every speed uses 2 threads and a 1,024-token context, through `smolchat` on a fi
 |---|---|---|---|---|---|
 | SmolLM2-135M-Instruct Q4_K_M | 101 MB | 18.6-29.3 tok/s | 42-52 tok/s | 141 MB | right on France and on recall, weak on tides |
 | Gemma 3 270M-it Q4_K_M | 241 MiB | 15.4-19.0 tok/s | 45-64 tok/s | 248-294 MB | wrong on tides, empty reply on recall |
-| Bonsai-4B Q1_0 (1-bit, `-c 512 -b 64`) | 546 MiB | 9.4-11.4 tok/s, 9.2-10.3 through long chats | 11-14 tok/s (first about 3.5) | 615-682 MB | right on France, tides mostly right, fails recall every run; better per byte than the 1.7B |
+| Bonsai-4B Q1_0 (1-bit, `-c 512 -b 64`) | 546 MiB | 9.4-11.4 tok/s, 9.2-10.3 through long chats; as a server, iOS resets it within minutes | 11-14 tok/s (first about 3.5) | 615-682 MB | right on France, tides mostly right, fails recall every run; better per byte than the 1.7B |
 | SmolLM2-360M-Instruct Q4_K_M | 258 MiB | 10.9-12.5 tok/s | 18-20 tok/s | 269-316 MB | all three right; the lightest good option |
 | **Bonsai-1.7B Q1_0 (1-bit, LUT kernel)** | 237 MiB | **23.7-25.8 tok/s**, 18-22 through long chats | 29-33 tok/s (first prompt about 7) | 605 MB | **all three right, and writes correct code: the one to use** |
 | Qwen3.5-0.8B Q4_K_M | 508 MiB | about 0.2 tok/s | n/a | 506 MB | thrashes the page cache, stopped by hand |
@@ -46,6 +46,7 @@ It listens only on the iPad itself unless you pass `--host`, and it has no login
 | Path | What |
 |---|---|
 | `smolchat.cpp` | interactive chat: repeat penalty, 2-thread default, drops the oldest turns when the context fills |
+| `probes/` | `fbench.c` (uncached flash read speed) and `vmprobe.c` (largest mapping a process can make) |
 | `web.h` | the `--serve` HTTP server and its Safari 12 chat page |
 | `service.sh`, `smolchat.plist` | optional background service for the web chat |
 | `build.sh` | CPU-only cross-compile for iOS 12 |
