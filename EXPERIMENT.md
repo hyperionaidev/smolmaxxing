@@ -938,3 +938,59 @@ Like the 4B, it's for a chat session, not the always-on server: at about 600 MB 
 **What would make it faster:** fewer bytes per token, since the flash is the limit. The options are a bigger pool (pool 16 is where the panic happened), more bias (quality drops fast past 0.03), or a smaller expert format that this CPU runs fast. Overlapping reads with compute (E144) doesn't help once the flash is saturated.
 
 **What went wrong:** my first `gguf_experts_last.py` reordered only the data, not the tensor infos, and llama.cpp rejected the file (`tensor ... has offset ..., expected ...`). The first pool/bias sweep ran under zsh, where `set -- $cfg` doesn't split words, so the bias runs were really bias 0; they were rerun under bash. The pool-16 panic cost a re-jailbreak.
+
+### 21.9 Moon-Beam round 2: 3.4 tok/s (2026-11-10)
+
+**Goal (your call):** "make it faster, push moon-beam past 5 tok/s you need to innovate."
+
+**The result: 3.37 tok/s on the 220-token story prompt, up from 2.76, at +0.7 % perplexity on the full eval text against the unpaged model. That's short of 5 tok/s.** Per token it still reads about 53 MB from flash at about 266 MB/s, so reads alone cost about 0.2 s, which by itself caps it near 5 tok/s. Getting past 5 means either cutting reads, which costs quality, or overlapping reads with compute almost perfectly. The second iPad kernel panic came from trying to cut compute by wiring weights in RAM (E150).
+
+**Built:**
+- **Priority read queue.** Reads are ordered by (layer, the tensor's position in the layer: gate, up, down), and prefetches for layers already passed are dropped as stale. E144's queue was first come, first served, so prefetches for layer L+1 sat in front of layer L's up and down reads. The prefetch is split into `mpi_pregate_one`, with `GGML_MOE_PREFETCH_AHEAD` (layers ahead, default 1) and `GGML_MOE_PREFETCH_INFLIGHT` (cap, 48).
+- **A lookup-table kernel for Q2_K experts.** `tools/gguf_q2lut.py` repacks each expert of the experts-last file, in place and at the same size, into groups of 16 rows × 256 columns: the fp16 scales, the 4-bit sub-block scales and mins, then the 2-bit codes regrouped so that one byte holds two 4-bit pair codes of one row. It also adds the key `ipad.expert_layout = "q2lut"`. For each pair of activations the kernel builds a 16-entry int8 table of q0·a0 + q1·a1, with one scale per 256 columns, so one `vqtbl1q` gives 16 rows' partial sums of two weights each, with no multiplies. The Q2_K min term uses int16 sub-block sums of the activations. Only the pager reads this layout; to stock llama.cpp the experts are scrambled Q2_K. `GGML_MOE_Q2LUT_REF=1` falls back to the stock kernel.
+- **Probes** (`ipad-air/probes/`): `rrspin.c` (flash reads while both cores compute), `membw.c` (read bandwidth, mapped vs anonymous memory), `q4kbench.c` (raw Q4_K × Q8_K dot speed on the model's own weights).
+- **`perplexity` on the pruned head.** Tokens outside the 60K-token output head score -inf; they are now skipped and counted (`skipped N tokens`), so the full `eval-en.txt` gives a finite perplexity (42 tokens skipped at `-c 512`).
+
+| # | Experiment | Result |
+|---|---|---|
+| E146 | **Priority queue, prefetch top-4** (`mb-q2-h60-xl.gguf`, pool 14, bias 0.03, story prompt, alternated twice) | Prefetch off **2.77 / 2.79** tok/s (misses 36.8 %, 41 s waiting); top-4, 1 layer ahead **2.94 / 2.94** (23.6 %, 31 s); 2 layers ahead 2.90 / 2.92 (22.4 %). The first prefetch gain on the iPad (E144's first-come queue gained nothing). Mac, 768 tokens: perplexity 7.98 off, 7.91 / 7.96 with prefetch (the prefetch changes which experts are cached, and so the bias's choices). **Readers aren't CPU-starved:** `rrspin` reads 265 MB/s with 4 uncached readers alone and 266 with both cores spinning NEON FMA (they lose 16 %, 22.2 → 18.6 Gflop/s); raising reader priority changes nothing. |
+| E147 | **Q2_K lookup-table kernel** (`mb-q2-h60-lut.gguf`) | Mac, 768 tokens, one at a time, bias 0: **8.0134** vs 7.9548 for the stock kernel (+0.7 %); in 64-token batches 7.9926 vs 7.9836. On the full text (E151): **+0.1 %**. iPad, pool 14, bias 0.03, top-4: **3.04 / 3.08** tok/s (from 2.94), peak RSS 593-601 MB. **Prefetch sweep:** top-4 1 ahead 3.06 (misses 24.4 %), top-6 3.24 (17.8 %), **top-8 3.37** (12.9 %, 9.96 GB read, 19.8 s waiting), top-6 2 ahead 3.31, top-8 2 ahead 3.23 (more reads wasted). Repeats of top-8: 3.35 / 3.36 / 3.38 / 3.39. **More bias at top-8:** 0.05 **3.60**, 0.1 **3.84** tok/s. |
+| E148 | **Q4_K dot without dotprod** (`ggml_vec_dot_q4_K_q8_K`: 4 products per int16 lane, scales applied with `vmlal_n_s16`, one reduction per block, 8 independent chains) | Bit-identical output (SmolLM2-360M reply identical, 14.0 tok/s either way). Inside Moon-Beam it's **slower: 518 µs per call vs 421-454** for the stock path. Off by default now (`-DGGML_IPAD_Q4K_ALT`). |
+| E149 | **Where a 3.35 tok/s token goes** (`GGML_OPPROF`, 149 tokens) | About 0.30 s per token: `MUL_MAT_ID` 190 ms, of which about 130 ms is waiting on flash; **Q4_K non-expert matmuls 109 ms (469 µs per call)**; the f32 router matmul 14 ms (620 µs per call, where its size suggests about 50); gated delta-net 11 ms. **The Q4_K matmuls run at half the CPU's speed:** `q4kbench` runs the same kernel on the model's own weights at **9.0 G weights/s** warm but **3.05 G/s on the first pass**, when it page-faults; in the model it gets about 4.5. Memory bandwidth isn't it: `membw` reads a file mapping at **10.75 GB/s** and anonymous memory at 10.85. **Hypothesis (unconfirmed):** under memory pressure iOS keeps clearing the page-table entries of the mapped non-expert weights, and every token soft-faults its working set back in (about 75K faults of about 1.5 µs). Actual page-ins are only about 35 MB per run (`vm_stat`), so the pages stay in RAM; only their mappings go. |
+| E150 | **Wiring the hot weights** (`LLAMA_MLOCK_HOT=1`: `mlock` of the mapped weights every token reads, about 340 MB, next to the pool-14 slots) | **Kernel panic**, the same signature as E141: `vm_map_delete(...): attempt to remove permanent VM map entry` in `kernel_task` (`panic-full-2026-11-10-140154`). The iPad rebooted and lost the jailbreak again. Two panics, one cause: this kernel panics once too much memory can't be reclaimed (wired, or a pool larger than 14). The code stays, behind the flag, with a warning; **don't use it, and don't use pool 16.** |
+| E151 | **Quality on the full text** (Mac, `eval-en.txt`, `-c 512`, one token at a time, pool 14, 42 tokens skipped) | See the table below. Mac, reads per token against pool size (bias 0.03, top-8 prefetch): pool 14 57 MB, 20 43, 24 36, 28 31, 32 26, 40 19. Halving the reads would take a pool of about 28 (about 500 MB of slots), which this 1 GB device can't spare. |
+
+**Quality against reads (E151):**
+
+| Moon-Beam setting | Perplexity | vs the stock kernel | Flash read |
+|---|---|---|---|
+| xl file, top-8, no bias | 12.79 | | 100 % |
+| LUT file, top-8, no bias | 12.80 | +0.1 % | 100 % |
+| **LUT, top-8, bias 0.03 (recommended)** | **12.88** | **+0.7 %** | **71 %** |
+| LUT, top-8, bias 0.05 | 12.94 | +1.2 % | 60 % |
+| LUT, top-7, bias 0.03 | 13.02 | +1.8 % | 62 % |
+| LUT, top-6, no bias | 13.33 | +4.2 % | 70 % |
+| LUT, top-6, bias 0.03 | 13.48 | +5.4 % | 53 % |
+
+Bias is the cheaper way to cut reads: bias 0.05 at top-8 reads less than top-6 without bias, at under a third of the quality cost. The short 768-token eval (E139) overstated the bias's cost. Top-k is set with `--override-kv bailingmoe3.expert_used_count=int:6` plus `GGML_MOE_USED=6` for the prefetch; `smolchat` has no flag for it yet.
+
+**Where it stands:**
+
+| Moon-Beam-8B-A1B on the iPad | Story prompt (tok/s) | Peak RSS | Perplexity vs unpaged |
+|---|---|---|---|
+| §21.8: xl file, pool 14, bias 0.03 | 2.76 | ~600 MB | +0.7 % |
+| + priority-queue prefetch, top-4 | 2.94 | ~600 MB | |
+| + LUT kernel | 3.04-3.08 | 593-601 MB | +0.7 % |
+| **+ top-8 prefetch (recommended)** | **3.35-3.39** | **~600-615 MB** | **+0.7 %** |
+| same, bias 0.05 | 3.60 | | +1.2 % |
+| same, bias 0.1 | 3.84 | | (+4-6 % on the short eval) |
+
+**To use it:** `python3 tools/gguf_q2lut.py mb-q2-h60-xl.gguf mb-q2-h60-lut.gguf`, copy it over, then:
+
+```sh
+GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_BIAS=0.03 GGML_MOE_PREFETCH=1 ./smolchat -m mb-q2-h60-lut.gguf -c 512 -b 64 --no-think --repeat-penalty 1.15 --repeat-last 256
+```
+
+**What's left for 5 tok/s:** the reads (about 0.2 s per token) and the compute (about 0.17 s outside the waits) each need to shrink, and overlap better. Options: (1) trade quality: bias 0.05 (+1.2 %) or top-7 (+1.8 %), measured on the Mac; (2) if E149's hypothesis holds, stop the soft faults without wiring memory, for example by copying the hot non-expert weights into anonymous memory or making them smaller; that would recover about 60 ms of Q4_K time and most of the router's; (3) more precise LUT tables (int8 tables cost +0.1 %, so there's room to try coarser ones too).
+
+**What went wrong:** E144 concluded that prefetch can't help because the flash is saturated. The real problem was the queue order: prefetches blocked urgent reads. The Q4_K kernel was benchmarked in isolation first and looked promising; in the model it lost. `LLAMA_MLOCK_HOT` cost a second panic and re-jailbreak; after E141 the hazard of non-reclaimable memory should have ruled it out.
