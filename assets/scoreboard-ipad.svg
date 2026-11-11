@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 488" width="760" height="488" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<style>
+  .bg{fill:#ffffff} .ink{fill:#1f2328} .mut{fill:#59636e} .grid{stroke:#d8dee4} .bar{stroke:#2a78d6} .band{fill:#2a78d6;fill-opacity:.07}
+  .start{fill:#ffffff;stroke:#8c959f} .now{fill:#2a78d6} .alt{fill:#ffffff;stroke:#2a78d6} .gain{fill:#1a7f37} .bad{fill:#cf222e}
+  .s1{fill:#2a78d6} .s2{fill:#eb6834} .s3{fill:#1baf7a} .s4{fill:#eda100} .s5{fill:#e87ba4}
+  .k1{stroke:#2a78d6} .k2{stroke:#eb6834}
+  @media (prefers-color-scheme: dark){
+    .bg{fill:#0d1117} .ink{fill:#e6edf3} .mut{fill:#9198a1} .grid{stroke:#30363d} .bar{stroke:#3987e5} .band{fill:#3987e5;fill-opacity:.12}
+    .start{fill:#0d1117;stroke:#9198a1} .now{fill:#3987e5} .alt{fill:#0d1117;stroke:#3987e5} .gain{fill:#3fb950} .bad{fill:#f85149}
+    .s1{fill:#3987e5} .s2{fill:#d95926} .s3{fill:#199e70} .s4{fill:#c98500} .s5{fill:#d55181}
+    .k1{stroke:#3987e5} .k2{stroke:#d95926}
+  }
+  text{font-size:12px}
+</style>
+<rect class="bg" width="760" height="488" rx="8"/>
+<text class="ink" x="16" y="26" style="font-size:16px;font-weight:600">Best model per size class: first run on the iPad Air → now</text>
+<text class="mut" x="16" y="44">generation speed, tokens per second (log scale); ○ first run, ● now at full quality, ◇ a faster setting that costs quality</text>
+<text class="mut" x="16" y="60">✗ = stock llama.cpp can't load it: iOS 12 lets a process map at most ~1.7 GB</text>
+<line class="grid" x1="215.7" x2="215.7" y1="88" y2="306" stroke-width="1"/>
+<text class="mut" x="215.7" y="82" text-anchor="middle">0.1</text>
+<line class="grid" x1="291.3" x2="291.3" y1="88" y2="306" stroke-width="1"/>
+<text class="mut" x="291.3" y="82" text-anchor="middle">0.3</text>
+<line class="grid" x1="374.2" x2="374.2" y1="88" y2="306" stroke-width="1"/>
+<text class="mut" x="374.2" y="82" text-anchor="middle">1</text>
+<line class="grid" x1="449.8" x2="449.8" y1="88" y2="306" stroke-width="1"/>
+<text class="mut" x="449.8" y="82" text-anchor="middle">3</text>
+<line class="grid" x1="532.6" x2="532.6" y1="88" y2="306" stroke-width="1"/>
+<text class="mut" x="532.6" y="82" text-anchor="middle">10</text>
+<line class="grid" x1="608.2" x2="608.2" y1="88" y2="306" stroke-width="1"/>
+<text class="mut" x="608.2" y="82" text-anchor="middle">30</text>
+<text class="ink" x="16" y="114.0" style="font-size:13px;font-weight:600">1.7B</text>
+<text class="mut" x="16" y="129.0" style="font-size:11px">Bonsai-1.7B (1-bit)</text>
+<line class="bar" x1="443.8" x2="592.0" y1="117.0" y2="117.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="443.8" cy="117.0" r="5" stroke-width="2"/>
+<text class="mut" x="433.8" y="121.0" text-anchor="end">2.75</text>
+<text class="ink" x="603.0" y="121.0" style="font-weight:600">23.7-25.8</text>
+<circle class="now" cx="592.0" cy="117.0" r="6"/>
+<text class="gain" x="744" y="121.0" text-anchor="end" style="font-weight:600">×8.6</text>
+<text class="ink" x="16" y="156.0" style="font-size:13px;font-weight:600">4B</text>
+<text class="mut" x="16" y="171.0" style="font-size:11px">Bonsai-4B (1-bit)</text>
+<text class="ink" x="539.3" y="163.0" style="font-weight:600">9.4-11.4</text>
+<circle class="now" cx="528.3" cy="159.0" r="6"/>
+<text class="gain" x="744" y="163.0" text-anchor="end" style="font-weight:600">fits 1 GB</text>
+<text class="ink" x="16" y="198.0" style="font-size:13px;font-weight:600">8B dense</text>
+<text class="mut" x="16" y="213.0" style="font-size:11px">Bonsai-8B (1-bit)</text>
+<text class="ink" x="211.3" y="205.0" style="font-weight:600">0.08</text>
+<circle class="now" cx="200.3" cy="201.0" r="6"/>
+<text class="gain" x="744" y="205.0" text-anchor="end" style="font-weight:600">flash-bound</text>
+<text class="ink" x="16" y="240.0" style="font-size:13px;font-weight:600">8B MoE</text>
+<text class="mut" x="16" y="255.0" style="font-size:11px">Moon-Beam-8B-A1B</text>
+<line class="bar" x1="406.1" x2="460.4" y1="243.0" y2="243.0" stroke-width="3" stroke-linecap="round"/>
+<circle class="start" cx="406.1" cy="243.0" r="5" stroke-width="2"/>
+<text class="mut" x="396.1" y="247.0" text-anchor="end">1.6</text>
+<text class="bad" x="172.0" y="247.0" style="font-weight:600">✗</text>
+<line class="bar" x1="460.4" x2="484.9" y1="243.0" y2="243.0" stroke-width="1.5" stroke-dasharray="3 3"/>
+<rect class="alt" x="479.9" y="238.0" width="10" height="10" transform="rotate(45 484.9 243.0)" stroke-width="2"/>
+<text class="mut" x="495.9" y="247.0" style="font-size:11px">5.0 at 4 experts</text>
+<text class="ink" x="460.4" y="233.0" text-anchor="middle" style="font-weight:600">3.5</text>
+<circle class="now" cx="460.4" cy="243.0" r="6"/>
+<text class="gain" x="744" y="247.0" text-anchor="end" style="font-weight:600">×2.2</text>
+<text class="ink" x="16" y="282.0" style="font-size:13px;font-weight:600">16B MoE</text>
+<text class="mut" x="16" y="297.0" style="font-size:11px">Ling-mini-2.0</text>
+<text class="bad" x="172.0" y="289.0" style="font-weight:600">✗</text>
+<line class="bar" x1="438.8" x2="477.7" y1="285.0" y2="285.0" stroke-width="1.5" stroke-dasharray="3 3"/>
+<rect class="alt" x="472.7" y="280.0" width="10" height="10" transform="rotate(45 477.7 285.0)" stroke-width="2"/>
+<text class="mut" x="488.7" y="289.0" style="font-size:11px">4.5 bias 0.3</text>
+<text class="ink" x="438.8" y="275.0" text-anchor="middle" style="font-weight:600">2.6</text>
+<circle class="now" cx="438.8" cy="285.0" r="6"/>
+<text class="gain" x="744" y="289.0" text-anchor="end" style="font-weight:600">new</text>
+<text class="ink" x="16" y="350" style="font-size:14px;font-weight:600">Where one Moon-Beam-8B-A1B token goes on the iPad (about 0.3 s at 3.35 tok/s, E149)</text>
+<rect class="s2" x="16.0" y="366" width="290.1" height="26" rx="4"/>
+<text class="ink" x="18.0" y="412" style="font-weight:600">~130 ms</text>
+<text class="mut" x="18.0" y="428" style="font-size:11px">waiting on flash</text>
+<rect class="s1" x="308.1" y="366" width="242.9" height="26" rx="0"/>
+<text class="ink" x="310.1" y="412" style="font-weight:600">~109 ms</text>
+<text class="mut" x="310.1" y="428" style="font-size:11px">Q4_K non-expert weights</text>
+<rect class="s3" x="553.0" y="366" width="132.8" height="26" rx="0"/>
+<text class="ink" x="555.0" y="412" style="font-weight:600">~60 ms</text>
+<text class="mut" x="555.0" y="428" style="font-size:11px">Q2_K experts</text>
+<rect class="s4" x="687.8" y="366" width="29.5" height="26" rx="0"/>
+<rect class="s5" x="719.3" y="366" width="22.7" height="26" rx="4"/>
+<text class="mut" x="16" y="452" style="font-size:11px">Yellow: the f32 router, ~14 ms. Pink: gated delta-net and the rest, ~11 ms. About 53 MB of experts are read per token at ~266 MB/s:</text>
+<text class="mut" x="16" y="468" style="font-size:11px">the flash and the 2-core CPU are both near their limits, and a bigger expert pool panicked the kernel.</text>
+</svg>

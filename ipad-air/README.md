@@ -6,6 +6,8 @@ llama.cpp, running locally on a first-generation iPad Air: A7 (2 cores, NEON, no
 
 Every speed uses 2 threads and a 1,024-token context, through `smolchat` on a fixed three-turn conversation. The ranges are across those turns, on a run that didn't follow a large file copy.
 
+<p align="center"><img src="../assets/scoreboard-ipad.svg" width="760" alt="Best model per size class on the iPad Air, first run to now, and where one Moon-Beam token goes"></p>
+
 | Model | File | Generation | Prompt | Peak RSS | Three-question test |
 |---|---|---|---|---|---|
 | SmolLM2-135M-Instruct Q4_K_M | 101 MB | 18.6-29.3 tok/s | 42-52 tok/s | 141 MB | right on France and on recall, weak on tides |
@@ -34,6 +36,8 @@ GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_BIAS=0.03 GGML_MOE_PREFETCH=1 GGML_MO
 `GGML_MOE_POOL` is experts kept in RAM per layer (17.8 MB each across the model). 14 is the tested maximum; at 16 the iPad kernel-panicked and rebooted, and so did wiring the weights with `LLAMA_MLOCK_HOT=1`: don't use either. `GGML_MOE_PREFETCH=1` reads the next layer's 8 likeliest experts early (`GGML_MOE_PREFETCH_K` to change the count). `GGML_MOE_LFU=0.95` evicts the least frequently used expert (recent uses count more) instead of the least recently used: about 9 % fewer reads, same quality. `--experts N` uses N experts per token instead of 8: 7 gives about 3.9 tok/s (+1-2 % perplexity), 6 about 4.3 (+4-5 %), 4 about 5.0 (+27 %). `GGML_MOE_BIAS` trades quality for speed: 0.05 gives about 3.7 tok/s at +1.2 % perplexity. The `-xl` file also works, a little slower (2.94 vs 3.06 tok/s with top-4 prefetch). `GGML_MOE_STATS=1` prints hits, misses and flash time at exit. The source file is `mb-q2-h60.gguf` from [hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF).
 
 ### Ling-mini-2.0 (16B) with the expert pager
+
+<p align="center"><img src="../assets/tradeoff-ipad.svg" width="760" alt="Speed against perplexity cost for Moon-Beam-8B-A1B and Ling-mini-2.0 on the iPad"></p>
 
 The same pager runs a 16.3B model (§21.11). Its 256 experts per layer are only 1.03 MB each, so it's as fast as Moon-Beam at twice the size. `../tools/lm-ipad.sh` builds the file without ever storing it on the Mac: it takes the non-expert tensors of bartowski's Q4_K_M and the Q2_K experts of mradermacher's imatrix Q2_K_S over HTTP range requests, repacks the experts for the lookup-table kernel, and streams the result over SSH to the iPad (5.55 GB; check the md5 it prints). Then:
 
@@ -70,6 +74,7 @@ It listens only on the iPad itself unless you pass `--host`, and it has no login
 | Path | What |
 |---|---|
 | `smolchat.cpp` | interactive chat: repeat penalty, 2-thread default, drops the oldest turns when the context fills |
+| `../tools/make_ipad_svgs.py` | draws `assets/scoreboard-ipad.svg`, `devices.svg` and `tradeoff-ipad.svg` from the numbers in §21 |
 | `tinyppl.cpp` | perplexity on the device with `llama.h` only, one token at a time (llama.cpp's own tool needs `std::filesystem`) |
 | `probes/` | `fbench.c` (uncached sequential flash reads), `rrbench.c` (uncached random reads, as the expert pager does them) and `vmprobe.c` (largest mapping a process can make) |
 | `web.h` | the `--serve` HTTP server and its Safari 12 chat page |

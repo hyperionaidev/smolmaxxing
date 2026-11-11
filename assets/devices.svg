@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 502" width="760" height="502" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+<style>
+  .bg{fill:#ffffff} .ink{fill:#1f2328} .mut{fill:#59636e} .grid{stroke:#d8dee4} .bar{stroke:#2a78d6} .band{fill:#2a78d6;fill-opacity:.07}
+  .start{fill:#ffffff;stroke:#8c959f} .now{fill:#2a78d6} .alt{fill:#ffffff;stroke:#2a78d6} .gain{fill:#1a7f37} .bad{fill:#cf222e}
+  .s1{fill:#2a78d6} .s2{fill:#eb6834} .s3{fill:#1baf7a} .s4{fill:#eda100} .s5{fill:#e87ba4}
+  .k1{stroke:#2a78d6} .k2{stroke:#eb6834}
+  @media (prefers-color-scheme: dark){
+    .bg{fill:#0d1117} .ink{fill:#e6edf3} .mut{fill:#9198a1} .grid{stroke:#30363d} .bar{stroke:#3987e5} .band{fill:#3987e5;fill-opacity:.12}
+    .start{fill:#0d1117;stroke:#9198a1} .now{fill:#3987e5} .alt{fill:#0d1117;stroke:#3987e5} .gain{fill:#3fb950} .bad{fill:#f85149}
+    .s1{fill:#3987e5} .s2{fill:#d95926} .s3{fill:#199e70} .s4{fill:#c98500} .s5{fill:#d55181}
+    .k1{stroke:#3987e5} .k2{stroke:#d95926}
+  }
+  text{font-size:12px}
+</style>
+<rect class="bg" width="760" height="502" rx="8"/>
+<text class="ink" x="16" y="26" style="font-size:16px;font-weight:600">Two 1 GB devices: best generation speed per size class</text>
+<text class="mut" x="16" y="44">tokens per second in chat (log scale); the same ideas on both: expert pager, cache bias, pruned heads, 1-bit kernels</text>
+<rect class="s1" x="16" y="58" width="12" height="12" rx="2"/><text class="ink" x="34" y="68">Xiaomi TV Box S (3rd Gen): 4× Cortex-A55 2.5 GHz, dotprod, ~1 GB usable, Android 14</text>
+<rect class="s2" x="16" y="76" width="12" height="12" rx="2"/><text class="ink" x="34" y="86">iPad Air (2013): 2× Apple A7 1.4 GHz, no dotprod, 1 GB, iOS 12.5.7</text>
+<line class="grid" x1="164.6" x2="164.6" y1="106" y2="402" stroke-width="1"/>
+<text class="mut" x="164.6" y="418" text-anchor="middle">0.1</text>
+<line class="grid" x1="235.3" x2="235.3" y1="106" y2="402" stroke-width="1"/>
+<text class="mut" x="235.3" y="418" text-anchor="middle">0.3</text>
+<line class="grid" x1="312.7" x2="312.7" y1="106" y2="402" stroke-width="1"/>
+<text class="mut" x="312.7" y="418" text-anchor="middle">1</text>
+<line class="grid" x1="383.4" x2="383.4" y1="106" y2="402" stroke-width="1"/>
+<text class="mut" x="383.4" y="418" text-anchor="middle">3</text>
+<line class="grid" x1="460.8" x2="460.8" y1="106" y2="402" stroke-width="1"/>
+<text class="mut" x="460.8" y="418" text-anchor="middle">10</text>
+<line class="grid" x1="531.5" x2="531.5" y1="106" y2="402" stroke-width="1"/>
+<text class="mut" x="531.5" y="418" text-anchor="middle">30</text>
+<text class="ink" x="16" y="138.0" style="font-size:13px;font-weight:600">2B class</text>
+<rect class="s1" x="120" y="120" width="324.0" height="16" rx="3"/>
+<text class="ink" x="450.0" y="132" style="font-weight:600">7.7 <tspan class="mut" style="font-weight:400;font-size:11px">Qwen3.5-2B</tspan></text>
+<rect class="s2" x="120" y="140" width="396.3" height="16" rx="3"/>
+<text class="ink" x="522.3" y="152" style="font-weight:600">23.7 <tspan class="mut" style="font-weight:400;font-size:11px">Bonsai-1.7B, 1-bit</tspan></text>
+<text class="ink" x="16" y="196.0" style="font-size:13px;font-weight:600">4B</text>
+<rect class="s1" x="120" y="178" width="286.5" height="16" rx="3"/>
+<text class="ink" x="412.5" y="190" style="font-weight:600">4.3 <tspan class="mut" style="font-weight:400;font-size:11px">Ternary-Bonsai-4B</tspan></text>
+<rect class="s2" x="120" y="198" width="336.8" height="16" rx="3"/>
+<text class="ink" x="462.8" y="210" style="font-weight:600">9.4 <tspan class="mut" style="font-weight:400;font-size:11px">Bonsai-4B, 1-bit</tspan></text>
+<text class="ink" x="16" y="254.0" style="font-size:13px;font-weight:600">8B dense</text>
+<rect class="s1" x="120" y="236" width="298.8" height="16" rx="3"/>
+<text class="ink" x="424.8" y="248" style="font-weight:600">5.2 <tspan class="mut" style="font-weight:400;font-size:11px">Bonsai-8B, 1-bit</tspan></text>
+<rect class="s2" x="120" y="256" width="30.2" height="16" rx="3"/>
+<text class="ink" x="156.2" y="268" style="font-weight:600">0.08 <tspan class="mut" style="font-weight:400;font-size:11px">Bonsai-8B, 1-bit · doesn't fit, read from flash</tspan></text>
+<text class="ink" x="16" y="312.0" style="font-size:13px;font-weight:600">8B MoE</text>
+<rect class="s1" x="120" y="294" width="319.7" height="16" rx="3"/>
+<text class="ink" x="445.7" y="306" style="font-weight:600">7.2 <tspan class="mut" style="font-weight:400;font-size:11px">Moon-Beam-8B-A1B</tspan></text>
+<rect class="s2" x="120" y="314" width="273.3" height="16" rx="3"/>
+<text class="ink" x="399.3" y="326" style="font-weight:600">3.5 <tspan class="mut" style="font-weight:400;font-size:11px">Moon-Beam-8B-A1B</tspan></text>
+<text class="ink" x="16" y="370.0" style="font-size:13px;font-weight:600">16B MoE</text>
+<rect class="s1" x="120" y="352" width="297.5" height="16" rx="3"/>
+<text class="ink" x="423.5" y="364" style="font-weight:600">5.1 <tspan class="mut" style="font-weight:400;font-size:11px">Ling-mini-2.0, bias 0.3</tspan></text>
+<rect class="s2" x="120" y="372" width="289.5" height="16" rx="3"/>
+<text class="ink" x="415.5" y="384" style="font-weight:600">4.5 <tspan class="mut" style="font-weight:400;font-size:11px">Ling-mini-2.0, bias 0.3 · 2.6 unbiased</tspan></text>
+<text class="mut" x="16" y="442" style="font-size:11px">The 2B and 4B classes use different models: the iPad's 1-bit ones are faster than the TV's Q4_K and ternary ones,</text>
+<text class="mut" x="16" y="458" style="font-size:11px">but lower quality (1.158 vs 0.909 and 1.073 vs ≈0.965 bits/byte). The TV wins where its 4 cores and dotprod kernels matter,</text>
+<text class="mut" x="16" y="474" style="font-size:11px">and only its headless mode fits the dense 8B in RAM. Both run the 16B model at 4.5-5 tok/s with the same cache bias.</text>
+</svg>

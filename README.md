@@ -14,7 +14,7 @@
 
 **Device #2 is a first-generation iPad Air (2013)**: Apple A7, 2 cores, NEON without dotprod, **1 GB of RAM**, iOS 12.5.7, jailbroken, CPU only. A 13-year-old tablet runs a 1.7B-parameter model at **24-26 tok/s** (18-22 in long chats), a 4B one at **about 10 tok/s**, an **8B mixture of experts at about 3.5 tok/s** (5 with half its experts, at a quality cost), and a **16B one at 2.6-4.5 tok/s**, with their experts paged from flash, from a chat page in its own Safari. See [Results on device #2](#results-on-device-2).
 
-Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E156).
+Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIMENT.md)** (E1-E160).
 
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
@@ -27,6 +27,8 @@ Every step is written up experiment by experiment in **[`EXPERIMENT.md`](EXPERIM
 | More TV boxes, phones, single-board computers, routers… | 🔜 coming soon |
 
 The techniques aren't tied to one box. The 1-bit lookup-table kernel needs only base NEON, as the iPad shows; any ARM chip with dotprod gets the other kernels; and any Linux or Android device with more model than RAM can use the streaming engine.
+
+<p align="center"><img src="assets/devices.svg" width="760" alt="Best generation speed per size class on the two 1 GB devices: 2B class TV 7.7 (Qwen3.5-2B) vs iPad 23.7 (Bonsai-1.7B, 1-bit); 4B 4.3 vs 9.4; 8B dense 5.2 vs 0.08; 8B MoE 7.2 vs 3.5; 16B MoE 5.1 vs 4.5 with the same cache bias"></p>
 
 ## Scoreboard
 
@@ -120,6 +122,27 @@ A 2013 iPad Air: Apple A7, 2 cores, NEON without dotprod, 1 GB of RAM, iOS 12.5.
 
 Only the Bonsai and Moon-Beam rows were measured on the latest build. The other rows predate the attention and sampler work below.
 
+<p align="center"><img src="assets/scoreboard-ipad.svg" width="760" alt="Best model per size class on the iPad Air, first run to now: 1.7B 2.75 to 23.7-25.8 tok/s; 4B 9.4-11.4; 8B dense 0.08; 8B MoE can't load with stock llama.cpp, then 1.6 to 3.5 (5.0 with 4 experts); 16B MoE can't load, now 2.6 (4.5 with bias 0.3); and where one Moon-Beam token's ~0.3 s go"></p>
+
+| Class | Best model | First run → now (tok/s) | Gain | What got it there |
+|---|---|---|---|---|
+| 1.7B | Bonsai-1.7B (1-bit) | 2.75 → **23.7-25.8** | ×8.6 | multiplication-free and lookup-table 1-bit kernels without dotprod, the LM head on the fast kernel, row-order attention with pruning, a one-pass sampler |
+| 4B | Bonsai-4B (1-bit) | **9.4-11.4** | | the 1.7B's kernels, attention for 4 q heads per K head, `-c 512 -b 64` to stay under the ~700 MB ceiling |
+| 8B dense | Bonsai-8B (1-bit) | **0.08** | | doesn't fit in RAM; most of the file is re-read from flash every token |
+| 8B MoE | Moon-Beam-8B-A1B | can't load → 1.6 → **3.5** (5.0 with 4 experts, +27 % perplexity) | ×2.2 | expert pager, Q2_K lookup-table kernel, prefetch, cache bias 0.03, frequency-based eviction |
+| 16B MoE | Ling-mini-2.0 | can't load → **2.6** (3.3 at +2.6 %, 4.5 with bias 0.3) | new | the Moon-Beam recipe, and a model file assembled over HTTP and streamed straight to the iPad |
+
+"Can't load": iOS 12 lets a process map at most about 1.7 GB, so stock llama.cpp fails on the 2.6 and 5.5 GB files before running a token. "First run" for Moon-Beam is the first expert-pager run (pool 8, no bias).
+
+**What we built on the iPad, grouped by the bottleneck it attacks:**
+
+| Bottleneck | Innovations | Biggest wins |
+|---|---|---|
+| **Compute** (2-core A7, no dotprod, 6 items) | a multiplication-free 1-bit kernel, the TV's 1-bit lookup-table kernel ported to base NEON, a lookup-table copy of the tied LM head, row-order attention with pruning (2 or 4 q heads per K head), a one-pass sampler with a 40-entry heap, a Q2_K lookup-table kernel for experts | Bonsai-1.7B 2.75 → 3.45 → ~11 → 23.7-25.8 tok/s; sampling 3 → 0.23 ms per token; Moon-Beam 2.94 → 3.06 from the Q2_K kernel alone |
+| **Address space and RAM** (~1.7 GB mappable, ~700 MB usable, 4 items) | an expert pager that maps only the non-expert part (experts-last files), pruned LM heads for `bailingmoe2` and `bailingmoe3`, small batches (`-c 512 -b 64`), `std::filesystem` compiled out for iOS 12 | 8B and 16B MoE models load at all, in 556-625 MB; Bonsai-4B fits |
+| **Flash** (~260 MB/s, 5 items) | uncached `pread` with 4 readers, reads queued by when they're needed, pre-gated prefetch, cache-aware routing bias, decayed-frequency eviction | Moon-Beam 1.6 → 3.5 tok/s at no quality cost; misses 42 % → 38 % from eviction alone |
+| **Tooling** (5 items) | an op profiler with page-fault counts, an expert trace and cache simulator, on-device perplexity (`tinyppl`), model assembly over HTTP range requests, a bench that kills orphaned runs | found the LM head that never reached the fast kernel (45 of 72 ms); ruled out the soft-fault theory; built a 5.5 GB model with 1.4 GB of Mac disk |
+
 **How Bonsai-1.7B got from 2.75 to about 25 tok/s** (same model file throughout):
 
 | Step | tok/s | What changed |
@@ -133,6 +156,8 @@ Only the Bonsai and Moon-Beam rows were measured on the latest build. The other 
 In long chats (400-token answers), the three turns went from 15.4 / 7.6 / 8.2 to **21.8 / 17.9 / 18.4 tok/s** through the attention work alone. The pruning threshold that holds long chats above 17 costs +0.42 % perplexity at 1,024 tokens of context, near the ±0.3 % noise floor; `GGML_FA_EPS=0.0001` trades that back for about 15 tok/s.
 
 **An 8B model, through an expert pager.** iOS 12 caps a process at about 1.7 GB of mapped address space (1.3 GB for the web server's user), so Moon-Beam-8B's 2.6 GB file can't even be mapped, and keeping fewer experts to make it fit more than doubles its perplexity (§21.7). Dense Bonsai-8B runs at 0.08 tok/s from flash. So the model file is rewritten with its experts last, only the 474 MB before them is mapped, and each layer keeps 14 experts in RAM, reading the others from flash with `pread` when the router picks them. Results match the unpaged model exactly. A small routing bias toward experts already in RAM (+0.3 % perplexity, inside the noise) brought it to 2.4-2.8 tok/s in about 600 MB (§21.8). Round 2 (§21.9) queues flash reads by when they're needed, prefetches the next layer's likely experts, and runs the experts through a lookup-table kernel for Q2_K: **3.4 tok/s, 40× the dense 8B, at +0.7 % perplexity on the full eval text.** The flash is still the limit: each token reads about 53 MB at 266 MB/s. Wiring weights in RAM kernel-panicked the iPad, like a pool of 16 did before. Round 3 (§21.10) evicts by decayed use frequency instead of recency, for 3.5 tok/s at no quality cost. 5 tok/s takes 4 experts per token instead of 8 (+27 % perplexity); choosing the count per token adaptively turned out no better than a fixed count. **A 16B model** (§21.11): Ling-mini-2.0, 16.3B parameters with 256 small experts per layer, runs through the same pager at **2.6 tok/s with unchanged routing, 3.3 at +2.6 % perplexity and 4.5 with a strong cache bias**, in under 580 MB. Its 5.5 GB file was assembled from two published quantizations over HTTP range requests and streamed straight to the iPad, since the Mac had no room for it. It is twice Moon-Beam's size at the same speed, but not a better model (+3 % perplexity).
+
+<p align="center"><img src="assets/tradeoff-ipad.svg" width="760" alt="Speed against perplexity cost for Moon-Beam-8B-A1B and Ling-mini-2.0 on the iPad: Moon-Beam 3.5 tok/s at no cost up to 5.0 at +27 %; Ling 2.6 at no cost, 3.3 at +2.6 %, 4.5 at +8.5 %, 5.2 at +17 %"></p>
 
 **Limits worth knowing.** Bonsai is a 1-bit model and still gets facts wrong (in one test it called Mercury the closest planet to Earth). About 700 MB is the practical memory ceiling: 1-bit weights don't compress, so iOS starts killing processes past it, which is why the 4B needs a 512-token context. The jailbreak doesn't survive a reboot. The fast output head adds 2-3 s to the first prompt after each launch.
 
