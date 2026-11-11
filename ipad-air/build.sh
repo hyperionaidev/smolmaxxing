@@ -50,5 +50,15 @@ mkdir -p "$BIN"
   "$BUILD/ggml/src/libggml-cpu.a" \
   "$BUILD/ggml/src/libggml-base.a" \
   -o "$BIN/smolchat"
+# tinyppl: perplexity on the device (llama.cpp's own tool needs std::filesystem, which iOS 12 lacks)
+/usr/bin/clang++ -std=c++17 -O2 -DNDEBUG \
+  -arch arm64 -isysroot "$SDK" -miphoneos-version-min=12.0 \
+  -I"$SRC/include" -I"$SRC/ggml/include" \
+  "$HERE/tinyppl.cpp" \
+  "$BUILD/src/libllama.a" \
+  "$BUILD/ggml/src/libggml.a" \
+  "$BUILD/ggml/src/libggml-cpu.a" \
+  "$BUILD/ggml/src/libggml-base.a" \
+  -o "$BIN/tinyppl"
 cp "$BUILD/bin/llama-simple" "$BIN/llama-simple"
 ls -l "$BIN"

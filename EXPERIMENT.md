@@ -1038,3 +1038,48 @@ GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_BIAS=0.03 GGML_MOE_PREFETCH=1 GGML_MO
 **What's left:** the lossless options are small: the router (14 ms per token where its size suggests a few), a better Q4_K kernel (at most about 20 ms), and a cache policy closer to the optimum (30 % misses vs 37.7 %). Even all of them together would leave this model short of 5 tok/s at full quality on this iPad. A bigger expert pool is the only large lever, and memory rules it out (pool 16 panicked, E141).
 
 **What went wrong:** E149's soft-fault hypothesis rested on a miscounted weight total; measuring faults directly took one run. Two orphaned runs at once on a 1 GB device was a real panic risk; the bench should have guarded against a dropped session from the start. A sweep loop again lost its arguments, this time because an `ssh` inside a here-document read the rest of the script as its input.
+
+### 21.11 A 16B model on the iPad: Ling-mini-2.0 at 2.6-4.5 tok/s (2026-11-11)
+
+**Goal (your call):** "let's try to push for the 16B models at 2-5 tok/sec".
+
+**The result: Ling-mini-2.0 (16.3 B parameters, 256 experts per layer, 1.4 B active) runs on the 1 GB iPad at 2.56 tok/s with unchanged routing, 3.3 with a small routing bias (+2.6 % perplexity), 4.4-4.6 with a strong one and 5.2 with 6 experts per token**, in 556-576 MB. That's twice Moon-Beam's size, and as fast or faster, because its experts are small (1.03 MB) and its non-expert part is (285 MB resident against Moon-Beam's ~470 MB). It isn't a better model: perplexity on the same text is 13.30 against Moon-Beam's 12.89 (+3 %), as the TV found (§20).
+
+**Built:**
+- **`bailingmoe2` pruned head**, ported from `bailingmoe3` (§21.8): with `output_ids` present, `token_embd` is a lazy mapping and the 60K-row head's logits are scattered into the full vocabulary.
+- **A model build that never stores the model on the Mac** (it had 2.7 GB free; the TV recipe started from the 9.9 GB Q4_K_M). `tools/gguf_remote.py` reads a GGUF header and tensors over HTTP range requests. `tools/gguf_fetch_subset.py` takes only the non-expert tensors of bartowski's Q4_K_M (0.7 GB), which are requantized to Q4_K with his imatrix and get the 60K head (466 MB). `tools/gguf_moe_assemble.py` writes the final file strictly in order (header, non-experts, then the experts, fetched 10 ranges at a time from mradermacher's imatrix Q2_K_S and repacked for the q2lut kernel on the fly) to stdout, which goes over SSH into the iPad. All of it: `tools/lm-ipad.sh`. The experts are now quantized from BF16 (the TV's were requantized from Q4_K); one layer's `ffn_down_exps` is Q4_K in that file and runs on the stock kernel.
+- **`tinyppl`** (`ipad-air/tinyppl.cpp`): perplexity on the device. llama.cpp's `common/` needs `std::filesystem`, which iOS 12 doesn't have, so this is 90 lines on `llama.h` that score like `llama-perplexity` (second half of each chunk) but decode one token at a time, so cache-aware routing sees the same pool states as in chat. Targets outside a pruned head are counted and skipped. Checked on the Mac: Moon-Beam, 6 chunks, no bias, **18.6295, identical to `llama-perplexity`** (E153).
+
+| # | Experiment | Result |
+|---|---|---|
+| E157 | **Build and copy** (`tools/lm-ipad.sh`) | 279 tensors, 57 expert tensors last, 56 repacked; **5,549,932,192 bytes, md5 identical on the device**. Non-experts 2.5 min (one stream, ~4.6 MB/s), experts 8.5 min (10 streams, 9.9 MB/s), Mac disk peak about 1.4 GB. To make room on the 16 GB iPad (1.1 GB free), the Moon-Beam files, Bonsai-8B and Qwen3.5-0.8B were deleted from it (your call; all have identical copies on the Mac): Moon-Beam and Ling don't fit on it together. |
+| E158 | **First run** (pool 14, LFU 0.95, prefetch, bias 0.3 as on the TV, top-8, story prompt, seed 7) | **4.55 tok/s, prompt 2.78 tok/s, 12.0 % misses, peak RSS 557 MB.** The story is coherent (one typo, "adrif"). |
+| E159 | **Speed sweep** (same, story prompt) | Bias 0.3: **4.56 / 4.43** tok/s (11.8 / 13.6 % misses); 0.2: 3.96; 0.1: 3.33; **0: 2.56** (21.8 %, 59 s of 96 waiting on flash); bias 0.3 with `--experts 6`: **5.21**. Peak RSS 556-576 MB in every run. |
+| E160 | **Quality on the iPad** (`tinyppl`, eval-en, 2 chunks of 512 = 506 scored tokens, 0.78 % of targets outside the head; same pager settings) | See the table below. Only 506 tokens, so differences under ~10 % are noise: bias 0.2 scored worse than 0.3. Decoding the eval text ran at 2.56 (bias 0) to 5.68 tok/s (0.3, top-6). |
+
+**Speed against quality (E159, E160):**
+
+| Bias | Experts | Story tok/s | Perplexity (iPad, 506 tokens) | vs unbiased top-8 |
+|---|---|---|---|---|
+| **0** | 8 | **2.56** | 13.30 | ±0 |
+| **0.1** | 8 | **3.33** | 13.65 | +2.6 % |
+| 0.2 | 8 | 3.96 | 15.68 | +18 % (noise; see 0.3) |
+| **0.3** | 8 | **4.43-4.56** | 14.44 | +8.5 % |
+| 0 | 6 | (3.43 on the eval text) | 14.38 | +8.1 % |
+| 0.3 | 6 | 5.21 | 15.55 | +17 % |
+
+For comparison, Moon-Beam on the same 2 chunks (Mac, same settings, no bias): 12.89, at 3.5 tok/s on the iPad (§21.10).
+
+**To use it:**
+
+```sh
+# best quality, about 2.6 tok/s
+GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_PREFETCH=1 GGML_MOE_LFU=0.95 ./smolchat -m lm2-q2-h60-lut.gguf -c 512 -b 64 --repeat-penalty 1.15 --repeat-last 256
+# GGML_MOE_BIAS=0.1: about 3.3 tok/s at +2.6 %; GGML_MOE_BIAS=0.3: about 4.5 tok/s at roughly +9-18 %; add --experts 6 for 5.2
+```
+
+No `--no-think`: Ling-mini-2.0 isn't a reasoning model, and its template (`bailing2`) already sets "detailed thinking off".
+
+**What's left:** a bigger pool would help this model most (256 experts per layer, 14 in RAM), but pool 16 panicked the iPad with Moon-Beam (E141), and Ling's RSS at pool 14 is only ~25 MB lower. Perplexity over more of the text would pin down the bias cost between 0.1 and 0.3. As on the TV, the bigger model is not the better one per byte here; Moon-Beam stays the default.
+
+**What went wrong:** `python3 -I` drops the script's directory from the import path, so the new tools first failed to import their helper. A header parser kept memory-mapped slices where it needed bytes. Deleting the old model files on the iPad was refused by the session's safety check until you approved it. And llama.cpp's own perplexity tool can't be built for iOS 12 at all.

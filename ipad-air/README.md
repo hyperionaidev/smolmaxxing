@@ -12,6 +12,7 @@ Every speed uses 2 threads and a 1,024-token context, through `smolchat` on a fi
 | Gemma 3 270M-it Q4_K_M | 241 MiB | 15.4-19.0 tok/s | 45-64 tok/s | 248-294 MB | wrong on tides, empty reply on recall |
 | Bonsai-4B Q1_0 (1-bit, `-c 512 -b 64`) | 546 MiB | 9.4-11.4 tok/s, 9.2-10.3 through long chats; as a server, iOS resets it within minutes | 11-14 tok/s (first about 3.5) | 615-682 MB | right on France, tides mostly right, fails recall every run; better per byte than the 1.7B |
 | Moon-Beam-8B-A1B (MoE, Q2_K experts, expert pager, `-c 512 -b 64`) | 2.6 GiB, 474 MB mapped | 3.5-3.6 tok/s on longer answers (lookup-table file, prefetch, frequency cache); 4.9-5.1 with `--experts 4` | 4.2-4.3 tok/s | about 600-625 MB | all three right; a session model, not for the always-on server |
+| **Ling-mini-2.0 (16.3B MoE, 1.4B active; Q2_K experts, expert pager, `-c 512 -b 64`)** | 5.2 GiB, 466 MB mapped | **2.6 tok/s** with unchanged routing; 3.3 with bias 0.1 (+2.6 % perplexity); 4.4-4.6 with bias 0.3; 5.2 adding `--experts 6` | 2.8-3.6 tok/s | 556-576 MB | not run (perplexity in §21.11); the biggest model on the iPad, but not better than Moon-Beam (+3 % perplexity); doesn't fit on a 16 GB iPad next to it |
 | SmolLM2-360M-Instruct Q4_K_M | 258 MiB | 10.9-12.5 tok/s | 18-20 tok/s | 269-316 MB | all three right; the lightest good option |
 | **Bonsai-1.7B Q1_0 (1-bit, LUT kernel)** | 237 MiB | **23.7-25.8 tok/s**, 18-22 through long chats | 29-33 tok/s (first prompt about 7) | 605 MB | **all three right, and writes correct code: the one to use** |
 | Qwen3.5-0.8B Q4_K_M | 508 MiB | about 0.2 tok/s | n/a | 506 MB | thrashes the page cache, stopped by hand |
@@ -31,6 +32,16 @@ GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_BIAS=0.03 GGML_MOE_PREFETCH=1 GGML_MO
 ```
 
 `GGML_MOE_POOL` is experts kept in RAM per layer (17.8 MB each across the model). 14 is the tested maximum; at 16 the iPad kernel-panicked and rebooted, and so did wiring the weights with `LLAMA_MLOCK_HOT=1`: don't use either. `GGML_MOE_PREFETCH=1` reads the next layer's 8 likeliest experts early (`GGML_MOE_PREFETCH_K` to change the count). `GGML_MOE_LFU=0.95` evicts the least frequently used expert (recent uses count more) instead of the least recently used: about 9 % fewer reads, same quality. `--experts N` uses N experts per token instead of 8: 7 gives about 3.9 tok/s (+1-2 % perplexity), 6 about 4.3 (+4-5 %), 4 about 5.0 (+27 %). `GGML_MOE_BIAS` trades quality for speed: 0.05 gives about 3.7 tok/s at +1.2 % perplexity. The `-xl` file also works, a little slower (2.94 vs 3.06 tok/s with top-4 prefetch). `GGML_MOE_STATS=1` prints hits, misses and flash time at exit. The source file is `mb-q2-h60.gguf` from [hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-tvbox-GGUF).
+
+### Ling-mini-2.0 (16B) with the expert pager
+
+The same pager runs a 16.3B model (§21.11). Its 256 experts per layer are only 1.03 MB each, so it's as fast as Moon-Beam at twice the size. `../tools/lm-ipad.sh` builds the file without ever storing it on the Mac: it takes the non-expert tensors of bartowski's Q4_K_M and the Q2_K experts of mradermacher's imatrix Q2_K_S over HTTP range requests, repacks the experts for the lookup-table kernel, and streams the result over SSH to the iPad (5.55 GB; check the md5 it prints). Then:
+
+```sh
+GGML_MOE_PAGER=1 GGML_MOE_POOL=14 GGML_MOE_PREFETCH=1 GGML_MOE_LFU=0.95 GGML_MOE_BIAS=0.1 ./smolchat -m lm2-q2-h60-lut.gguf -c 512 -b 64 --repeat-penalty 1.15 --repeat-last 256
+```
+
+Bias 0 is full quality at about 2.6 tok/s; 0.1 gives 3.3 (+2.6 % perplexity); 0.3 gives 4.5 at roughly +9-18 %. Don't pass `--no-think`. `tinyppl` measures perplexity on the device: `./tinyppl -m lm2-q2-h60-lut.gguf -f eval-en.txt -c 512 --chunks 2 --experts 8` (with the same environment).
 
 ## Rebuilding it
 
@@ -59,6 +70,7 @@ It listens only on the iPad itself unless you pass `--host`, and it has no login
 | Path | What |
 |---|---|
 | `smolchat.cpp` | interactive chat: repeat penalty, 2-thread default, drops the oldest turns when the context fills |
+| `tinyppl.cpp` | perplexity on the device with `llama.h` only, one token at a time (llama.cpp's own tool needs `std::filesystem`) |
 | `probes/` | `fbench.c` (uncached sequential flash reads), `rrbench.c` (uncached random reads, as the expert pager does them) and `vmprobe.c` (largest mapping a process can make) |
 | `web.h` | the `--serve` HTTP server and its Safari 12 chat page |
 | `service.sh`, `smolchat.plist` | optional background service for the web chat |
@@ -68,7 +80,7 @@ It listens only on the iPad itself unless you pass `--host`, and it has no login
 | `bench.sh` | the fixed three-turn test, with memory and time limits |
 | `ent.xml` | the entitlements binaries need to launch |
 | `kbench.c` | checks the new 1-bit kernel against the old one for exact equality, and times both |
-| `patches/llama.cpp-ios12.patch` | compiles out `std::filesystem` behind `GGML_NO_FS`, adds `LLAMA_THREADS` to `llama-simple`, the two 1-bit kernels (`GGML_Q1_LUT=0` turns the LUT one off), pruned attention, and the expert pager (`GGML_MOE_PAGER`) |
+| `patches/llama.cpp-ios12.patch` | compiles out `std::filesystem` behind `GGML_NO_FS`, adds `LLAMA_THREADS` to `llama-simple`, the two 1-bit kernels (`GGML_Q1_LUT=0` turns the LUT one off), pruned attention, the expert pager (`GGML_MOE_PAGER`), and pruned LM heads for `bailingmoe2` and `bailingmoe3` |
 
 ## What matters on this device
 

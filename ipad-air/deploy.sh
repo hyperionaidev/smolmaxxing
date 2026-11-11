@@ -18,7 +18,7 @@ ipad() {
 ipad "mkdir -p $DIR"
 ipad "cat > $DIR/ent.xml" < "$HERE/ent.xml"
 
-for name in smolchat llama-simple; do
+for name in smolchat llama-simple tinyppl; do
   ipad "cat > $DIR/$name && chmod 755 $DIR/$name" < "$HERE/bin/$name"
   ipad "PATH=/usr/bin:/bin ldid -S$DIR/ent.xml $DIR/$name"
 done
