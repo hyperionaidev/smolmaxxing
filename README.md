@@ -278,14 +278,20 @@ The model files (0.5-4 GB each) are not in this repo. [`tools/rebuild-models.sh`
 
 Download with `hf download hyperionaidev/<repo> --local-dir models/`, then `adb push` the files to `/data/local/tmp/llm/`, with `moe-warm-*.txt` next to them. That replaces the `08` / `2b` / `4b` / `mb` / `b8` / `lm` targets. For the 8B and 16B models, the first start writes the repack cache.
 
-**iPad Air downloads.** The iPad's MoE files are separate builds, laid out for its expert pager and lookup-table kernel. They need the iOS 12 patch ([`ipad-air/`](ipad-air/README.md)); any other llama.cpp loads them but gets scrambled experts:
+**iPad Air downloads.** Every model run on the iPad, where to get it, and its speed there. The two MoE files are our own builds, laid out for the iPad's expert pager and lookup-table kernel: they need the iOS 12 patch ([`ipad-air/`](ipad-air/README.md)), and any other llama.cpp loads them but gets scrambled experts. The rest are used exactly as published; the Bonsai models' fast layouts are built in RAM at load time. 53 experiments in all (E108-E160, §21):
 
-| Model | Hugging Face | File | SHA-256 |
-|---|---|---|---|
-| Moon-Beam-8B-A1B (MoE), 3.5 tok/s | [hyperionaidev/Moon-Beam-8B-A1B-ipad-GGUF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-ipad-GGUF) | `mb-q2-h60-lut.gguf` (also `mb-q2-h60-xl.gguf`, experts last only) | `acf1cb56…94b976` |
-| Ling-mini-2.0 (16B MoE), 2.6-4.5 tok/s | [hyperionaidev/Ling-mini-2.0-ipad-GGUF](https://huggingface.co/hyperionaidev/Ling-mini-2.0-ipad-GGUF) | `lm2-q2-h60-lut.gguf` | `3e464310…4e50bd` |
-
-The Bonsai models run on the iPad as published by prism-ml; their fast layouts are built in RAM at load time.
+| Model | Download | iPad speed (tok/s) | Peak RSS | Experiments |
+|---|---|---|---|---|
+| Ling-mini-2.0 (16B MoE) | [hyperionaidev/Ling-mini-2.0-ipad-GGUF](https://huggingface.co/hyperionaidev/Ling-mini-2.0-ipad-GGUF): `lm2-q2-h60-lut.gguf` (SHA-256 `3e464310…4e50bd`) | **2.6** unbiased; 3.3 with bias 0.1 (+2.6 % perplexity); 4.5 with bias 0.3; 5.2 adding `--experts 6` | 556-576 MB | 4 (E157-E160) |
+| Moon-Beam-8B-A1B (MoE) | [hyperionaidev/Moon-Beam-8B-A1B-ipad-GGUF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-ipad-GGUF): `mb-q2-h60-lut.gguf` (SHA-256 `acf1cb56…94b976`); `mb-q2-h60-xl.gguf` is about 4 % slower | **3.5-3.6**; 3.7-4.0 with 7 experts (+0.4-1.9 %); 5.0 with 4 experts (+27 %) | 600-625 MB | 19 (E138-E156) |
+| Bonsai-8B (1-bit, dense) | [prism-ml/Bonsai-8B-gguf](https://huggingface.co/prism-ml/Bonsai-8B-gguf) | 0.08: doesn't fit in RAM, read from flash | 629 MB | 4 (E134-E137, with the first Moon-Beam attempts) |
+| Bonsai-4B (1-bit), `-c 512 -b 64` | [prism-ml/Bonsai-4B-gguf](https://huggingface.co/prism-ml/Bonsai-4B-gguf) | **9.4-11.4**; 9.2-10.3 through long chats | 615-682 MB | 5 (E129-E133) |
+| **Bonsai-1.7B (1-bit), the default** | [prism-ml/Bonsai-1.7B-gguf](https://huggingface.co/prism-ml/Bonsai-1.7B-gguf) | **23.7-25.8**; 18-22 through long chats | 605 MB | 11 (E118-E128) |
+| SmolLM2-360M-Instruct Q4_K_M | [bartowski/SmolLM2-360M-Instruct-GGUF](https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF) | 10.9-12.5 | 269-316 MB | 10 (E108-E117: first runs, the small models and the web chat) |
+| Gemma 3 270M-it Q4_K_M | [unsloth/gemma-3-270m-it-GGUF](https://huggingface.co/unsloth/gemma-3-270m-it-GGUF) | 15.4-19.0 | 248-294 MB | |
+| SmolLM2-135M-Instruct Q4_K_M | stock Q4_K_M | 18.6-29.3 | 141 MB | |
+| Qwen3.5-0.8B Q4_K_M | [unsloth/Qwen3.5-0.8B-GGUF](https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF) | about 0.2: thrashes | 506 MB | |
+| stories15M q4_0 | stock | about 290 in `llama-simple` | | |
 
 | File on the TV | Target | Built from | SHA-256 |
 |---|---|---|---|
