@@ -278,6 +278,15 @@ The model files (0.5-4 GB each) are not in this repo. [`tools/rebuild-models.sh`
 
 Download with `hf download hyperionaidev/<repo> --local-dir models/`, then `adb push` the files to `/data/local/tmp/llm/`, with `moe-warm-*.txt` next to them. That replaces the `08` / `2b` / `4b` / `mb` / `b8` / `lm` targets. For the 8B and 16B models, the first start writes the repack cache.
 
+**iPad Air downloads.** The iPad's MoE files are separate builds, laid out for its expert pager and lookup-table kernel. They need the iOS 12 patch ([`ipad-air/`](ipad-air/README.md)); any other llama.cpp loads them but gets scrambled experts:
+
+| Model | Hugging Face | File | SHA-256 |
+|---|---|---|---|
+| Moon-Beam-8B-A1B (MoE), 3.5 tok/s | [hyperionaidev/Moon-Beam-8B-A1B-ipad-GGUF](https://huggingface.co/hyperionaidev/Moon-Beam-8B-A1B-ipad-GGUF) | `mb-q2-h60-lut.gguf` (also `mb-q2-h60-xl.gguf`, experts last only) | `acf1cb56…94b976` |
+| Ling-mini-2.0 (16B MoE), 2.6-4.5 tok/s | [hyperionaidev/Ling-mini-2.0-ipad-GGUF](https://huggingface.co/hyperionaidev/Ling-mini-2.0-ipad-GGUF) | `lm2-q2-h60-lut.gguf` | `3e464310…4e50bd` |
+
+The Bonsai models run on the iPad as published by prism-ml; their fast layouts are built in RAM at load time.
+
 | File on the TV | Target | Built from | SHA-256 |
 |---|---|---|---|
 | `w-q4k-h65.gguf` (Qwen3.5-2B) | `2b` | `unsloth/Qwen3.5-2B-GGUF` BF16 + `imatrix_unsloth`, MTP block from `Qwen/Qwen3.5-2B`, quantized on the TV, head `data/head-ids-ml60k.txt` | `16057be3…3285b` |
