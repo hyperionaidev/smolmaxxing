@@ -1,0 +1,42 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- README banner in the hyperion-ai.com style. Render with tools/banner/render.sh -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=block">
+<style>
+:root{--bg:#F7F5F0;--fg:#191816;--muted:#68645E;--accent:#F2643D;--bar:#0B0B0B;--on-dark:#d7d4cd}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:360px;overflow:hidden}
+body{background:var(--bg);color:var(--fg);font-family:ui-sans-serif,system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;display:flex;flex-direction:column}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;letter-spacing:.14em}
+.bar{height:46px;background:var(--bar);display:flex;align-items:center;justify-content:space-between;padding:0 56px}
+.brand{font-family:"Archivo";font-stretch:62%;font-weight:800;font-size:21px;color:#fff;text-transform:uppercase;letter-spacing:0}
+.brand i{font-style:normal;color:var(--accent)}
+.bar .mono{font-size:10px;color:var(--on-dark)}
+.main{flex:1;display:flex;align-items:center;justify-content:space-between;padding:0 56px;border-bottom:2px solid var(--fg)}
+h1{font-family:"Archivo";font-stretch:62%;font-weight:850;text-transform:uppercase;font-size:138px;line-height:.9;letter-spacing:-.03em;white-space:nowrap}
+h1 span{display:inline-block;background:var(--accent);line-height:.8;padding:.07em .07em .03em .06em;margin-left:.05em}
+.tag{font-size:19px;margin-top:20px;letter-spacing:-.005em}
+.chips{display:flex;gap:8px;margin-top:16px}
+.chip{font-size:9.5px;padding:6px 9px;border:1px dashed var(--fg)}
+.card{width:236px;height:220px;border:1px solid var(--fg);display:flex;flex-direction:column;padding:14px 16px 12px;background:var(--bg)}
+.card .label{align-self:flex-start;background:var(--accent);color:var(--fg);font-size:9px;font-weight:700;padding:3px 6px}
+.card .logo{flex:1;display:flex;align-items:center;justify-content:center}
+.card .logo img{width:108px;height:108px}
+.card .foot{border-top:1px solid var(--fg);padding-top:9px;display:flex;justify-content:space-between;font-size:11px}
+.card .foot b{color:var(--accent);font-weight:400}
+</style></head>
+<body>
+  <div class="bar"><div class="brand">Hyperion<i>.</i></div><div class="mono">Open source · On-device LLMs</div></div>
+  <div class="main">
+    <div>
+      <h1>Smol<span>maxxing.</span></h1>
+      <p class="tag">Run the biggest model you can on the smallest hardware you own.</p>
+      <div class="chips mono"><div class="chip">1-bit kernels</div><div class="chip">Expert paging</div><div class="chip">Flash streaming</div></div>
+    </div>
+    <div class="card mono">
+      <div class="label">Model sizes</div>
+      <div class="logo"><img src="../../assets/logo.png" alt=""></div>
+      <div class="foot"><span>260K → 16B parameters</span><b>→</b></div>
+    </div>
+  </div>
+</body></html>

@@ -1,6 +1,6 @@
 # 🤏 smolmaxxing
 
-<p align="center"><img src="assets/banner.png" alt="🤏 smolmaxxing: run the biggest model you can on the smallest hardware you own" width="100%"></p>
+<p align="center"><img src="assets/banner.png" alt="smolmaxxing, by Hyperion: run the biggest model you can on the smallest hardware you own. 260K to 16B parameters." width="100%"></p>
 
 <p align="center"><a href="https://hackergit.org/r/hyperionaidev/smolmaxxing"><img src="https://hackergit.org/badge/hyperionaidev/smolmaxxing.svg?style=rank" alt="Hacker News rank via HackerGit" width="250" height="55"></a></p>
 
@@ -86,4 +86,4 @@ The quickest start is a ready-made model file from Hugging Face. They need the p
 
 ## Credits
 
-Built on [llama.cpp](https://github.com/ggml-org/llama.cpp) and [llama2.c](https://github.com/karpathy/llama2.c). Models from [Qwen](https://huggingface.co/Qwen), [unsloth](https://huggingface.co/unsloth) (GGUFs and importance matrices), [PrismML](https://huggingface.co/prism-ml) (Bonsai), [inclusionAI](https://huggingface.co/inclusionAI) (Ling-mini-2.0), [tablinum](https://huggingface.co/tablinum) (Moon-Beam), [bartowski](https://huggingface.co/bartowski) and [mradermacher](https://huggingface.co/mradermacher) (GGUFs), Google (Gemma) and [stories260K](https://huggingface.co/karpathy/tinyllamas). The iPad is jailbroken with [Amethyst](https://github.com/staturnzz/amethyst). The 🤏 logo is the pinching-hand emoji from Google's [Noto Emoji](https://github.com/googlefonts/noto-emoji) (Apache 2.0).
+Built on [llama.cpp](https://github.com/ggml-org/llama.cpp) and [llama2.c](https://github.com/karpathy/llama2.c). Models from [Qwen](https://huggingface.co/Qwen), [unsloth](https://huggingface.co/unsloth) (GGUFs and importance matrices), [PrismML](https://huggingface.co/prism-ml) (Bonsai), [inclusionAI](https://huggingface.co/inclusionAI) (Ling-mini-2.0), [tablinum](https://huggingface.co/tablinum) (Moon-Beam), [bartowski](https://huggingface.co/bartowski) and [mradermacher](https://huggingface.co/mradermacher) (GGUFs), Google (Gemma) and [stories260K](https://huggingface.co/karpathy/tinyllamas). The iPad is jailbroken with [Amethyst](https://github.com/staturnzz/amethyst). The banner uses [Archivo](https://fonts.google.com/specimen/Archivo) (SIL OFL) and is rendered by `tools/banner/render.sh`. The 🤏 logo is the pinching-hand emoji from Google's [Noto Emoji](https://github.com/googlefonts/noto-emoji) (Apache 2.0).
