@@ -341,6 +341,17 @@ The head-id lists in `data/` were made by `tools/vocab_select.py` (Qwen3.5 token
 - **Past 9B, count resident bytes, not parameters.** The ceiling for a mixture-of-experts model here is the non-expert weights that must stay in RAM plus a useful expert pool. Ling-mini-2.0 (16B) keeps 279 MB resident and runs at 5 tok/s; Qwen3.6-35B-A3B would need ~870 MB before caching a single expert (§20).
 - **Guard the box.** After two early kernel panics, every heavy run goes through a wrapper that kills it below 180 MB of free memory.
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=hyperionaidev%2Fsmolmaxxing&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hyperionaidev/smolmaxxing&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hyperionaidev/smolmaxxing&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hyperionaidev/smolmaxxing&type=date&legend=top-left" />
+ </picture>
+</a>
+
+
 ## License
 
 [MIT](LICENSE). The llama.cpp patch is a derivative of [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT). Model weights keep their own licenses, and the evaluation texts are Wikipedia excerpts (CC BY-SA 4.0).
