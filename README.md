@@ -1,6 +1,6 @@
 # 🤏 smolmaxxing
 
-<p align="center"><img src="assets/banner.png" alt="smolmaxxing, by Hyperion: run the biggest model you can on the smallest hardware you own. 260K to 16B parameters." width="100%"></p>
+<p align="center"><img src="assets/banner.png" alt="smolmaxxing: run the biggest model you can on the smallest hardware you own. 260K to 16B parameters." width="100%"></p>
 
 <p align="center"><a href="https://hackergit.org/r/hyperionaidev/smolmaxxing"><img src="https://hackergit.org/badge/hyperionaidev/smolmaxxing.svg?style=rank" alt="Hacker News rank via HackerGit" width="250" height="55"></a></p>
 
