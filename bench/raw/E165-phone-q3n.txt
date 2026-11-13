@@ -9,3 +9,16 @@ phone q3n-q2-full.gguf | GGML_MOE_POOL=48 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_
 
 server died: 
 PHONE-MOE DONE
+=== 2026-11-13 15:56:54 q3n-q2-full.gguf
+phone q3n-q2-full.gguf | GGML_MOE_POOL=48 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_K=10 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=8 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 3.1 tok/s | 113 words
+
+moe-pager: 124815 hits, 14007 misses (10.1 %), 42 waited on a read already started; read 38919.7 MB, waited 32.21 s; prefetched 22042, 19991 of them used
+tv-guard: exit 0, min MemAvailable 1451 MB, max RSS 4749 MB
+phone q3n-q2-full.gguf | GGML_MOE_POOL=56 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_K=10 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=8 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 3.2 tok/s | 120 words
+
+moe-pager: 125900 hits, 12924 misses (9.3 %), 40 waited on a read already started; read 35222.9 MB, waited 29.38 s; prefetched 19683, 17953 of them used
+tv-guard: exit 0, min MemAvailable 1189 MB, max RSS 4957 MB
+PHONE-MOE DONE
+phone q3n ppl | eval-en c20 ub4 pool 48 GGML_MOE_BIAS=0 | 18.38.536.635 I Final estimate: PPL = 7.4457 +/- 0.53748 moe-pager: 355973 hits, 247471 misses (41.0 %), 0 waited on a read already started; read 267328.7 MB, waited 552.14 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 1705 MB, max RSS 4727 MB  | 1121 s
+phone q3n ppl | eval-en c20 ub4 pool 48 GGML_MOE_BIAS=0.005 | 16.21.234.592 I Final estimate: PPL = 7.4759 +/- 0.54164 moe-pager: 393251 hits, 188172 misses (32.4 %), 0 waited on a read already started; read 203643.7 MB, waited 435.68 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 1709 MB, max RSS 4814 MB  | 983 s
+Q3N-PPL-DONE

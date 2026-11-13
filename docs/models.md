@@ -41,13 +41,13 @@ The three mixture-of-experts files are our own builds, laid out for the iPad's e
 
 ## Phone
 
-The phone's files aren't published yet; `tools/q36-phone.sh` builds them straight onto the phone over USB, fetching only what it needs from Hugging Face with range requests (nothing big is stored on the Mac). They are standard GGUFs: the non-expert tensors are mradermacher's imatrix Q4_K_M requantized to pure Q4_K with the same imatrix, the whole LM head is kept, and the experts are his imatrix Q2_K_S as they are, written last. See [docs/phone.md](phone.md#running-it).
+Download with `hf download hyperionaidev/<repo>` and `adb push` the files to `/data/local/tmp/llm/`; the 80B comes as two shards, which `llama-gguf-split --merge` joins into the file the speeds were measured with. Or `tools/q36-phone.sh` builds them straight onto the phone over USB, fetching only what it needs from Hugging Face with range requests (nothing big is stored on the Mac). They are standard GGUFs: the non-expert tensors are mradermacher's imatrix Q4_K_M requantized to pure Q4_K with the same imatrix, the whole LM head is kept, and the experts are his imatrix Q2_K_S as they are, written last. See [docs/phone.md](phone.md#running-it).
 
-| Model | Command | Size | Source |
-|---|---|---|---|
-| Qwen3.6-35B-A3B | `HEAD=full tools/q36-phone.sh` | 12.3 GB | `mradermacher/Qwen3.6-35B-A3B-i1-GGUF` (Q4_K_M + Q2_K_S) |
-| Qwen3-Next-80B-A3B | `MR=.../mradermacher/Qwen3-Next-80B-A3B-Instruct-i1-GGUF/resolve/main STEM=Qwen3-Next-80B-A3B-Instruct TAG=q3n HEAD=full tools/q36-phone.sh` | 27.6 GB | `mradermacher/Qwen3-Next-80B-A3B-Instruct-i1-GGUF` |
-| Ling-mini-2.0 | the TV file, `hyperionaidev/Ling-mini-2.0-tvbox-GGUF` | 5.5 GB | as on the TV box |
+| Model | Download | Rebuild | Size | Source |
+|---|---|---|---|---|
+| Qwen3.6-35B-A3B | [hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF](https://huggingface.co/hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF): `q36-q2-full.gguf` (SHA-256 `723c881f…25e5cd8`) | `HEAD=full tools/q36-phone.sh` | 12.3 GB | `mradermacher/Qwen3.6-35B-A3B-i1-GGUF` (Q4_K_M + Q2_K_S) |
+| Qwen3-Next-80B-A3B | [hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF): `q3n-q2-full-0000{1,2}-of-00002.gguf` | `MR=.../mradermacher/Qwen3-Next-80B-A3B-Instruct-i1-GGUF/resolve/main STEM=Qwen3-Next-80B-A3B-Instruct TAG=q3n HEAD=full tools/q36-phone.sh` | 27.6 GB | `mradermacher/Qwen3-Next-80B-A3B-Instruct-i1-GGUF` |
+| Ling-mini-2.0 | [hyperionaidev/Ling-mini-2.0-tvbox-GGUF](https://huggingface.co/hyperionaidev/Ling-mini-2.0-tvbox-GGUF) (the TV file) | `tools/rebuild-models.sh lm` | 5.5 GB | as on the TV box |
 
 ## Rebuilding the TV files
 

@@ -10,7 +10,7 @@ On this phone the repo runs mixture-of-experts models from 16B to 80B parameters
 
 - **Ling-mini-2.0, 16B: 11.1 tok/s** with exact routing, **15.3 tok/s** with the TV box's speed settings (+17 % perplexity). Three times the TV box.
 - **Qwen3.6-35B-A3B, 35B: 4.9 tok/s** with exact routing, **5.7 tok/s at +0.7 % perplexity**. The best model per answer on the phone.
-- **Qwen3-Next-80B-A3B, 80B: 2.8 tok/s** with exact routing (first run: 2 prompts of 160 tokens, 5.1 GB peak RSS).
+- **Qwen3-Next-80B-A3B, 80B: 2.8 tok/s** with exact routing, **3.2 tok/s at +0.4 % perplexity**, about 5 GB peak RSS.
 
 Speeds are generation in a real chat with the server's repeat penalty, 2 prompts × 160 tokens per setting.
 
@@ -18,14 +18,15 @@ Speeds are generation in a real chat with the server's repeat penalty, 2 prompts
 
 | Model | Total / active | File | Routing | tok/s | Perplexity (eval-en) | Peak RSS |
 |---|---|---|---|---|---|---|
-| Ling-mini-2.0 | 16B / 1.4B | 5.5 GB (TV file) | exact, pool 128 | **11.1** | 13.92 | 3.7 GB |
+| [Ling-mini-2.0](https://huggingface.co/hyperionaidev/Ling-mini-2.0-tvbox-GGUF) | 16B / 1.4B | 5.5 GB (TV file) | exact, pool 128 | **11.1** | 13.92 | 3.7 GB |
 | | | | bias 0.25, 6 experts | **15.3** | 16.31 (+17 %) | 3.4 GB |
-| Qwen3.6-35B-A3B | 35B / 3B | 12.3 GB | exact, pool 80 | **4.9** | 7.63 | 4.8 GB |
+| [Qwen3.6-35B-A3B](https://huggingface.co/hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF) | 35B / 3B | 12.3 GB | exact, pool 80 | **4.9** | 7.63 | 4.8 GB |
 | | | | bias 0.005 | **5.7** | 7.68 (+0.7 %) | 4.9 GB |
 | | | | bias 0.01 | **6.0** | 7.78 (+2.0 %) | 5.2 GB |
-| Qwen3-Next-80B-A3B | 80B / 3B | 27.6 GB | exact, pool 48 | **2.8** | not measured yet | 5.1 GB |
+| [Qwen3-Next-80B-A3B](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF) | 80B / 3B | 27.6 GB | exact, pool 48 | **2.8** | 7.45 | 5.1 GB |
+| | | | bias 0.005, pool 56 | **3.2** | 7.48 (+0.4 %) | 5.0 GB |
 
-"Pool" is the number of experts per layer kept in RAM; the rest are read from flash when the router picks them. "Bias" nudges the router toward experts already in RAM. Perplexity was measured on the phone over 40 (Ling) or 20 (Qwen3.6) chunks of 128 tokens; it isn't comparable between models.
+"Pool" is the number of experts per layer kept in RAM; the rest are read from flash when the router picks them. "Bias" nudges the router toward experts already in RAM. Perplexity was measured on the phone over 40 (Ling) or 20 (Qwen) chunks of 128 tokens; it isn't comparable between models, which use different tokenizers.
 
 ## What limits this phone
 
@@ -50,6 +51,8 @@ Speeds are generation in a real chat with the server's repeat penalty, 2 prompts
 | Static expert pruning by use count (keeping 192 of 256 per layer) | **+34 % perplexity**: 3,840 calibration tokens are too few to rank experts. Dropped |
 
 ## Running it
+
+**Downloads:** [hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF](https://huggingface.co/hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF) (12.3 GB) and [hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF) (27.6 GB in two shards; merge them with `llama-gguf-split --merge` before pushing, since the speeds were measured with the single file). Pushing a downloaded file replaces the build step below.
 
 Build the TV box's static binaries ([TV setup, step 1](tv-box-setup.md#1-build-llamacpp-with-the-patch)), connect the phone by USB with USB debugging on, then:
 

@@ -17,7 +17,7 @@ TV boxes, old tablets, single-board computers and routers all have a CPU, some R
 | **RAM** | 1.9 GB (about 1 GB usable) | 1 GB (about 700 MB usable) | 7.4 GB (about 3 GB free) |
 | **OS** | Android 14, no root | iOS 12.5.7, jailbroken | Android 13, no root |
 | **Everyday model** | Qwen3.5-2B at **7.7 tok/s** | Bonsai-1.7B (1-bit) at **24-26 tok/s** | Qwen3.6-35B-A3B at **4.9-5.7 tok/s** |
-| **Biggest model** | Ling-mini-2.0, 16B, at **5.1 tok/s** | Ling-mini-2.0, 16B, at **2.6-4.5 tok/s** | Qwen3-Next-80B-A3B at **2.8 tok/s** |
+| **Biggest model** | Ling-mini-2.0, 16B, at **5.1 tok/s** | Ling-mini-2.0, 16B, at **2.6-4.5 tok/s** | Qwen3-Next-80B-A3B at **2.8-3.2 tok/s** |
 | **Full results** | [docs/tv-box.md](docs/tv-box.md) | [ipad-air/README.md](ipad-air/README.md) | [docs/phone.md](docs/phone.md) |
 
 The TV box and the iPad run 8B and 16B mixture-of-experts models on about 1 GB of RAM, and the phone runs 35B and 80B ones with about 3 GB free. They all keep only part of each model in memory and read the rest from flash as it's needed.
@@ -47,6 +47,7 @@ The quickest start is a ready-made model file from Hugging Face. They need the p
 
 - **TV box or another ARMv8.2 Android device:** [docs/tv-box-setup.md](docs/tv-box-setup.md)
 - **Jailbroken iPad on iOS 12:** [ipad-air/README.md](ipad-air/README.md#run-it)
+- **Android phone with 8 GB of RAM:** [Qwen3.6-35B-A3B](https://huggingface.co/hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF) (12.3 GB) and [Qwen3-Next-80B-A3B](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF) (27.6 GB, two files), set up as in [docs/phone.md](docs/phone.md#running-it). These two are standard GGUFs that any recent llama.cpp loads; the speeds need the patch's expert pager.
 - **All model files and how to rebuild them:** [docs/models.md](docs/models.md)
 
 ## Read more
