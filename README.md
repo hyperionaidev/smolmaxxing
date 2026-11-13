@@ -85,7 +85,7 @@ Other people running language models on hardware that was never meant for them:
 | [iiama2.c](https://github.com/brysontang/iiama2.c) | Nintendo Wii (729 MHz PowerPC, 88 MB RAM) | llama2.c with stories15M, 61.9 tok/s on the GPU |
 | [esp32-ai](https://github.com/slvDev/esp32-ai) | ESP32-S3 microcontroller | a 28.9M-parameter model at about 9.9 tok/s |
 | [go-pherence](https://github.com/rcarmo/go-pherence) | CPUs with AVX2, NEON or RVV, and NVIDIA GPUs | pure-Go inference for language, speech and vision models |
-| [Ryan Seddon on X](https://x.com/ryanseddon/status/2088151404024344870) | | |
+| [Ryan Seddon on X](https://x.com/ryanseddon/status/2088151404024344870) | Sega Dreamcast, via Windows CE | a language model running under the Dreamcast's Windows CE |
 
 ## Star History
 
