@@ -1,0 +1,91 @@
+name: Submit your device
+description: Share how fast a model runs on your small device.
+title: "[Device] "
+labels: ["device submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing! Report the **generation** (decode) speed, not prompt processing.
+        Use as many threads as the device has physical cores, and run it a few times.
+        [CONTRIBUTING.md](https://github.com/hyperionaidev/smolmaxxing/blob/main/CONTRIBUTING.md#measuring-toks) has tips on getting a clean number.
+
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Name and chip, plus the CPU cores if you know them.
+      placeholder: Raspberry Pi Zero 2 W (Cortex-A53, 4 cores)
+    validations:
+      required: true
+
+  - type: input
+    id: ram
+    attributes:
+      label: RAM
+      description: Total RAM, and how much was free before you started the model if you know it.
+      placeholder: 512 MB (about 380 MB free)
+    validations:
+      required: true
+
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: Model name, size and quantization, or a link to the GGUF file.
+      placeholder: SmolLM2-360M-Instruct, Q4_K_M
+    validations:
+      required: true
+
+  - type: input
+    id: toks
+    attributes:
+      label: Generation speed (tok/s)
+      description: The middle of three runs, or a range.
+      placeholder: "3.1"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: Operating system and version, and whether it's rooted or jailbroken.
+      placeholder: Raspberry Pi OS Lite 64-bit (Bookworm)
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      options:
+        - Stock llama.cpp
+        - smolmaxxing patched llama.cpp
+        - Something else (say which below)
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The exact command you ran, including threads and context size.
+      placeholder: llama-bench -m SmolLM2-360M-Instruct-Q4_K_M.gguf -p 0 -n 128 -t 4
+      render: shell
+
+  - type: input
+    id: memory
+    attributes:
+      label: Peak memory
+      description: Peak RSS or memory used while it ran, if you measured it.
+      placeholder: 290 MB
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Output or log
+      description: The timing lines or llama-bench table. Long logs are fine.
+      render: text
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything else, like swapping, the device getting hot, crashes, or other models you tried.
