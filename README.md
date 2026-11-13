@@ -26,6 +26,8 @@ Both devices run 8B and 16B mixture-of-experts models on about 1 GB of RAM by ke
 
 More devices (phones, single-board computers, routers) are coming. The techniques aren't tied to one box: the 1-bit kernel needs only basic NEON, and the flash streaming works on any Linux or Android device with more model than RAM.
 
+**Got a small device?** Run a model on it and [submit your numbers](CONTRIBUTING.md#submit-your-device): we'll add them to the results.
+
 <p align="center"><img src="screenshots/llmui_05_stream.png" width="720" alt="The live token-stream page served by llama-server on the TV box"></p>
 
 ## How it works
