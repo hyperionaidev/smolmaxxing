@@ -1,6 +1,6 @@
 # How it works
 
-Everything here is a patch on llama.cpp: [`patches/llama.cpp-v0.8.0-tvbox.patch`](../patches/llama.cpp-v0.8.0-tvbox.patch) for the TV box and [`ipad-air/patches/llama.cpp-ios12.patch`](../ipad-air/patches/llama.cpp-ios12.patch) for the iPad. This page describes the TV box version, where most of it was built. The iPad's ports and additions are in [its README](../ipad-air/README.md#how-it-got-fast).
+Everything here is a patch on llama.cpp: [`patches/llama.cpp-v0.8.0-tvbox.patch`](../patches/llama.cpp-v0.8.0-tvbox.patch) for the TV box and the phone, and [`ipad-air/patches/llama.cpp-ios12.patch`](../ipad-air/patches/llama.cpp-ios12.patch) for the iPad. This page describes the TV box version, where most of it was built. The iPad's ports and additions are in [its README](../ipad-air/README.md#how-it-got-fast).
 
 [← back to the main README](../README.md)
 

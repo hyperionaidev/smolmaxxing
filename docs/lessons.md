@@ -35,6 +35,8 @@ What 165 experiments on three devices taught us, including the things that didn'
 
 - **Scale the routing bias to the router.** Ling's sigmoid scores live in 0-1 and take a bias of 0.25; Qwen's softmax over 256 experts gives most experts well under 0.05, where 0.02 already costs 7 % perplexity and 0.005 halves the misses for +0.7 % (E162, E163).
 - **Flash wants several large reads in flight.** The phone's UFS 2.2 gives 515 MB/s to one reader at 512 KB and ~940 MB/s to four; the opposite of the UFS 4.0 phone in the PowerInfer-2 paper (§22.1).
+- **Don't let a hook assume the model's shape.** The expert pager's routing hook defaulted to 8 experts per token, right for every model until Qwen3-Next, which uses 10. Ranks 9 and 10 then ran on empty pages, and nothing failed: the verify mode only checked the experts the hook had loaded, and perplexity moved by 0.1 %. Only the speed was wrong, by 10 % (E166). Take counts from the model, and check them with a model that differs.
+- **Check the clock before you tune.** The phone's power service caps the fast cores at 1.3 GHz of 2.4 while the screen is off, and nothing in the logs says so; `scaling_max_freq` does (E166).
 
 ## Working on the hardware
 

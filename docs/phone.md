@@ -1,4 +1,4 @@
-# 📞 Device #3: OnePlus Nord CE 2
+# 📲 Device #3: OnePlus Nord CE 2
 
 MediaTek Dimensity 900: 2× Cortex-A78 at 2.4 GHz and 6× Cortex-A55 at 2.0 GHz (dotprod, no i8mm), **7.4 GB of RAM** (about 3 GB free with the phone's own apps running), UFS 2.2 flash, Android 13, no root. Everything runs on the CPU as the adb `shell` user, over USB.
 
@@ -10,7 +10,7 @@ On this phone the repo runs mixture-of-experts models from 16B to 80B parameters
 
 - **Ling-mini-2.0, 16B: 11.1 tok/s** with exact routing, **15.3 tok/s** with the TV box's speed settings (+17 % perplexity). Three times the TV box.
 - **Qwen3.6-35B-A3B, 35B: 4.9 tok/s** with exact routing, **5.7 tok/s at +0.7 % perplexity**. The best model per answer on the phone.
-- **Qwen3-Next-80B-A3B, 80B: 2.8 tok/s** with exact routing, **3.2 tok/s at +0.4 % perplexity**, about 5 GB peak RSS.
+- **Qwen3-Next-80B-A3B, 80B: 2.6 tok/s** with exact routing, **3.1 tok/s at +0.5 % perplexity**, about 5 GB peak RSS.
 
 Speeds are generation in a real chat with the server's repeat penalty, 2 prompts × 160 tokens per setting.
 
@@ -23,10 +23,12 @@ Speeds are generation in a real chat with the server's repeat penalty, 2 prompts
 | [Qwen3.6-35B-A3B](https://huggingface.co/hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF) | 35B / 3B | 12.3 GB | exact, pool 80 | **4.9** | 7.63 | 4.8 GB |
 | | | | bias 0.005 | **5.7** | 7.68 (+0.7 %) | 4.9 GB |
 | | | | bias 0.01 | **6.0** | 7.78 (+2.0 %) | 5.2 GB |
-| [Qwen3-Next-80B-A3B](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF) | 80B / 3B | 27.6 GB | exact, pool 48 | **2.8** | 7.45 | 5.1 GB |
-| | | | bias 0.005, pool 56 | **3.2** | 7.48 (+0.4 %) | 5.0 GB |
+| [Qwen3-Next-80B-A3B](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF) | 80B / 3B | 27.6 GB | exact, pool 56 | **2.6** | 7.44 | 4.7 GB |
+| | | | bias 0.005, pool 56 | **3.1** | 7.47 (+0.5 %) | 5.0 GB |
 
 "Pool" is the number of experts per layer kept in RAM; the rest are read from flash when the router picks them. "Bias" nudges the router toward experts already in RAM. Perplexity was measured on the phone over 40 (Ling) or 20 (Qwen) chunks of 128 tokens; it isn't comparable between models, which use different tokenizers.
+
+> **Correction (E166).** The 80B was first published at 2.8 and 3.2 tok/s. The pager's routing hook assumed 8 experts per token, the right count for Ling and Qwen3.6, but Qwen3-Next uses 10, so its experts 9 and 10 ran on empty pages (zeros) unless they were already in RAM. With the fix every expert is checked against the file, perplexity barely moved (7.45 → 7.44) and the honest speed is 2.6 and 3.1 tok/s, with the fp16 router below already included.
 
 ## What limits this phone
 
@@ -47,6 +49,8 @@ Speeds are generation in a real chat with the server's repeat penalty, 2 prompts
 | The TV box's fused DeltaNet conv step and in-place state read, ported to `qwen35moe` and `qwen3next` | Qwen3.6 **3.6 → 4.7 tok/s**, bit-identical output |
 | A routing bias on Qwen's scale (0.005 instead of Ling's 0.25: Qwen's router is a softmax over 256 experts) | Misses halved for +0.7 % perplexity: 4.9 → 5.7 tok/s |
 | The whole LM head instead of the 60K-row pruned one | 3 % slower, but the pruned head made Qwen3.6 write "palinate" for "palindrome": a 35B model uses rarer whole-word tokens |
+| The router read from an fp16 copy, and the prefetch predictor's dot products split over both threads (`GGML_MOE_ROUTER16=1`) | 80B 2.9 → 3.1 tok/s at bias 0.005 |
+| Expert matmuls start on the experts already in RAM while the missed ones are read (`GGML_MOE_OVERLAP=1`) | Waiting on flash 40 → 33 s per run, but no measurable speed-up |
 | More reader threads (4 → 8 → 12), readers on the A55s, an fp16 copy of the routers for the prefetch predictor, predicting two layers ahead and one | No measurable change |
 | Static expert pruning by use count (keeping 192 of 256 per layer) | **+34 % perplexity**: 3,840 calibration tokens are too few to rank experts. Dropped |
 
@@ -76,6 +80,8 @@ adb shell 'cd /data/local/tmp/llm && GGML_MOE_PAGER=1 GGML_REPACK_CACHE=$PWD/cac
 # then open http://127.0.0.1:8090 on the Mac
 ```
 
+For the 80B, use `-m q3n-q2-full.gguf` with `GGML_REPACK_CACHE=$PWD/cache/q3n GGML_MOE_POOL=56 GGML_MOE_PREFETCH_K=10 GGML_MOE_ROUTER16=1 GGML_MOE_OVERLAP=1` and a build from E166 or later (older ones have the 8-expert bug above).
+
 `tools/phone-moe.sh` runs the chat benchmarks above. Perplexity runs must use small micro-batches (`-ub 8`, or `-ub 4` for the 80B) under the memory guard: a 128-token batch makes the pager hold every expert the batch touches, and one such run restarted Android.
 
-**Things to know:** the phone's `am kill-all` is denied for the shell user, so there's no headless mode as on the TV. The USB link dropped twice during long heavy runs (the phone kept running); a firm cable helps. Wireless adb from macOS needs Local Network permission for the terminal app.
+**Things to know:** the phone's `am kill-all` is denied for the shell user, so there's no headless mode as on the TV. While the screen is off, the phone's power service caps the A78 cores at 1.3 GHz (of 2.4); every number here was measured that way, and keeping the screen on needs the "Stay awake" developer option, which the shell can't set. The USB link dropped three times during long heavy runs (the phone kept running); a firm cable helps. Wireless adb from macOS needs Local Network permission for the terminal app.

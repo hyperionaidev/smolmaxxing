@@ -42,10 +42,31 @@ index 75e3829..8b49957 100644
      vDSP_fn_t vDSP_op = nullptr;
      // TODO - avoid the f32-only check using type 'trait' lookup tables and row-based src-to-float conversion functions
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index 53d39d2..09fda85 100644
+index 53d39d2..de6a1bd 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
-@@ -1742,13 +1742,52 @@ static void ggml_compute_forward_mul_mat_id(
+@@ -1480,6 +1480,10 @@ struct mmid_row_mapping {
+     int32_t i2;
+ };
+ 
++// tvbox: expert pager (moe-pager-tv.inc)
++extern int ggml_cpu_moe_pager_active;
++void ggml_cpu_moe_expert_wait(const struct ggml_tensor * src0, int e, int ith);
++
+ static void ggml_compute_forward_mul_mat_id_one_chunk(
+     struct ggml_tensor * dst,
+     const struct ggml_tensor * src0,
+@@ -1680,6 +1684,9 @@ static void ggml_compute_forward_mul_mat_id(
+             continue;
+         }
+ 
++        // tvbox: the expert pager may still be reading this expert (GGML_MOE_OVERLAP, E166)
++        if (ggml_cpu_moe_pager_active) { ggml_cpu_moe_expert_wait(src0, cur_a, ith); }
++
+         // tiled takes over if profitable for this expert (see tiled.h)
+         if (ggml_compute_forward_mul_mat_id_tiled(params, dst, cur_a, cne1, (const int32_t *) &MMID_MATRIX_ROW(cur_a, 0), tiled_scratch)) {
+             continue;
+@@ -1742,13 +1749,58 @@ static void ggml_compute_forward_mul_mat_id(
  
  /////////////////////////////////
  
@@ -55,17 +76,22 @@ index 53d39d2..09fda85 100644
 +
 +void ggml_cpu_moe_pregate(const struct ggml_tensor * w, const struct ggml_tensor * x, int k);
 +void ggml_cpu_moe_selbias(const struct ggml_tensor * b);
++int  ggml_cpu_moe_router(const struct ggml_compute_params * params, struct ggml_tensor * dst);
  static void ggml_compute_forward(struct ggml_compute_params * params, struct ggml_tensor * tensor) {
      GGML_ASSERT(params);
  
      if (tensor->op == GGML_OP_NONE || ggml_is_empty(tensor)) {
          return;
      }
--
 +    if (ggml_cpu_stream_active && (tensor->op == GGML_OP_MUL_MAT || tensor->op == GGML_OP_MUL_MAT_ID)) {
 +        ggml_cpu_stream_hook(tensor->src[0], params->ith);
 +    }
-+
+ 
++    // tvbox: a paged model's one-token router matmul with an fp16 copy and the predictor split across threads (GGML_MOE_ROUTER16, E166)
++    if (tensor->op == GGML_OP_MUL_MAT && ggml_cpu_moe_pager_active && tensor->src[0] && tensor->src[0]->type == GGML_TYPE_F32 &&
++        strstr(tensor->src[0]->name, "ffn_gate_inp.weight") && ggml_cpu_moe_router(params, tensor)) {
++        return;
++    }
 +    // tvbox: GGML_MOE_PREGATE=k (simulation): at layer L's router matmul, apply layer L+1's router to layer L's input and record its top k.
 +    // ops.cpp's argsort hook then checks how many of layer L+1's real experts (and of its pool misses) were predicted one layer early.
 +    if (tensor->op == GGML_OP_MUL_MAT && params->ith == 0 && tensor->src[0] && tensor->src[0]->type == GGML_TYPE_F32 &&
@@ -99,7 +125,7 @@ index 53d39d2..09fda85 100644
      // extra_buffer op?
      if (ggml_cpu_extra_compute_forward(params, tensor)) {
          return;
-@@ -3108,12 +3147,48 @@ static int ggml_cpu_try_fuse_ops(
+@@ -3108,12 +3160,48 @@ static int ggml_cpu_try_fuse_ops(
      return 0;
  }
  
@@ -148,7 +174,7 @@ index 53d39d2..09fda85 100644
  
  #ifdef GGML_USE_CPU_RISCV64_SPACEMIT
      ggml_backend_cpu_riscv64_spacemit_set_numa_thread_affinity(state->ith);
-@@ -3136,6 +3211,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3136,6 +3224,7 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
      GGML_PRINT_DEBUG("thread #%d compute-start cplan %p last-graph %d\n", state->ith, (const void *)cplan, state->last_graph);
  #endif
  
@@ -156,7 +182,7 @@ index 53d39d2..09fda85 100644
      for (int node_n = 0; node_n < cgraph->n_nodes && atomic_load_explicit(&tp->abort, memory_order_relaxed) != node_n; node_n++) {
          struct ggml_tensor * node = cgraph->nodes[node_n];
  
-@@ -3148,6 +3224,11 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3148,6 +3237,11 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
              continue;
          }
  
@@ -168,7 +194,7 @@ index 53d39d2..09fda85 100644
          // TODO: move fused-op detection into ggml_graph_plan so fusion decisions are made once at planning time
          // Try fused ops, fall back to normal compute
          const int n_fused = ggml_cpu_try_fuse_ops(cgraph, node_n, &params, cplan);
-@@ -3163,10 +3244,45 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
+@@ -3163,10 +3257,45 @@ static thread_ret_t ggml_graph_compute_thread(void * data) {
              tp->ec    = GGML_STATUS_ABORTED;
          }
  
@@ -263,10 +289,10 @@ index 81ff5d7..a743078 100644
              auto * buf_extra = (ggml::cpu::extra_buffer_type *) op->src[i]->buffer->buft->context;
 diff --git a/ggml/src/ggml-cpu/moe-pager-tv.inc b/ggml/src/ggml-cpu/moe-pager-tv.inc
 new file mode 100644
-index 0000000..b940cc1
+index 0000000..c1a0760
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/moe-pager-tv.inc
-@@ -0,0 +1,415 @@
+@@ -0,0 +1,532 @@
 +// tvbox: expert pager for mixture-of-experts models bigger than RAM (EXPERIMENT.md section 19, included in ops.cpp).
 +// A token uses a few of 128 experts per layer, so what a token touches fits in RAM even if the model doesn't:
 +//  * the whole-page interior of every *_exps tensor in a model mapping is overlaid with empty anonymous memory;
@@ -545,6 +571,10 @@ index 0000000..b940cc1
 +        s.cv_done.wait(lk, [&] { return mp_ready(L, e); });
 +    }
 +}
++// GGML_MOE_OVERLAP=1 (E166): the routing hook queues a layer's missing experts and returns; each expert matmul (MUL_MAT_ID) does the
++// experts already in RAM first and waits for the others one by one, for just the tensor it multiplies (gate, up or down), so the
++// reads overlap with the experts' compute instead of all finishing before it starts.
++static bool mp_overlap() { static const bool on = getenv("GGML_MOE_OVERLAP") && atoi(getenv("GGML_MOE_OVERLAP")) != 0; return on; }
 +// experts of layer il selected for the current batch: make them resident (waiting for reads in flight), keep the LRU at `pool`
 +static void mp_touch(int il, const std::vector<int> & set, int pool) {
 +    mp_state & s = mp_get();
@@ -562,6 +592,7 @@ index 0000000..b940cc1
 +    const int64_t t0 = mp_now();
 +    for (int e : set) { mp_request(L, e, true); }
 +    for (int e : set) { if (!mp_ready(L, e)) { mp_promote(L, e); } }
++    if (mp_overlap() && !s.verify) { return; }   // the expert matmuls wait per expert and tensor (ggml_cpu_moe_expert_wait)
 +    for (int e : set) {
 +        if (mp_ready(L, e)) { continue; }
 +        std::unique_lock<std::mutex> lk(s.mu);
@@ -574,7 +605,7 @@ index 0000000..b940cc1
 +    mp_get().layers[atoi(b->name + 4) & 255].selbias = (const float *) b->data;
 +}
 +static void moe_pregate_sim(const struct ggml_tensor * w, const struct ggml_tensor * x, int k);   // ops.cpp, without the pager
-+static void mp_pregate_one(int il, int ahead, const struct ggml_tensor * x, int k);
++static void mp_pregate_one(int il, int ahead, const struct ggml_tensor * x, int k, const float * pre = nullptr);
 +// pre-gating: at layer il's router, x is the router's input. Predict layer il+ahead's experts and read the missing ones in the background.
 +extern "C" void ggml_cpu_moe_pregate(const struct ggml_tensor * w, const struct ggml_tensor * x, int k) {
 +    if (!ggml_cpu_moe_pager_active) { moe_pregate_sim(w, x, k); return; }
@@ -590,7 +621,7 @@ index 0000000..b940cc1
 +    }();
 +    for (int ahead : aheads) { mp_pregate_one(il, ahead, x, k); }
 +}
-+static void mp_pregate_one(int il, int ahead, const struct ggml_tensor * x, int k) {
++static void mp_pregate_one(int il, int ahead, const struct ggml_tensor * x, int k, const float * pre) {
 +    mp_state & s = mp_get();
 +    static const int pool = getenv("GGML_MOE_POOL") ? atoi(getenv("GGML_MOE_POOL")) : 0;
 +    const int lt = il + ahead;
@@ -606,6 +637,11 @@ index 0000000..b940cc1
 +    // as much as the reads it saved (E164). Products and sums stay in fp32.
 +#if defined(__ARM_NEON) && defined(__aarch64__)
 +    static const bool use16 = !getenv("GGML_MOE_PREGATE_F16") || atoi(getenv("GGML_MOE_PREGATE_F16")) != 0;
++#endif
++    if (pre) {
++        for (int64_t e = 0; e < L.router_ne1; e++) { sc[(size_t) e] = { pre[e], (int) e }; }
++    } else
++#if defined(__ARM_NEON) && defined(__aarch64__)
 +    if (use16 && L.router_ne0 % 16 == 0) {
 +        if (L.router16.empty()) {
 +            L.router16.resize((size_t) (L.router_ne0 * L.router_ne1));
@@ -681,6 +717,113 @@ index 0000000..b940cc1
 +        mp_request(L, e, false);
 +        queued += 3;
 +    }
++}
++
++// GGML_MOE_ROUTER16=1 (E166): a paged model's one-token router matmul runs here instead of ggml's f32 mul_mat. The router is read from
++// an fp16 copy (half the bytes; the f32 pages are never touched again), and the pre-gating predictor's dot products for the layers
++// ahead are split across the compute threads too (before, thread 0 ran them alone inside the router op while the others waited).
++// Thread 0 then makes the prefetch decisions from those scores. Products and sums stay in fp32.
++#if defined(__ARM_NEON) && defined(__aarch64__)
++static std::once_flag mp_r16_once[256];
++static const __fp16 * mp_r16(int il, const float * src, int64_t n) {
++    mp_layer & L = mp_get().layers[il & 255];
++    std::call_once(mp_r16_once[il & 255], [&] {
++        L.router16.resize((size_t) n);
++        for (int64_t i = 0; i < n; i++) { L.router16[(size_t) i] = (__fp16) src[i]; }
++    });
++    return L.router16.data();
++}
++static inline float mp_dot16(const __fp16 * r, const float * xv, int64_t n) {
++    float32x4_t s0 = vdupq_n_f32(0), s1 = s0, s2 = s0, s3 = s0;
++    for (int64_t j = 0; j < n; j += 16) {
++        const float16x8_t h0 = vld1q_f16(r + j), h1 = vld1q_f16(r + j + 8);
++        s0 = vfmaq_f32(s0, vcvt_f32_f16(vget_low_f16(h0)),  vld1q_f32(xv + j));
++        s1 = vfmaq_f32(s1, vcvt_high_f32_f16(h0),           vld1q_f32(xv + j + 4));
++        s2 = vfmaq_f32(s2, vcvt_f32_f16(vget_low_f16(h1)),  vld1q_f32(xv + j + 8));
++        s3 = vfmaq_f32(s3, vcvt_high_f32_f16(h1),           vld1q_f32(xv + j + 12));
++    }
++    return vaddvq_f32(vaddq_f32(vaddq_f32(s0, s1), vaddq_f32(s2, s3)));
++}
++#endif
++extern "C" int ggml_cpu_moe_router(const struct ggml_compute_params * params, struct ggml_tensor * dst) {
++#if defined(__ARM_NEON) && defined(__aarch64__)
++    static const bool on = getenv("GGML_MOE_ROUTER16") && atoi(getenv("GGML_MOE_ROUTER16")) != 0;
++    const ggml_tensor * w = dst->src[0], * x = dst->src[1];
++    if (!on || !ggml_cpu_moe_pager_active || x->type != GGML_TYPE_F32 || dst->type != GGML_TYPE_F32 || x->ne[1] != 1 || x->ne[2] != 1 ||
++        x->ne[3] != 1 || w->ne[2] != 1 || w->ne[3] != 1 || !ggml_is_contiguous(x) || !ggml_is_contiguous(w) || w->ne[0] % 16 != 0 ||
++        w->ne[1] > 1024) {
++        return 0;
++    }
++    mp_state & s = mp_get();
++    const int il = atoi(w->name + 4) & 255, ith = params->ith, nth = params->nth;
++    const int64_t n0 = w->ne[0], n1 = w->ne[1];
++    static const int k = getenv("GGML_MOE_PREFETCH_K") ? atoi(getenv("GGML_MOE_PREFETCH_K")) : 0;
++    static const std::vector<int> aheads = [] {
++        std::vector<int> v; const char * e = getenv("GGML_MOE_PREFETCH_AHEAD");
++        for (const char * c = e ? e : "2"; *c; ) { v.push_back(atoi(c)); while (*c && *c != ',') { c++; } if (*c) { c++; } }
++        return v;
++    }();
++    static const __fp16 * pr[8];             // routers of the layers to predict (null: skip), decided by thread 0
++    static float pscore[8][1024];
++    const int na = std::min((int) aheads.size(), 8);
++    if (ith == 0) {
++        mp_layer & Lc = s.layers[il];
++        Lc.router = (const float *) w->data; Lc.router_ne0 = n0; Lc.router_ne1 = n1;
++        for (int a = 0; a < na; a++) {
++            pr[a] = nullptr;
++            const int lt = il + aheads[a];
++            if (k <= 0 || lt >= 256) { continue; }
++            mp_layer & L = s.layers[lt];
++            if (L.t.empty() || !L.router || L.router_ne0 != n0 || L.router_ne1 > 1024) { continue; }
++            pr[a] = mp_r16(lt, L.router, L.router_ne0 * L.router_ne1);
++        }
++    }
++    const __fp16 * r = mp_r16(il, (const float *) w->data, n0 * n1);
++    ggml_barrier(params->threadpool);
++    const float * xv = (const float *) x->data;
++    float * out = (float *) dst->data;
++    for (int64_t e = n1 * ith / nth; e < n1 * (ith + 1) / nth; e++) { out[e] = mp_dot16(r + e * n0, xv, n0); }
++    for (int a = 0; a < na; a++) {
++        if (!pr[a]) { continue; }
++        const int64_t m = s.layers[il + aheads[a]].router_ne1;
++        for (int64_t e = m * ith / nth; e < m * (ith + 1) / nth; e++) { pscore[a][e] = mp_dot16(pr[a] + e * n0, xv, n0); }
++    }
++    ggml_barrier(params->threadpool);
++    if (ith == 0) {
++        for (int a = 0; a < na; a++) { if (pr[a]) { mp_pregate_one(il, aheads[a], x, k, pscore[a]); } }
++    }
++    return 1;
++#else
++    (void) params; (void) dst; return 0;
++#endif
++}
++
++static const mp_tensor * mp_find(const struct ggml_tensor * src0) {
++    if (!ggml_cpu_moe_pager_active || strncmp(src0->name, "blk.", 4) != 0) { return nullptr; }
++    const mp_layer & L = mp_get().layers[atoi(src0->name + 4) & 255];
++    for (auto & tp : L.t) { if (tp->base == (const char *) src0->data) { return tp.get(); } }
++    return nullptr;
++}
++static bool mp_tready(const mp_tensor & t, int e) {
++    size_t p0, p1; mp_pages(t, e, p0, p1);
++    for (size_t p = p0; p < p1; p++) { if (t.pg[p].load(std::memory_order_acquire) != PG_FILLED) { return false; } }
++    return true;
++}
++// 1 if expert e's slice of src0 can be used now (or src0 isn't paged)
++extern "C" int ggml_cpu_moe_expert_ready(const struct ggml_tensor * src0, int e) {
++    const mp_tensor * t = mp_find(src0);
++    return !t || mp_tready(*t, e);
++}
++extern "C" void ggml_cpu_moe_expert_wait(const struct ggml_tensor * src0, int e, int ith) {
++    const mp_tensor * t = mp_find(src0);
++    if (!t || mp_tready(*t, e)) { return; }
++    mp_state & s = mp_get();
++    const int64_t t0 = mp_now();
++    {
++        std::unique_lock<std::mutex> lk(s.mu);
++        s.cv_done.wait(lk, [&] { return mp_tready(*t, e); });
++    }
++    if (ith == 0) { s.wait_ns += mp_now() - t0; }
 +}
 diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
 index 85e1701..c54fbc7 100644
@@ -2765,10 +2908,20 @@ index 0000000..ab5dc8d
 +static void ggml_gemm_q2_0_tq1g64_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
 +#endif
 diff --git a/ggml/src/ggml-cpu/repack.cpp b/ggml/src/ggml-cpu/repack.cpp
-index 9282ca2..eed9924 100644
+index 9282ca2..ebafc03 100644
 --- a/ggml/src/ggml-cpu/repack.cpp
 +++ b/ggml/src/ggml-cpu/repack.cpp
-@@ -4262,6 +4262,59 @@ template <> int repack<block_q4_K, 8, 8>(struct ggml_tensor * t, const void * da
+@@ -17,6 +17,9 @@
+ #include <cstdio>  // for GGML_ASSERT
+ 
+ #include "repack.h"
++extern "C" int ggml_cpu_moe_pager_active;
++extern "C" int ggml_cpu_moe_expert_ready(const struct ggml_tensor * src0, int e);
++extern "C" void ggml_cpu_moe_expert_wait(const struct ggml_tensor * src0, int e, int ith);
+ 
+ #if defined(__GNUC__)
+ #pragma GCC diagnostic ignored "-Woverlength-strings"
+@@ -4262,6 +4265,59 @@ template <> int repack<block_q4_K, 8, 8>(struct ggml_tensor * t, const void * da
      return repack_q4_K_to_q4_K_8_bl(t, 8, data, data_size);
  }
  
@@ -2828,7 +2981,7 @@ index 9282ca2..eed9924 100644
  template <> int repack<block_q4_K, 4, 8>(struct ggml_tensor * t, const void * data, size_t data_size) {
      return repack_q4_K_to_q4_K_8_bl(t, 4, data, data_size);
  }
-@@ -4372,6 +4425,39 @@ void gemv<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int          n,
+@@ -4372,6 +4428,39 @@ void gemv<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int          n,
      ggml_gemv_q2_K_8x8_q8_K(n, s, bs, vx, vy, nr, nc);
  }
  
@@ -2868,7 +3021,7 @@ index 9282ca2..eed9924 100644
  template <> void gemv<block_q4_K, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
      ggml_gemv_q4_K_8x4_q8_K(n, s, bs, vx, vy, nr, nc);
  }
-@@ -4477,6 +4563,39 @@ template <> void gemm<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t
+@@ -4477,6 +4566,39 @@ template <> void gemm<block_q2_K, 8, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t
      ggml_gemm_q2_K_8x8_q8_K(n, s, bs, vx, vy, nr, nc);
  }
  
@@ -2908,7 +3061,7 @@ index 9282ca2..eed9924 100644
  template <> void gemm<block_q4_K, 4, 8, GGML_TYPE_Q8_K>(int n, float * s, size_t bs, const void * vx, const void * vy, int nr, int nc) {
      ggml_gemm_q4_K_8x4_q8_K(n, s, bs, vx, vy, nr, nc);
  }
-@@ -4552,6 +4671,26 @@ class tensor_traits_base : public ggml::cpu::tensor_traits {
+@@ -4552,6 +4674,26 @@ class tensor_traits_base : public ggml::cpu::tensor_traits {
      virtual int repack(struct ggml_tensor * t, const void * data, size_t data_size) = 0;
  };
  
@@ -2935,7 +3088,7 @@ index 9282ca2..eed9924 100644
  template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PARAM_TYPE> class tensor_traits : public tensor_traits_base {
  
      bool work_size(int /* n_threads */, const struct ggml_tensor * op, size_t & size) override {
-@@ -4560,6 +4699,15 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4560,6 +4702,15 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
              case GGML_OP_MUL_MAT:
                  {
                      size = ggml_row_size(PARAM_TYPE, ggml_nelements(op->src[1]));
@@ -2951,7 +3104,7 @@ index 9282ca2..eed9924 100644
                      return true;
                  }
              case GGML_OP_MUL_MAT_ID:
-@@ -4625,7 +4773,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4625,7 +4776,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          const int64_t i1 = i11;
          const int64_t i2 = i12;
  
@@ -2960,7 +3113,7 @@ index 9282ca2..eed9924 100644
          const char * src1_ptr = (const char *) params->wdata + (i11 + i12 * ne11) * src1_col_stride;
          char *       dst_ptr  = ((char *) dst->data + (i1 * nb1 + i2 * nb2));
  
-@@ -4637,17 +4785,97 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4637,17 +4788,97 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          // If there are more than three rows in src1, use gemm; otherwise, use gemv.
          if (nrows > 3) {
              gemm<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(ne00, (float *) (dst_ptr) + src0_start, nb1 / nb0,
@@ -3060,7 +3213,7 @@ index 9282ca2..eed9924 100644
          const ggml_tensor * src0 = op->src[0];
          const ggml_tensor * src1 = op->src[1];
          ggml_tensor *       dst  = op;
-@@ -4687,6 +4915,11 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4687,6 +4918,11 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
  
          const ggml_from_float_t from_float = ggml_get_type_traits_cpu(PARAM_TYPE)->from_float;
  
@@ -3072,7 +3225,7 @@ index 9282ca2..eed9924 100644
          // INFO: Quantization is done in planes to avoid extra complexity in chunking.
          // Flattening dimensions not multiple of INTER_SIZE would require extra handling depending on how
          // the planes are broadcast.
-@@ -4708,10 +4941,12 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4708,10 +4944,12 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          // disable for NUMA
          const bool disable_chunking = ggml_is_numa();
  
@@ -3087,7 +3240,7 @@ index 9282ca2..eed9924 100644
          int64_t chunk_size0 = (nr0 + nth_scaled - 1) / nth_scaled;
          int64_t nchunk0     = (nr0 + chunk_size0 - 1) / chunk_size0;
  
-@@ -4741,6 +4976,34 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4741,6 +4979,34 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
          const int64_t max_nchunk = (nr0 + min_chunk_size - 1) / min_chunk_size;
          nchunk0                  = MIN(nchunk0, max_nchunk);
  
@@ -3122,7 +3275,32 @@ index 9282ca2..eed9924 100644
          if (ith == 0) {
              // Every thread starts at ith, so the first unprocessed chunk is nth.  This save a bit of coordination right at the start.
              ggml_threadpool_chunk_set(params->threadpool, nth);
-@@ -4912,7 +5175,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+@@ -4871,12 +5137,24 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
+         ggml_barrier(params->threadpool);
+ 
+         // compute each matrix multiplication in sequence
++        // tvbox: with the expert pager (GGML_MOE_OVERLAP, E166), experts already in RAM first, then the ones still being read, each
++        // waited for on its own
++        const bool paged = ggml_cpu_moe_pager_active && n_as <= 1024;
++        uint8_t done[1024];
++        if (paged) { memset(done, 0, (size_t) n_as); }
++        for (int pass = 0; pass < (paged ? 2 : 1); pass++)
+         for (int cur_a = 0; cur_a < n_as; ++cur_a) {
+             const int64_t cne1 = matrix_row_counts[cur_a];
+ 
+             if (cne1 == 0) {
+                 continue;
+             }
++            if (paged) {
++                if (done[cur_a]) { continue; }
++                if (pass == 0 && !ggml_cpu_moe_expert_ready(src0, cur_a)) { continue; }
++                if (pass == 1) { ggml_cpu_moe_expert_wait(src0, cur_a, ith); }
++                done[cur_a] = 1;
++            }
+ 
+             const auto * src0_cur = (const char *) src0->data + cur_a*nb02;
+ 
+@@ -4912,7 +5190,7 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, ggml_type PAR
  
                  gemv<BLOC_TYPE, INTER_SIZE, NB_COLS, PARAM_TYPE>(
                      ne00, (float *) ((char *) dst->data + (i1 * nb1 + i2 * nb2)) + src0_cur_start, ne01,
@@ -3131,7 +3309,7 @@ index 9282ca2..eed9924 100644
              }
          }
  #undef MMID_MATRIX_ROW
-@@ -4931,6 +5194,8 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -4931,6 +5209,8 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
      // instance for Q1_0
      static const ggml::cpu::repack::tensor_traits<block_q1_0, 4, 4, GGML_TYPE_Q8_0> q1_0_4x4_q8_0;
      static const ggml::cpu::repack::tensor_traits<block_q1_0, 8, 4, GGML_TYPE_Q8_0> q1_0_4x8_q8_0;
@@ -3140,7 +3318,7 @@ index 9282ca2..eed9924 100644
  
      // instance for Q4
      static const ggml::cpu::repack::tensor_traits<block_q4_0, 4, 4, GGML_TYPE_Q8_0> q4_0_4x4_q8_0;
-@@ -4951,6 +5216,13 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -4951,6 +5231,13 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
  
      // instance for Q2
      static const ggml::cpu::repack::tensor_traits<block_q2_K, 8, 8, GGML_TYPE_Q8_K> q2_K_8x8_q8_K;
@@ -3154,7 +3332,7 @@ index 9282ca2..eed9924 100644
  
      // instance for IQ4
      static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 4, 4, GGML_TYPE_Q8_0> iq4_nl_4x4_q8_0;
-@@ -5035,7 +5307,30 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5035,7 +5322,30 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
              }
              #endif
          }
@@ -3185,7 +3363,7 @@ index 9282ca2..eed9924 100644
          if (ggml_cpu_has_avx512()) {
              if (cur->ne[1] % 8 == 0) {
                  return &q2_K_8x8_q8_K;
-@@ -5130,6 +5425,17 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5130,6 +5440,17 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
              #endif
          }
      } else if (cur->type == GGML_TYPE_Q1_0) {
@@ -3203,7 +3381,7 @@ index 9282ca2..eed9924 100644
          if (ggml_cpu_has_neon() && ggml_cpu_has_matmul_int8()) {
              if (cur->ne[1] % 4 == 0) {
                  return &q1_0_4x8_q8_0;
-@@ -5145,6 +5451,135 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
+@@ -5145,6 +5466,135 @@ static const ggml::cpu::tensor_traits * ggml_repack_get_optimal_repack_type(cons
      return nullptr;
  }
  
@@ -3339,7 +3517,7 @@ index 9282ca2..eed9924 100644
  static enum ggml_status ggml_backend_cpu_repack_buffer_init_tensor(ggml_backend_buffer_t buffer, struct ggml_tensor * tensor) {
      tensor->extra = (void *) const_cast<ggml::cpu::tensor_traits *>(ggml_repack_get_optimal_repack_type(tensor));
  
-@@ -5157,10 +5592,25 @@ static void ggml_backend_cpu_repack_buffer_set_tensor(ggml_backend_buffer_t buff
+@@ -5157,10 +5607,25 @@ static void ggml_backend_cpu_repack_buffer_set_tensor(ggml_backend_buffer_t buff
      GGML_ASSERT(offset == 0);
      GGML_ASSERT(size == ggml_nbytes(tensor));
  
@@ -3365,7 +3543,7 @@ index 9282ca2..eed9924 100644
      GGML_UNUSED(buffer);
  }
  
-@@ -5171,7 +5621,10 @@ static const char * ggml_backend_cpu_repack_buffer_type_get_name(ggml_backend_bu
+@@ -5171,7 +5636,10 @@ static const char * ggml_backend_cpu_repack_buffer_type_get_name(ggml_backend_bu
  }
  
  static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(ggml_backend_buffer_type_t buft, size_t size) {
@@ -3377,7 +3555,7 @@ index 9282ca2..eed9924 100644
  
      if (buffer == nullptr) {
          return nullptr;
-@@ -5185,6 +5638,24 @@ static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(gg
+@@ -5185,6 +5653,24 @@ static ggml_backend_buffer_t ggml_backend_cpu_repack_buffer_type_alloc_buffer(gg
      return buffer;
  }
  
@@ -3402,7 +3580,7 @@ index 9282ca2..eed9924 100644
  static size_t ggml_backend_cpu_repack_buffer_type_get_alignment(ggml_backend_buffer_type_t buft) {
      return TENSOR_ALIGNMENT;
  
-@@ -5248,7 +5719,7 @@ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
+@@ -5248,7 +5734,7 @@ ggml_backend_buffer_type_t ggml_backend_cpu_repack_buffer_type(void) {
                             /* .alloc_buffer_n       = */ nullptr,
                             /* .get_alignment        = */ ggml_backend_cpu_repack_buffer_type_get_alignment,
                             /* .get_max_size         = */ nullptr,  // defaults to SIZE_MAX
@@ -4267,10 +4445,10 @@ index a963f24..65d18e4 100644
          if (progress_callback) {
              // Even though the model is done loading, we still honor
 diff --git a/src/llama-model.cpp b/src/llama-model.cpp
-index 81af890..a4f5d11 100644
+index 81af890..8913696 100644
 --- a/src/llama-model.cpp
 +++ b/src/llama-model.cpp
-@@ -1570,6 +1570,14 @@ void llama_model_base::load_hparams(llama_model_loader & ml) {
+@@ -1570,6 +1570,21 @@ void llama_model_base::load_hparams(llama_model_loader & ml) {
      // per-arch hparams
      load_arch_hparams(ml);
  
@@ -4281,11 +4459,18 @@ index 81af890..a4f5d11 100644
 +            if (v > 0) { v = (uint32_t) atoi(mu); }
 +        }
 +    }
++    // tvbox: the expert pager's routing hook (ggml-cpu ops.cpp) makes the top GGML_MOE_USED experts resident and used to assume 8.
++    // Qwen3-Next routes through 10, so ranks 9-10 ran on empty pages unless already cached (E166): tell the hook the real count.
++    {
++        uint32_t mx = 0;
++        for (auto v : hparams.n_expert_used_arr) { mx = std::max(mx, v); }
++        if (mx > 0) { setenv("GGML_MOE_USED", std::to_string(mx).c_str(), 0); }
++    }
 +
      pimpl->n_bytes = ml.n_bytes;
  
      pimpl->desc_str = arch_name() + " " + type_name() + " " + ml.ftype_name();
-@@ -2079,7 +2087,8 @@ void llama_model_base::load_hparams_hadamard(llama_model_loader & ml) {
+@@ -2079,7 +2094,8 @@ void llama_model_base::load_hparams_hadamard(llama_model_loader & ml) {
          if ((hadamard_version == 2) != hdmd.tied_output) {
              throw std::runtime_error("prism.hadamard version 2 requires tied_output=true; version 1 forbids it");
          }
@@ -4295,7 +4480,7 @@ index 81af890..a4f5d11 100644
              throw std::runtime_error("prism.hadamard.tied_output requires output.weight to be absent");
          }
  
-@@ -2261,7 +2270,8 @@ void llama_model_base::load_tensors_hadamard() {
+@@ -2261,7 +2277,8 @@ void llama_model_base::load_tensors_hadamard() {
              const ggml_tensor * weight = get_tensor(weight_name.c_str());
              if (hdmd.tied_output && weight_name == "token_embd.weight") {
                  weight = target == &hdmd.rot ? output : tok_embd;
@@ -4305,7 +4490,7 @@ index 81af890..a4f5d11 100644
                      throw std::runtime_error("prism.hadamard.tied_output is not bound to the token embedding");
                  }
              }
-@@ -2940,7 +2950,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+@@ -2940,7 +2957,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
                      /* attn_n_swa        */ hparams.n_swa,
                      /* attn_swa_type     */ hparams.swa_type,
                      /* recurrent_type_r  */ GGML_TYPE_F32,
@@ -4314,7 +4499,7 @@ index 81af890..a4f5d11 100644
                      /* recurrent_rs_size */ std::max((uint32_t) 1, cparams.n_seq_max),
                      /* n_seq_max         */ cparams.n_seq_max,
                      /* n_rs_seq          */ cparams.n_rs_seq,
-@@ -3193,7 +3203,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+@@ -3193,7 +3210,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
                              /* attn_kv_size      */ cparams.n_ctx_seq,
                              /* attn_n_ubatch     */ cparams.n_ubatch,
                              /* recurrent_type_r  */ GGML_TYPE_F32,
@@ -4323,7 +4508,7 @@ index 81af890..a4f5d11 100644
                              /* recurrent_rs_size */ std::max((uint32_t) 1, cparams.n_seq_max),
                              /* n_seq_max         */ cparams.n_seq_max,
                              /* n_rs_seq          */ cparams.n_rs_seq,
-@@ -3233,7 +3243,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
+@@ -3233,7 +3250,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params,
                              /* attn_n_swa        */ hparams.n_swa,
                              /* attn_swa_type     */ hparams.swa_type,
                              /* recurrent_type_k  */ GGML_TYPE_F32,
