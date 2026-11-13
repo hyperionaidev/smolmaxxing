@@ -74,6 +74,19 @@ The quickest start is a ready-made model file from Hugging Face. They need the p
 | `tiny-llm-web/` | the first experiment: a 260K-parameter story model |
 | `zigcc/` | zig wrappers for cross-compiling static aarch64 binaries |
 
+## Similar projects
+
+Other people running language models on hardware that was never meant for them:
+
+| Project | Hardware | What it runs |
+|---|---|---|
+| [On-chip LLM on a KV260](https://www.mikeayles.com/blog/on-chip-llm-kv260/) | AMD Kria KV260 FPGA ($250) | a 3.16M-parameter INT4 transformer held entirely in on-chip memory, about 60K tok/s |
+| [ps2-llm](https://github.com/xaskasdf/ps2-llm) | PlayStation 2 (294 MHz MIPS, 32 MB RAM) | a 10M-parameter instruct model |
+| [iiama2.c](https://github.com/brysontang/iiama2.c) | Nintendo Wii (729 MHz PowerPC, 88 MB RAM) | llama2.c with stories15M, 61.9 tok/s on the GPU |
+| [esp32-ai](https://github.com/slvDev/esp32-ai) | ESP32-S3 microcontroller | a 28.9M-parameter model at about 9.9 tok/s |
+| [go-pherence](https://github.com/rcarmo/go-pherence) | CPUs with AVX2, NEON or RVV, and NVIDIA GPUs | pure-Go inference for language, speech and vision models |
+| [Ryan Seddon on X](https://x.com/ryanseddon/status/2088151404024344870) | | |
+
 ## Star History
 
 <a href="https://www.star-history.com/?repos=hyperionaidev%2Fsmolmaxxing&type=date&legend=top-left">
