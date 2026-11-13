@@ -1083,3 +1083,60 @@ No `--no-think`: Ling-mini-2.0 isn't a reasoning model, and its template (`baili
 **What's left:** a bigger pool would help this model most (256 experts per layer, 14 in RAM), but pool 16 panicked the iPad with Moon-Beam (E141), and Ling's RSS at pool 14 is only ~25 MB lower. Perplexity over more of the text would pin down the bias cost between 0.1 and 0.3. As on the TV, the bigger model is not the better one per byte here; Moon-Beam stays the default.
 
 **What went wrong:** `python3 -I` drops the script's directory from the import path, so the new tools first failed to import their helper. A header parser kept memory-mapped slices where it needed bytes. Deleting the old model files on the iPad was refused by the session's safety check until you approved it. And llama.cpp's own perplexity tool can't be built for iOS 12 at all.
+
+## 22. Device #3: a OnePlus Nord CE 2 phone, 16B to 35B (2026-11-13)
+
+**Goal (your call):** "an ambitious task starting from 16B up to 30B ... breaking the limits", then "go on and do not stop, reach the max".
+
+**The result so far: Qwen3.6-35B-A3B, a 35B mixture-of-experts model, runs at 4.9 tok/s with exact routing and 5.7 tok/s at +0.7 % perplexity on an unrooted phone with about 3 GB of free RAM.** Ling-mini-2.0 (16B) runs at 11.1 tok/s exact and 15.3 tok/s with the TV box's speed settings, three times the TV box.
+
+The phone is a OnePlus Nord CE 2 (IV2201): MediaTek Dimensity 900 with 2 Cortex-A78 cores at 2.4 GHz and 6 Cortex-A55 at 2.0 GHz, dotprod but no i8mm, 7.4 GB of RAM (about 3 GB available at idle), UFS 2.2, Android 13, not rooted. Everything runs from `adb shell` over USB in `/data/local/tmp/llm`, using the TV box's static aarch64 build (`build-tv`). Wireless adb failed with "No route to host": macOS blocks the third-party `adb` binary from the local network, while Apple's own `nc` and `ping` got through.
+
+### 22.1 What the phone allows (measured)
+
+| | Measured | Consequence |
+|---|---|---|
+| Kernel | 4.19.191 | No io_uring (needs 5.1); Linux AIO is there |
+| Shell process | `oom_score_adj` -1000, `ulimit -l` unlimited, all 8 CPUs allowed | The engine can't be OOM-killed and could pin its cache with `mlock`. The risk is the opposite: holding too much starves Android |
+| Flash, O_DIRECT random reads | 1 reader: 28 MB/s at 4 KiB, 515 MB/s at 512 KiB, 641 MB/s at 1 MiB. 2 readers at 512 KiB: 830-865 MB/s. 4 readers at 256 KiB or more: **935-942 MB/s ceiling** | Experts must be read whole, several at once. Unlike the UFS 4.0 phone in the PowerInfer-2 paper, parallel readers help here |
+| Readers on the A55s instead of the A78s | 881 vs 937 MB/s | Only 6 % less |
+| `am kill-all` | Denied for the shell user | Unlike the TV box, no headless mode |
+
+The research behind the model choice (25 open MoEs from 16B to 36B, formats, offloading papers) is summarized in the session report; Qwen3.6-35B-A3B was picked because its experts have exactly Ling-mini-2.0's shape (256 experts of 2048x512, top-8 plus one shared), just over 40 MoE layers instead of 19.
+
+### 22.2 Experiments
+
+| # | Experiment | Result |
+|---|---|---|
+| E161 | **Ling-mini-2.0 on the phone** (`lm2-q2-h60.gguf` from the TV box's Hugging Face repo, streamed to the phone through the Mac; TV settings: pool 40, bias 0.25, 6 experts, prefetch 6 two layers ahead) | -t 4: **6.0 → 7.9** tok/s (the first run was during a download). Threads: **-t 2 pinned to the A78s (`-C 0xC0 --cpu-strict 1`) 12.0**, -t 3 (2 A78 + 1 A55) 8.4, -t 6 8.1, -t 8 6.7: the A55s hold the A78s back. Pool 96: 14.1; **pool 128: 15.3** tok/s (3.3 % misses, RSS 3.4 GB). Exact routing (bias 0, 8 experts, pool 128): **11.1**. Perplexity on the phone (eval-en, 40 chunks of 128): **13.92 exact, 16.31 (+17 %) with the TV settings** |
+| E161 | **The pager's "prefetched N, 0 of them used"** | The counter was never incremented. Counted properly, 95 % of Ling's prefetches are used (2,187 of 2,290) |
+| E162 | **Qwen3.6-35B-A3B, first build** (`tools/q36-phone.sh`: non-expert tensors of mradermacher's imatrix Q4_K_M requantized to Q4_K, 60K-row head, experts from his imatrix Q2_K_S as they are, streamed to the phone without storing the model on the Mac: 12.1 GB, 1.25 GB of it non-expert) | First the loader rejected the pruned head: only `qwen35.cpp` knew it, so the same code went into `qwen35moe.cpp`. Then, exact routing: **pool 48: 3.0, pool 64: 3.6 tok/s** (12.7 % misses, RSS 4.7 GB). Answers are coherent, but the code answer wrote "palinate": the token " palindrome" (70613) isn't in the 60K head list, so a 35B model needs the whole head (`HEAD=full`, 12.3 GB) |
+| E162 | **The prefetch predictor on a softmax router** | It scored experts with a sigmoid plus the cache bonus, Ling's gating. Qwen's router is a softmax over 256 experts, whose probabilities are much smaller, so the bonus swamped them. It now uses a softmax when the model has no selection bias |
+| E162 | **A soft reboot** | A batch perplexity run (`-b 128` without `-ub`) makes the pager hold the union of a batch's experts, about 200 per layer x 40 layers, and Android's `system_server` restarted (adb dropped, kernel uptime unchanged, nothing lost). Since then every run goes through `tv-watch` (`LIMIT_MB=400`) and perplexity uses `-ub 8` |
+| E163 | **The TV box's DeltaNet speedups in `qwen35moe.cpp`** (the fused conv step and reading the recurrent state in place, §17) | Perplexity bit-identical to the stock path over 4 chunks. Chat, exact routing, pool 64: **3.6 → 4.7** tok/s; pool 80: **5.0** |
+| E163 | **Reader threads on the A55s** (`GGML_MOE_READER_CPUS=3f`; they inherit a compute thread's single-core affinity otherwise) | 4.5 vs 4.7 tok/s: no gain, left off |
+| E163 | **Full head vs the 60K head** (alternating, pool 80) | Full 4.9 / 4.9, 60K 5.2 / 4.9 tok/s: the full head costs about 3 % and is now the default |
+| E163 | **Quality on the phone** (full head, eval-en, 20 chunks of 128, pool 80, `-ub 8`) | Exact routing **7.63**; the 60K head's 7.39 is flattered by renormalizing over fewer tokens. Routing bias 0.005: **7.68 (+0.7 %)**, misses 23.6 → 12.7 %; 0.01: **7.78 (+2.0 %)**, 8.1 %; 0.02 (60K head): +7 % |
+| E163 | **Speed against bias, and two prefetch horizons** (`GGML_MOE_PREFETCH_AHEAD=2,1` predicts both two layers and one layer ahead) | Bias 0: **4.9** (10.8 % misses) and 4.8 with both horizons (9.9 %). **Bias 0.005: 5.7** with either (7.4 / 6.5 %). Bias 0.01 with both horizons: **6.0** (5.1 %). RSS 4.8-5.2 GB, at least 1 GB left available |
+| E163 | **Cache policy headroom** (routing trace of 3,840 calibration tokens, `tools/moe_sim.py`, pool 80 per layer) | LRU 11.5 % misses (the pager measured 10.8 %), offline-optimal Belady 4.8 %, pinning the most used 75 % plus LRU 10.2 %: little to gain from the policy itself |
+
+**Qwen3.6-35B-A3B on the phone (full head, pool 80, 2 threads on the A78s, prefetch 8):**
+
+| Routing | tok/s | Perplexity | vs exact |
+|---|---|---|---|
+| Exact (bias 0, 8 experts) | **4.9** | 7.63 | ±0 |
+| Bias 0.005 | **5.7** | 7.68 | +0.7 % |
+| Bias 0.01 | **6.0** | 7.78 | +2.0 % |
+
+**To use it** (files built by `HEAD=full tools/q36-phone.sh`, benchmarks by `tools/phone-moe.sh`):
+
+```sh
+cd /data/local/tmp/llm
+GGML_MOE_PAGER=1 GGML_REPACK_CACHE=$PWD/cache/q36f GGML_MOE_POOL=80 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2,1 \
+  LIMIT_MB=400 ./tv-watch server.log ./p44/llama-server -m q36-q2-full.gguf -c 1024 -np 1 --reasoning off -cram 0 -fa on \
+  -ctk q8_0 -ctv q8_0 -ub 4 -b 64 -t 2 -C 0xC0 --cpu-strict 1
+```
+
+**In progress:** static expert pruning from the calibration trace (`GGML_MOE_KEEP`, keeping 192, 160 or 128 of 256 experts per layer, which carry 98.6, 96.4 and 92.7 % of the calibration uses).
+
+**What went wrong:** the first cable was power-only; `am kill-all` is denied; the soft reboot above; zsh doesn't word-split `set -- $m`, so one sweep passed the model and cache names as one argument.

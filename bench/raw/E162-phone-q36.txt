@@ -1,0 +1,70 @@
+=== 2026-11-13 12:22:41 q36-q2-h60.gguf
+phone q36-q2-h60.gguf | GGML_MOE_POOL=48 GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 3.0 tok/s | 128 words
+
+moe-pager: 99202 hits, 17916 misses (15.3 %), 97 waited on a read already started; read 40344.0 MB, waited 53.43 s; prefetched 18715, 13709 of them used
+tv-guard: exit 0, min MemAvailable 1907 MB, max RSS 3958 MB
+phone q36-q2-h60.gguf | GGML_MOE_POOL=64 GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 3.6 tok/s | 128 words
+
+moe-pager: 102328 hits, 14855 misses (12.7 %), 32 waited on a read already started; read 31299.0 MB, waited 39.65 s; prefetched 13334, 9384 of them used
+tv-guard: exit 0, min MemAvailable 1386 MB, max RSS 4656 MB
+PHONE-MOE DONE
+phone q36 ppl c20 | pool 64 bias 0 used 8 |  | 179 s
+phone q36 ppl c20 ub8 | pool 64 bias 0 used 8 | 8.46.366.657 I Final estimate: PPL = 7.3879 +/- 0.50262
+moe-pager: 272188 hits, 120916 misses (30.8 %), 0 waited on a read already started; read 134344.5 MB, waited 244.17 s; prefetched 0, 0 of them used
+tv-guard: exit 0, min MemAvailable 773 MB, max RSS 3808 MB | 529 s
+phone q36 ppl c20 ub8 | pool 64 GGML_MOE_BIAS=0.02 | 4.51.916.504 I Final estimate: PPL = 7.9080 +/- 0.55029 moe-pager: 316765 hits, 21354 misses (6.3 %), 0 waited on a read already started; read 24480.6 MB, waited 49.50 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 1893 MB, max RSS 4717 MB  | 294 s
+=== 2026-11-13 12:53:32 q36-q2-h60.gguf
+phone q36-q2-h60.gguf | GGML_MOE_POOL=64 GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 4.7 tok/s | 128 words
+
+moe-pager: 102189 hits, 14913 misses (12.7 %), 113 waited on a read already started; read 31275.8 MB, waited 36.00 s; prefetched 13254, 9321 of them used
+tv-guard: exit 0, min MemAvailable 1853 MB, max RSS 4803 MB
+phone q36-q2-h60.gguf | GGML_MOE_POOL=64 GGML_MOE_READER_CPUS=3f GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 4.5 tok/s | 128 words
+
+moe-pager: 102056 hits, 14997 misses (12.8 %), 162 waited on a read already started; read 31200.0 MB, waited 38.90 s; prefetched 13099, 9209 of them used
+tv-guard: exit 0, min MemAvailable 1884 MB, max RSS 4168 MB
+phone q36-q2-h60.gguf | GGML_MOE_POOL=80 GGML_MOE_READER_CPUS=3f GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.0 tok/s | 128 words
+
+moe-pager: 104373 hits, 12773 misses (10.9 %), 69 waited on a read already started; read 25067.4 MB, waited 31.55 s; prefetched 9669, 6619 of them used
+tv-guard: exit 0, min MemAvailable 1236 MB, max RSS 4939 MB
+PHONE-MOE DONE
+=== 2026-11-13 13:01:20 q36-q2-full.gguf q36f
+server died: error: invalid argument: q36f
+tv-guard: exit 1, min MemAvailable 5423 MB, max RSS 0 MB
+PHONE-MOE DONE
+=== 2026-11-13 13:01:30 q36-q2-h60.gguf q36
+server died: error: invalid argument: q36
+tv-guard: exit 1, min MemAvailable 5420 MB, max RSS 0 MB
+PHONE-MOE DONE
+=== 2026-11-13 13:01:40 q36-q2-full.gguf q36f
+server died: error: invalid argument: q36f
+tv-guard: exit 1, min MemAvailable 5418 MB, max RSS 0 MB
+PHONE-MOE DONE
+=== 2026-11-13 13:01:57 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 4.9 tok/s | 130 words
+
+moe-pager: 104522 hits, 12640 misses (10.8 %), 53 waited on a read already started; read 24643.8 MB, waited 29.60 s; prefetched 9424, 6462 of them used
+tv-guard: exit 0, min MemAvailable 905 MB, max RSS 4650 MB
+PHONE-MOE DONE
+=== 2026-11-13 13:03:54 q36-q2-h60.gguf
+phone q36-q2-h60.gguf | GGML_MOE_POOL=80 GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.2 tok/s | 128 words
+
+moe-pager: 104375 hits, 12776 misses (10.9 %), 64 waited on a read already started; read 25101.6 MB, waited 30.15 s; prefetched 9693, 6627 of them used
+tv-guard: exit 0, min MemAvailable 1315 MB, max RSS 4618 MB
+PHONE-MOE DONE
+=== 2026-11-13 13:05:46 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 4.9 tok/s | 130 words
+
+moe-pager: 104511 hits, 12649 misses (10.8 %), 55 waited on a read already started; read 24617.8 MB, waited 28.70 s; prefetched 9391, 6441 of them used
+tv-guard: exit 0, min MemAvailable 890 MB, max RSS 4589 MB
+PHONE-MOE DONE
+=== 2026-11-13 13:07:48 q36-q2-h60.gguf
+phone q36-q2-h60.gguf | GGML_MOE_POOL=80 GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=8 GGML_MOE_PREFETCH_AHEAD=2 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 4.9 tok/s | 128 words
+
+moe-pager: 104242 hits, 12817 misses (10.9 %), 156 waited on a read already started; read 25052.1 MB, waited 30.30 s; prefetched 9610, 6577 of them used
+tv-guard: exit 0, min MemAvailable 1122 MB, max RSS 4713 MB
+PHONE-MOE DONE
+phone q36-full ppl | eval-en.txt c20 pool 80 GGML_MOE_BIAS=0 | 8.03.909.152 I Final estimate: PPL = 7.6305 +/- 0.52404 moe-pager: 300153 hits, 92951 misses (23.6 %), 0 waited on a read already started; read 103932.9 MB, waited 191.08 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 416 MB, max RSS 4576 MB  | 487 s
+phone q36-full ppl | eval-en.txt c20 pool 80 GGML_MOE_BIAS=0.005 | 5.51.713.831 I Final estimate: PPL = 7.6804 +/- 0.53066 moe-pager: 325460 hits, 47263 misses (12.7 %), 0 waited on a read already started; read 53788.2 MB, waited 96.30 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 1241 MB, max RSS 4831 MB  | 354 s
+phone q36-full ppl | eval-en.txt c20 pool 80 GGML_MOE_BIAS=0.01 | 5.10.871.716 I Final estimate: PPL = 7.7810 +/- 0.53739 moe-pager: 332757 hits, 29509 misses (8.1 %), 0 waited on a read already started; read 33805.7 MB, waited 62.59 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 1081 MB, max RSS 4848 MB  | 312 s
+phone q36-full ppl | calib-q36.txt c30 pool 80 GGML_MOE_BIAS=0 GGML_MOE_TRACE=/data/local/tmp/llm/q36-calib-e163.trace | 11.09.211.020 I Final estimate: PPL = 4.7264 +/- 0.24811 moe-pager: 447437 hits, 144594 misses (24.4 %), 0 waited on a read already started; read 161616.4 MB, waited 277.15 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 1092 MB, max RSS 4800 MB  | 672 s
+QUEUE-DONE

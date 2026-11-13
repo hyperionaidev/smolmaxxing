@@ -263,10 +263,10 @@ index 81ff5d7..a743078 100644
              auto * buf_extra = (ggml::cpu::extra_buffer_type *) op->src[i]->buffer->buft->context;
 diff --git a/ggml/src/ggml-cpu/moe-pager-tv.inc b/ggml/src/ggml-cpu/moe-pager-tv.inc
 new file mode 100644
-index 0000000..82d7c64
+index 0000000..6463f44
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/moe-pager-tv.inc
-@@ -0,0 +1,364 @@
+@@ -0,0 +1,391 @@
 +// tvbox: expert pager for mixture-of-experts models bigger than RAM (EXPERIMENT.md section 19, included in ops.cpp).
 +// A token uses a few of 128 experts per layer, so what a token touches fits in RAM even if the model doesn't:
 +//  * the whole-page interior of every *_exps tensor in a model mapping is overlaid with empty anonymous memory;
@@ -280,6 +280,8 @@ index 0000000..82d7c64
 +// O_DIRECT. A page is freed only if no cached or loading expert covers it. Unloaded pages read as zeros, so nothing may touch an expert
 +// that wasn't made resident: GGML_MOE_VERIFY=1 compares every expert with the file when it is first used.
 +// GGML_MOE_READERS=n reader threads (default 4), GGML_MOE_STATS=1 prints totals at exit.
++// GGML_MOE_READER_CPUS=<hex mask>: CPUs for the reader threads. They are created from a compute thread and inherit its affinity,
++// which with --cpu-strict is one core shared with the matmuls; on big.LITTLE they belong on the little cores (phone, E163).
 +#include <atomic>
 +#include <condition_variable>
 +#include <deque>
@@ -289,6 +291,7 @@ index 0000000..82d7c64
 +#include <string>
 +#include <thread>
 +#include <fcntl.h>
++#include <sched.h>
 +#include <sys/mman.h>
 +#include <time.h>
 +#include <unistd.h>
@@ -300,7 +303,7 @@ index 0000000..82d7c64
 +    char * base; size_t len; size_t stride; char * map0; std::string name; int fd = -1, bfd = -1, vfd = -1;
 +    size_t npages = 0; std::unique_ptr<std::atomic<uint8_t>[]> pg;
 +};
-+struct mp_layer { std::vector<std::unique_ptr<mp_tensor>> t; std::vector<int> lru; std::vector<uint8_t> cached, verified; const float * router = nullptr; const float * selbias = nullptr; int64_t router_ne0 = 0, router_ne1 = 0; };
++struct mp_layer { std::vector<std::unique_ptr<mp_tensor>> t; std::vector<int> lru; std::vector<uint8_t> cached, verified, pf; const float * router = nullptr; const float * selbias = nullptr; int64_t router_ne0 = 0, router_ne1 = 0; };
 +struct mp_job { mp_tensor * t; size_t p0, p1; bool direct; std::atomic<bool> started{false}; };
 +struct mp_state {
 +    std::vector<mp_layer> layers = std::vector<mp_layer>(256);
@@ -315,6 +318,12 @@ index 0000000..82d7c64
 +
 +void mp_reader() {
 +    mp_state & s = mp_get();
++    if (const char * m = getenv("GGML_MOE_READER_CPUS")) {
++        const unsigned long mask = strtoul(m, nullptr, 16);
++        cpu_set_t cs; CPU_ZERO(&cs);
++        for (int c = 0; c < 64; c++) { if (mask >> c & 1) { CPU_SET(c, &cs); } }
++        sched_setaffinity(0, sizeof(cs), &cs);
++    }
 +    for (;;) {
 +        std::shared_ptr<mp_job> j;
 +        {
@@ -413,7 +422,7 @@ index 0000000..82d7c64
 +}
 +void mp_evict(mp_layer & L, int e) {
 +    mp_state & s = mp_get();
-+    L.cached[e] = 0; L.verified[e] = 0;
++    L.cached[e] = 0; L.verified[e] = 0; L.pf[e] = 0;
 +    for (auto & tp : L.t) {
 +        mp_tensor & t = *tp;
 +        size_t p0, p1; mp_pages(t, e, p0, p1);
@@ -493,7 +502,7 @@ index 0000000..82d7c64
 +    x->pg.reset(new std::atomic<uint8_t>[x->npages]);
 +    for (size_t i = 0; i < x->npages; i++) { x->pg[i].store(PG_EMPTY); }
 +    L.t.push_back(std::move(x));
-+    L.cached.assign((size_t) t->ne[2], 0); L.verified.assign((size_t) t->ne[2], 0);
++    L.cached.assign((size_t) t->ne[2], 0); L.verified.assign((size_t) t->ne[2], 0); L.pf.assign((size_t) t->ne[2], 0);
 +    ggml_cpu_moe_pager_active = 1;
 +}
 +
@@ -545,7 +554,7 @@ index 0000000..82d7c64
 +    for (int e : set) {
 +        auto it = std::find(L.lru.begin(), L.lru.end(), e);
 +        const bool was = it != L.lru.end();
-+        if (was) { L.lru.erase(it); if (mp_ready(L, e)) { s.hits++; } else { s.late++; } } else { s.miss++; }
++        if (was) { L.lru.erase(it); if (mp_ready(L, e)) { s.hits++; } else { s.late++; } if (L.pf[e]) { s.pf_used++; L.pf[e] = 0; } } else { s.miss++; }
 +        L.lru.push_back(e);
 +        if (!L.cached[e]) { L.cached[e] = 1; }
 +    }
@@ -565,6 +574,7 @@ index 0000000..82d7c64
 +    mp_get().layers[atoi(b->name + 4) & 255].selbias = (const float *) b->data;
 +}
 +static void moe_pregate_sim(const struct ggml_tensor * w, const struct ggml_tensor * x, int k);   // ops.cpp, without the pager
++static void mp_pregate_one(int il, int ahead, const struct ggml_tensor * x, int k);
 +// pre-gating: at layer il's router, x is the router's input. Predict layer il+ahead's experts and read the missing ones in the background.
 +extern "C" void ggml_cpu_moe_pregate(const struct ggml_tensor * w, const struct ggml_tensor * x, int k) {
 +    if (!ggml_cpu_moe_pager_active) { moe_pregate_sim(w, x, k); return; }
@@ -572,7 +582,16 @@ index 0000000..82d7c64
 +    const int il = atoi(w->name + 4) & 255;
 +    mp_layer & Lc = s.layers[il];
 +    Lc.router = (const float *) w->data; Lc.router_ne0 = w->ne[0]; Lc.router_ne1 = w->ne[1];
-+    static const int ahead = getenv("GGML_MOE_PREFETCH_AHEAD") ? atoi(getenv("GGML_MOE_PREFETCH_AHEAD")) : 2;
++    // GGML_MOE_PREFETCH_AHEAD=a or a comma list (e.g. "2,1"): predict each of those layers ahead, in that order (E163)
++    static const std::vector<int> aheads = [] {
++        std::vector<int> v; const char * e = getenv("GGML_MOE_PREFETCH_AHEAD");
++        for (const char * c = e ? e : "2"; *c; ) { v.push_back(atoi(c)); while (*c && *c != ',') { c++; } if (*c) { c++; } }
++        return v;
++    }();
++    for (int ahead : aheads) { mp_pregate_one(il, ahead, x, k); }
++}
++static void mp_pregate_one(int il, int ahead, const struct ggml_tensor * x, int k) {
++    mp_state & s = mp_get();
 +    static const int pool = getenv("GGML_MOE_POOL") ? atoi(getenv("GGML_MOE_POOL")) : 0;
 +    const int lt = il + ahead;
 +    if (lt >= 256 || x->ne[1] != 1 || pool <= 0) { return; }
@@ -596,13 +615,21 @@ index 0000000..82d7c64
 +#else
 +        for (int64_t j = 0; j < L.router_ne0; j++) { a += r[j] * xv[j]; }
 +#endif
-+        // the same decision the router will make at layer lt (gating sigmoid, the model's selection bias, the cache bonus), so only
-+        // experts that would really be picked are read; a plain top-k read ~4x more than the misses and saturated the flash (E110)
-+        float p = 1.0f / (1.0f + expf(-a));
-+        if (L.selbias) { p += L.selbias[e]; }
-+        if (L.cached[e]) { p += cache_bonus; }
-+        sc[(size_t) e] = { p, (int) e };
++        sc[(size_t) e] = { a, (int) e };
 +    }
++    // the same decision the router will make at layer lt (gating function, the model's selection bias, the cache bonus), so only
++    // experts that would really be picked are read; a plain top-k read ~4x more than the misses and saturated the flash (E110).
++    // Models with a selection bias (Ling, DeepSeek style) gate with a sigmoid; the others (Qwen3.5/3.6) with a softmax over all
++    // experts, whose probabilities are on a much smaller scale, so the bonus must be compared with those (E162).
++    if (L.selbias) {
++        for (auto & v : sc) { v.first = 1.0f / (1.0f + expf(-v.first)) + L.selbias[v.second]; }
++    } else {
++        float mx = -INFINITY, sum = 0.0f;
++        for (auto & v : sc) { mx = std::max(mx, v.first); }
++        for (auto & v : sc) { v.first = expf(v.first - mx); sum += v.first; }
++        for (auto & v : sc) { v.first /= sum; }
++    }
++    for (auto & v : sc) { if (L.cached[v.second]) { v.first += cache_bonus; } }
 +    std::partial_sort(sc.begin(), sc.begin() + k, sc.end(), [](auto & a, auto & b) { return a.first > b.first; });
 +    // never grow the pool for a guess: a prefetch only takes the slot of an expert that can be evicted right now (not in flight),
 +    // and at most GGML_MOE_PREFETCH_INFLIGHT background reads are queued at once (the first version let warm-start reads and
@@ -626,7 +653,7 @@ index 0000000..82d7c64
 +            if (vi < 0) { break; }
 +            const int v = L.lru[vi]; L.lru.erase(L.lru.begin() + vi); mp_evict(L, v);
 +        }
-+        L.cached[e] = 1; L.lru.push_back(e); s.pf_req++;
++        L.cached[e] = 1; L.pf[e] = 1; L.lru.push_back(e); s.pf_req++;
 +        mp_request(L, e, false);
 +        queued += 3;
 +    }
@@ -4878,6 +4905,199 @@ index 8a4e434..c327192 100644
      cb(cur, "result_output", -1);
  
      res->t_logits = cur;
+diff --git a/src/models/qwen35moe.cpp b/src/models/qwen35moe.cpp
+index 939f10f..5c368fd 100644
+--- a/src/models/qwen35moe.cpp
++++ b/src/models/qwen35moe.cpp
+@@ -1,6 +1,99 @@
+ #include "models.h"
+ #include "llama-memory-recurrent.h"
+ 
++#if defined(__ARM_NEON) && defined(__aarch64__)
++#include <arm_neon.h>
++#endif
++
++// tvbox: the one-token decode step of the DeltaNet causal conv as one op. Stock: GET_ROWS (state gather) + CONCAT
++// (state | new column, transposed) + CPY (shifted state back into the cache) + SSM_CONV = 4 nodes and 4 barriers for
++// a 4-tap filter over 6,144 channels (~110 us). Here each channel reads its K-1 old values at row s_copy[0] of the
++// cache, writes the shifted window to the destination row (src[0], a view at rs_head; in place when the rows are
++// the same, which is safe per channel) and sums the taps in SSM_CONV's order, so the result is bit-identical.
++// SILU stays a separate (column-split) op. LLAMA_CONV_FUSED=0 = stock.
++static void qwen35moe_conv_step(ggml_tensor * dst, int ith, int nth, void * userdata) {
++    GGML_UNUSED(userdata);
++    const ggml_tensor * dstate = dst->src[0]; // cache view at the destination row
++    const ggml_tensor * cache  = dst->src[1]; // whole conv cache {n_embd_r, rs_size}
++    const ggml_tensor * xin    = dst->src[2]; // new column {C}
++    const ggml_tensor * kern   = dst->src[3]; // {K, C}
++    const ggml_tensor * ids    = dst->src[4]; // s_copy_main {1}
++    const int64_t C  = dst->ne[0];
++    const int     nc = (int) kern->ne[0];
++    const int     ns = nc - 1;
++    const int32_t row = ((const int32_t *) ids->data)[0];
++    const float * sp = (const float *) ((const char *) cache->data + (int64_t) row * cache->nb[1]);
++    float       * dp = (float *) dstate->data;
++    const float * x  = (const float *) xin->data;
++    float       * y  = (float *) dst->data;
++    const int64_t per = (C + nth - 1) / nth;
++    const int64_t c0  = per * ith;
++    const int64_t c1  = std::min(C, c0 + per);
++    int64_t c = c0;
++#if defined(__ARM_NEON) && defined(__aarch64__)
++    // 4 channels at a time: vld3/vld4 de-interleave the 3-value windows and the 4 taps; same FMA order as the loop
++    if (ns == 3 && kern->nb[1] == 4 * sizeof(float)) {
++        const float * kb = (const float *) kern->data;
++        for (; c + 3 < c1; c += 4) {
++            const float32x4x3_t w  = vld3q_f32(sp + c * 3);
++            const float32x4x4_t kk = vld4q_f32(kb + c * 4);
++            const float32x4_t   xv = vld1q_f32(x + c);
++            float32x4_t sum = vmulq_f32(w.val[0], kk.val[0]);
++            sum = vfmaq_f32(sum, w.val[1], kk.val[1]);
++            sum = vfmaq_f32(sum, w.val[2], kk.val[2]);
++            sum = vfmaq_f32(sum, xv,       kk.val[3]);
++            vst1q_f32(y + c, sum);
++            float32x4x3_t nw;
++            nw.val[0] = w.val[1];
++            nw.val[1] = w.val[2];
++            nw.val[2] = xv;
++            vst3q_f32(dp + c * 3, nw);
++        }
++    }
++#endif
++    for (; c < c1; c++) {
++        const float * sc = sp + c * ns;
++        const float * k  = (const float *) ((const char *) kern->data + c * kern->nb[1]);
++        float w[8];
++        for (int i = 0; i < ns; i++) {
++            w[i] = sc[i];
++        }
++        w[ns] = x[c];
++        float sumf = 0.0f;
++        for (int i = 0; i < nc; i++) {
++            sumf += w[i] * k[i];
++        }
++        y[c] = sumf;
++        float * d = dp + c * ns;
++        for (int i = 0; i < ns; i++) {
++            d[i] = w[i + 1];
++        }
++    }
++}
++
++// pruned LM head (TV-box experiment): output holds only the n_keep rows listed in output_ids.
++// Scatter the [n_keep, n_out] logits into [n_vocab, n_out], with -inf for dropped tokens.
++static ggml_tensor * qwen35moe_scatter_pruned_logits(ggml_context * ctx0, ggml_tensor * cur, const llama_model & model) {
++    if (!model.output_ids) {
++        return cur;
++    }
++    const int64_t n_vocab_full = model.tok_embd->ne[1];
++    if (cur->ne[1] == 1 && ggml_is_contiguous(cur)) {
++        // tvbox: one output row: [n_keep, 1] has the same layout as [1, n_keep], no transposes needed
++        ggml_tensor * lt   = ggml_reshape_2d(ctx0, cur, 1, cur->ne[0]);
++        ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, 1, n_vocab_full);
++        full = ggml_fill_inplace(ctx0, full, -INFINITY);
++        full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++        return ggml_reshape_2d(ctx0, full, n_vocab_full, 1);
++    }
++    ggml_tensor * lt   = ggml_cont(ctx0, ggml_transpose(ctx0, cur));                         // [n_out, n_keep]
++    ggml_tensor * full = ggml_new_tensor_2d(ctx0, GGML_TYPE_F32, lt->ne[0], n_vocab_full);   // [n_out, n_vocab]
++    full = ggml_fill_inplace(ctx0, full, -INFINITY);
++    full = ggml_set_rows(ctx0, full, lt, model.output_ids);
++    return ggml_cont(ctx0, ggml_transpose(ctx0, full));                                      // [n_vocab, n_out]
++}
++
++
+ void llama_model_qwen35moe::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key_or_arr(LLM_KV_EXPERT_FEED_FORWARD_LENGTH, hparams.n_ff_exp_arr, hparams.n_layer_all, false);
+     ml.get_key(LLM_KV_EXPERT_SHARED_FEED_FORWARD_LENGTH, hparams.n_ff_shexp, false);
+@@ -40,11 +133,20 @@ void llama_model_qwen35moe::load_arch_tensors(llama_model_loader & ml) {
+     const int trunk_flags = nf.trunk;
+     const int mtp_flags   = nf.mtp;
+ 
+-    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), { n_embd, n_vocab }, 0);
++    // tvbox: pruned LM head as in qwen35.cpp (token_embd then only read row by row, so a lazy mapping)
++    const bool tv_pruned_head = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str()) != nullptr;
++    tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), { n_embd, n_vocab }, tv_pruned_head ? TENSOR_READ_LAZY : 0);
+ 
+     // output
+     output_norm = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), { n_embd }, 0);
+-    output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), { n_embd, n_vocab }, TENSOR_NOT_REQUIRED);
++    if (const ggml_tensor * ids_meta = ml.get_tensor_meta(tn(LLM_TENSOR_OUTPUT_IDS, "weight").str().c_str())) {
++        const int64_t n_keep = ids_meta->ne[0];
++        output_ids = create_tensor(tn(LLM_TENSOR_OUTPUT_IDS, "weight"), { n_keep }, 0);
++        output     = create_tensor(tn(LLM_TENSOR_OUTPUT,     "weight"), { n_embd, n_keep }, 0);
++        LLAMA_LOG_INFO("%s: pruned LM head: %lld of %lld vocab rows\n", __func__, (long long) n_keep, (long long) n_vocab);
++    } else {
++        output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), { n_embd, n_vocab }, TENSOR_NOT_REQUIRED);
++    }
+ 
+     // if output is NULL, init from the input tok embed
+     if (output == NULL) {
+@@ -165,7 +267,7 @@ llama_model_qwen35moe::graph::graph(const llama_model & model, const llm_graph_p
+     ggml_tensor * cur;
+     ggml_tensor * inpL;
+ 
+-    inpL = build_inp_embd(model.tok_embd);
++    inpL = build_inp_embd(model.tok_embd, 1.0f, model.output, model.output_ids);
+ 
+     cb(inpL, "model.input_embed", -1);
+ 
+@@ -241,6 +343,7 @@ llama_model_qwen35moe::graph::graph(const llama_model & model, const llm_graph_p
+ 
+     // LM head
+     cur = build_lora_mm(model.output, cur, model.output_s);
++    cur = qwen35moe_scatter_pruned_logits(ctx0, cur, model);
+ 
+     cb(cur, "result_output", -1);
+     res->t_logits = cur;
+@@ -404,13 +507,45 @@ ggml_tensor * llama_model_qwen35moe::graph::build_layer_attn_linear(
+     const int64_t conv_kernel_size = conv_kernel->ne[0];
+     const int64_t conv_channels    = d_inner + 2 * hparams.ssm_n_group * hparams.ssm_d_state;
+ 
+-    ggml_tensor * conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
++    static const bool conv_fused = getenv("LLAMA_CONV_FUSED") == nullptr || atoi(getenv("LLAMA_CONV_FUSED")) != 0;
++    const bool use_conv_step = conv_fused && n_seq_tokens == 1 && n_seqs == 1 && cparams.n_rs_seq == 0 &&
++        conv_states_all->type == GGML_TYPE_F32 && conv_kernel->type == GGML_TYPE_F32 && conv_kernel_size <= 8 &&
++        ggml_is_contiguous(qkv_mixed) && ggml_nelements(qkv_mixed) == conv_channels;
++    ggml_tensor * conv_input = nullptr;
++    ggml_tensor * conv_step  = nullptr;
++    if (use_conv_step) {
++        const auto conv_head = mctx_cur->get_head();
++        ggml_tensor * conv_dst = build_rs(inp, conv_states_all, hparams.n_embd_r(), n_seqs,
++            [conv_head, n_seqs](ggml_context * ctx, ggml_tensor * states, ggml_tensor * ids) {
++                GGML_UNUSED(ids);
++                return ggml_view_2d(ctx, states, states->ne[0], n_seqs, states->nb[1], conv_head * states->nb[1]);
++            });
++        ggml_tensor * args[5] = { conv_dst, conv_states_all, qkv_mixed, conv_kernel, inp->s_copy_main };
++        conv_step = ggml_custom_4d(ctx0, GGML_TYPE_F32, conv_channels, n_seq_tokens, n_seqs, 1, args, 5,
++                                   qwen35moe_conv_step, GGML_N_TASKS_MAX, nullptr);
++    } else {
++        conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
++    }
+ 
+-    ggml_tensor * state = build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs);
++    // tvbox: let the fused GDN op read each sequence's state straight from the cache (row s_copy[seq], resolved at
++    // compute time) instead of gathering the 1 MB/layer state into a temporary with GET_ROWS first. The view below
++    // only fixes the shape and the graph dependency; build_recurrent_attn() hands the op the ids and the cache.
++    // LLAMA_GDN_GATHER=1 = stock gather.
++    static const bool gdn_byid = getenv("LLAMA_GDN_GATHER") == nullptr;
++    const auto rs_head = mctx_cur->get_head();
++    const bool state_f16 = ssm_states_all->type == GGML_TYPE_F16;
++    GGML_ASSERT(!state_f16 || (gdn_byid && cparams.n_rs_seq == 0) || !"fp16 recurrent state needs the by-id GDN path (no MTP)");
++    ggml_tensor * state = (gdn_byid && cparams.n_rs_seq == 0 && (ssm_states_all->type == GGML_TYPE_F32 || state_f16))
++        ? build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs,
++              [rs_head, n_seqs](ggml_context * ctx, ggml_tensor * states, ggml_tensor * ids) {
++                  GGML_UNUSED(ids);
++                  return ggml_view_2d(ctx, states, states->ne[0], n_seqs, states->nb[1], rs_head * states->nb[1]);
++              })
++        : build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs);
+     state = ggml_reshape_4d(ctx0, state, head_v_dim, head_v_dim, num_v_heads, n_seqs);
+     cb(state, "state_predelta", il);
+ 
+-    ggml_tensor * conv_output_proper = ggml_ssm_conv(ctx0, conv_input, conv_kernel);
++    ggml_tensor * conv_output_proper = conv_step ? conv_step : ggml_ssm_conv(ctx0, conv_input, conv_kernel);
+     cb(conv_output_proper, "conv_output_raw", il);
+ 
+     ggml_tensor * conv_output_silu = ggml_silu(ctx0, conv_output_proper);
 diff --git a/tools/llama-bench/llama-bench.cpp b/tools/llama-bench/llama-bench.cpp
 index 96ae487..a0149d0 100644
 --- a/tools/llama-bench/llama-bench.cpp
