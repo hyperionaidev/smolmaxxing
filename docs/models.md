@@ -1,6 +1,6 @@
 # Models: downloads and rebuilds
 
-Model files (0.5-5.5 GB each) are not in git. You can download the finished files from Hugging Face, or rebuild every one from public sources.
+Model files (0.5-27.6 GB each) are not in git. You can download the finished files from Hugging Face, or rebuild every one from public sources.
 
 [← back to the main README](../README.md)
 
@@ -38,6 +38,16 @@ The three mixture-of-experts files are our own builds, laid out for the iPad's e
 | stories15M q4_0 | stock | about 290 in `llama-simple` | | |
 
 53 experiments in all (E108-E160, §21 of [EXPERIMENT.md](../EXPERIMENT.md)).
+
+## Phone
+
+The phone's files aren't published yet; `tools/q36-phone.sh` builds them straight onto the phone over USB, fetching only what it needs from Hugging Face with range requests (nothing big is stored on the Mac). They are standard GGUFs: the non-expert tensors are mradermacher's imatrix Q4_K_M requantized to pure Q4_K with the same imatrix, the whole LM head is kept, and the experts are his imatrix Q2_K_S as they are, written last. See [docs/phone.md](phone.md#running-it).
+
+| Model | Command | Size | Source |
+|---|---|---|---|
+| Qwen3.6-35B-A3B | `HEAD=full tools/q36-phone.sh` | 12.3 GB | `mradermacher/Qwen3.6-35B-A3B-i1-GGUF` (Q4_K_M + Q2_K_S) |
+| Qwen3-Next-80B-A3B | `MR=.../mradermacher/Qwen3-Next-80B-A3B-Instruct-i1-GGUF/resolve/main STEM=Qwen3-Next-80B-A3B-Instruct TAG=q3n HEAD=full tools/q36-phone.sh` | 27.6 GB | `mradermacher/Qwen3-Next-80B-A3B-Instruct-i1-GGUF` |
+| Ling-mini-2.0 | the TV file, `hyperionaidev/Ling-mini-2.0-tvbox-GGUF` | 5.5 GB | as on the TV box |
 
 ## Rebuilding the TV files
 

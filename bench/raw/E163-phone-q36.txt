@@ -20,3 +20,4 @@ phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.
 moe-pager: 109869 hits, 5845 misses (5.1 %), 420 waited on a read already started; read 10347.5 MB, waited 14.01 s; prefetched 3380, 3285 of them used
 tv-guard: exit 0, min MemAvailable 1140 MB, max RSS 5176 MB
 PHONE-MOE DONE
+phone q36-full ppl | eval-en c20 pool 80 GGML_MOE_BIAS=0 GGML_MOE_KEEP=/data/local/tmp/llm/moe-keep-q36-192.txt | 7.02.281.242 I Final estimate: PPL = 10.1885 +/- 0.73968 moe-pager: 312325 hits, 82871 misses (21.0 %), 0 waited on a read already started; read 92508.3 MB, waited 159.14 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 927 MB, max RSS 4730 MB  | 425 s

@@ -263,10 +263,10 @@ index 81ff5d7..a743078 100644
              auto * buf_extra = (ggml::cpu::extra_buffer_type *) op->src[i]->buffer->buft->context;
 diff --git a/ggml/src/ggml-cpu/moe-pager-tv.inc b/ggml/src/ggml-cpu/moe-pager-tv.inc
 new file mode 100644
-index 0000000..6463f44
+index 0000000..b940cc1
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/moe-pager-tv.inc
-@@ -0,0 +1,391 @@
+@@ -0,0 +1,415 @@
 +// tvbox: expert pager for mixture-of-experts models bigger than RAM (EXPERIMENT.md section 19, included in ops.cpp).
 +// A token uses a few of 128 experts per layer, so what a token touches fits in RAM even if the model doesn't:
 +//  * the whole-page interior of every *_exps tensor in a model mapping is overlaid with empty anonymous memory;
@@ -303,7 +303,7 @@ index 0000000..6463f44
 +    char * base; size_t len; size_t stride; char * map0; std::string name; int fd = -1, bfd = -1, vfd = -1;
 +    size_t npages = 0; std::unique_ptr<std::atomic<uint8_t>[]> pg;
 +};
-+struct mp_layer { std::vector<std::unique_ptr<mp_tensor>> t; std::vector<int> lru; std::vector<uint8_t> cached, verified, pf; const float * router = nullptr; const float * selbias = nullptr; int64_t router_ne0 = 0, router_ne1 = 0; };
++struct mp_layer { std::vector<std::unique_ptr<mp_tensor>> t; std::vector<int> lru; std::vector<uint8_t> cached, verified, pf; const float * router = nullptr; const float * selbias = nullptr; std::vector<__fp16> router16; int64_t router_ne0 = 0, router_ne1 = 0; };
 +struct mp_job { mp_tensor * t; size_t p0, p1; bool direct; std::atomic<bool> started{false}; };
 +struct mp_state {
 +    std::vector<mp_layer> layers = std::vector<mp_layer>(256);
@@ -601,6 +601,30 @@ index 0000000..6463f44
 +    static const float cache_bonus = getenv("GGML_MOE_BIAS") ? (float) atof(getenv("GGML_MOE_BIAS")) : 0.0f;
 +    const float * xv = (const float *) x->data;
 +    std::vector<std::pair<float, int>> sc((size_t) L.router_ne1);
++    // GGML_MOE_PREGATE_F16 (default on): the predictor reads an fp16 copy of the router, half the bytes of the f32 one. It runs
++    // on one thread inside the router matmul while the others wait, and reading two layers' 2 MB routers per layer cost about
++    // as much as the reads it saved (E164). Products and sums stay in fp32.
++#if defined(__ARM_NEON) && defined(__aarch64__)
++    static const bool use16 = !getenv("GGML_MOE_PREGATE_F16") || atoi(getenv("GGML_MOE_PREGATE_F16")) != 0;
++    if (use16 && L.router_ne0 % 16 == 0) {
++        if (L.router16.empty()) {
++            L.router16.resize((size_t) (L.router_ne0 * L.router_ne1));
++            for (size_t i = 0; i < L.router16.size(); i++) { L.router16[i] = (__fp16) L.router[i]; }
++        }
++        for (int64_t e = 0; e < L.router_ne1; e++) {
++            const __fp16 * r = L.router16.data() + e * L.router_ne0;
++            float32x4_t s0 = vdupq_n_f32(0), s1 = s0, s2 = s0, s3 = s0;
++            for (int64_t j = 0; j < L.router_ne0; j += 16) {
++                const float16x8_t h0 = vld1q_f16(r + j), h1 = vld1q_f16(r + j + 8);
++                s0 = vfmaq_f32(s0, vcvt_f32_f16(vget_low_f16(h0)),  vld1q_f32(xv + j));
++                s1 = vfmaq_f32(s1, vcvt_high_f32_f16(h0),           vld1q_f32(xv + j + 4));
++                s2 = vfmaq_f32(s2, vcvt_f32_f16(vget_low_f16(h1)),  vld1q_f32(xv + j + 8));
++                s3 = vfmaq_f32(s3, vcvt_high_f32_f16(h1),           vld1q_f32(xv + j + 12));
++            }
++            sc[(size_t) e] = { vaddvq_f32(vaddq_f32(vaddq_f32(s0, s1), vaddq_f32(s2, s3))), (int) e };
++        }
++    } else
++#endif
 +    for (int64_t e = 0; e < L.router_ne1; e++) {
 +        const float * r = L.router + e * L.router_ne0;
 +        float a = 0.0f;
@@ -5070,6 +5094,137 @@ index 939f10f..5c368fd 100644
 +        ggml_tensor * args[5] = { conv_dst, conv_states_all, qkv_mixed, conv_kernel, inp->s_copy_main };
 +        conv_step = ggml_custom_4d(ctx0, GGML_TYPE_F32, conv_channels, n_seq_tokens, n_seqs, 1, args, 5,
 +                                   qwen35moe_conv_step, GGML_N_TASKS_MAX, nullptr);
++    } else {
++        conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
++    }
+ 
+-    ggml_tensor * state = build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs);
++    // tvbox: let the fused GDN op read each sequence's state straight from the cache (row s_copy[seq], resolved at
++    // compute time) instead of gathering the 1 MB/layer state into a temporary with GET_ROWS first. The view below
++    // only fixes the shape and the graph dependency; build_recurrent_attn() hands the op the ids and the cache.
++    // LLAMA_GDN_GATHER=1 = stock gather.
++    static const bool gdn_byid = getenv("LLAMA_GDN_GATHER") == nullptr;
++    const auto rs_head = mctx_cur->get_head();
++    const bool state_f16 = ssm_states_all->type == GGML_TYPE_F16;
++    GGML_ASSERT(!state_f16 || (gdn_byid && cparams.n_rs_seq == 0) || !"fp16 recurrent state needs the by-id GDN path (no MTP)");
++    ggml_tensor * state = (gdn_byid && cparams.n_rs_seq == 0 && (ssm_states_all->type == GGML_TYPE_F32 || state_f16))
++        ? build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs,
++              [rs_head, n_seqs](ggml_context * ctx, ggml_tensor * states, ggml_tensor * ids) {
++                  GGML_UNUSED(ids);
++                  return ggml_view_2d(ctx, states, states->ne[0], n_seqs, states->nb[1], rs_head * states->nb[1]);
++              })
++        : build_rs(inp, ssm_states_all, hparams.n_embd_s(), n_seqs);
+     state = ggml_reshape_4d(ctx0, state, head_v_dim, head_v_dim, num_v_heads, n_seqs);
+     cb(state, "state_predelta", il);
+ 
+-    ggml_tensor * conv_output_proper = ggml_ssm_conv(ctx0, conv_input, conv_kernel);
++    ggml_tensor * conv_output_proper = conv_step ? conv_step : ggml_ssm_conv(ctx0, conv_input, conv_kernel);
+     cb(conv_output_proper, "conv_output_raw", il);
+ 
+     ggml_tensor * conv_output_silu = ggml_silu(ctx0, conv_output_proper);
+diff --git a/src/models/qwen3next.cpp b/src/models/qwen3next.cpp
+index 98fafd9..e2bc213 100644
+--- a/src/models/qwen3next.cpp
++++ b/src/models/qwen3next.cpp
+@@ -1,6 +1,77 @@
+ #include "models.h"
+ #include "llama-memory-recurrent.h"
+ 
++#if defined(__ARM_NEON) && defined(__aarch64__)
++#include <arm_neon.h>
++#endif
++
++// tvbox: the one-token decode step of the DeltaNet causal conv as one op. Stock: GET_ROWS (state gather) + CONCAT
++// (state | new column, transposed) + CPY (shifted state back into the cache) + SSM_CONV = 4 nodes and 4 barriers for
++// a 4-tap filter over 6,144 channels (~110 us). Here each channel reads its K-1 old values at row s_copy[0] of the
++// cache, writes the shifted window to the destination row (src[0], a view at rs_head; in place when the rows are
++// the same, which is safe per channel) and sums the taps in SSM_CONV's order, so the result is bit-identical.
++// SILU stays a separate (column-split) op. LLAMA_CONV_FUSED=0 = stock.
++static void qwen3next_conv_step(ggml_tensor * dst, int ith, int nth, void * userdata) {
++    GGML_UNUSED(userdata);
++    const ggml_tensor * dstate = dst->src[0]; // cache view at the destination row
++    const ggml_tensor * cache  = dst->src[1]; // whole conv cache {n_embd_r, rs_size}
++    const ggml_tensor * xin    = dst->src[2]; // new column {C}
++    const ggml_tensor * kern   = dst->src[3]; // {K, C}
++    const ggml_tensor * ids    = dst->src[4]; // s_copy_main {1}
++    const int64_t C  = dst->ne[0];
++    const int     nc = (int) kern->ne[0];
++    const int     ns = nc - 1;
++    const int32_t row = ((const int32_t *) ids->data)[0];
++    const float * sp = (const float *) ((const char *) cache->data + (int64_t) row * cache->nb[1]);
++    float       * dp = (float *) dstate->data;
++    const float * x  = (const float *) xin->data;
++    float       * y  = (float *) dst->data;
++    const int64_t per = (C + nth - 1) / nth;
++    const int64_t c0  = per * ith;
++    const int64_t c1  = std::min(C, c0 + per);
++    int64_t c = c0;
++#if defined(__ARM_NEON) && defined(__aarch64__)
++    // 4 channels at a time: vld3/vld4 de-interleave the 3-value windows and the 4 taps; same FMA order as the loop
++    if (ns == 3 && kern->nb[1] == 4 * sizeof(float)) {
++        const float * kb = (const float *) kern->data;
++        for (; c + 3 < c1; c += 4) {
++            const float32x4x3_t w  = vld3q_f32(sp + c * 3);
++            const float32x4x4_t kk = vld4q_f32(kb + c * 4);
++            const float32x4_t   xv = vld1q_f32(x + c);
++            float32x4_t sum = vmulq_f32(w.val[0], kk.val[0]);
++            sum = vfmaq_f32(sum, w.val[1], kk.val[1]);
++            sum = vfmaq_f32(sum, w.val[2], kk.val[2]);
++            sum = vfmaq_f32(sum, xv,       kk.val[3]);
++            vst1q_f32(y + c, sum);
++            float32x4x3_t nw;
++            nw.val[0] = w.val[1];
++            nw.val[1] = w.val[2];
++            nw.val[2] = xv;
++            vst3q_f32(dp + c * 3, nw);
++        }
++    }
++#endif
++    for (; c < c1; c++) {
++        const float * sc = sp + c * ns;
++        const float * k  = (const float *) ((const char *) kern->data + c * kern->nb[1]);
++        float w[8];
++        for (int i = 0; i < ns; i++) {
++            w[i] = sc[i];
++        }
++        w[ns] = x[c];
++        float sumf = 0.0f;
++        for (int i = 0; i < nc; i++) {
++            sumf += w[i] * k[i];
++        }
++        y[c] = sumf;
++        float * d = dp + c * ns;
++        for (int i = 0; i < ns; i++) {
++            d[i] = w[i + 1];
++        }
++    }
++}
++
++
+ void llama_model_qwen3next::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key_or_arr(LLM_KV_EXPERT_FEED_FORWARD_LENGTH, hparams.n_ff_exp_arr, hparams.n_layer_all, false);
+     ml.get_key(LLM_KV_EXPERT_SHARED_FEED_FORWARD_LENGTH, hparams.n_ff_shexp, false);
+@@ -456,13 +527,45 @@ ggml_tensor * llama_model_qwen3next::graph::build_layer_attn_linear(
+     const int64_t conv_kernel_size = conv_kernel->ne[0];
+     const int64_t conv_channels    = d_inner + 2 * hparams.ssm_n_group * hparams.ssm_d_state;
+ 
+-    ggml_tensor * conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
++    static const bool conv_fused = getenv("LLAMA_CONV_FUSED") == nullptr || atoi(getenv("LLAMA_CONV_FUSED")) != 0;
++    const bool use_conv_step = conv_fused && n_seq_tokens == 1 && n_seqs == 1 && cparams.n_rs_seq == 0 &&
++        conv_states_all->type == GGML_TYPE_F32 && conv_kernel->type == GGML_TYPE_F32 && conv_kernel_size <= 8 &&
++        ggml_is_contiguous(qkv_mixed) && ggml_nelements(qkv_mixed) == conv_channels;
++    ggml_tensor * conv_input = nullptr;
++    ggml_tensor * conv_step  = nullptr;
++    if (use_conv_step) {
++        const auto conv_head = mctx_cur->get_head();
++        ggml_tensor * conv_dst = build_rs(inp, conv_states_all, hparams.n_embd_r(), n_seqs,
++            [conv_head, n_seqs](ggml_context * ctx, ggml_tensor * states, ggml_tensor * ids) {
++                GGML_UNUSED(ids);
++                return ggml_view_2d(ctx, states, states->ne[0], n_seqs, states->nb[1], conv_head * states->nb[1]);
++            });
++        ggml_tensor * args[5] = { conv_dst, conv_states_all, qkv_mixed, conv_kernel, inp->s_copy_main };
++        conv_step = ggml_custom_4d(ctx0, GGML_TYPE_F32, conv_channels, n_seq_tokens, n_seqs, 1, args, 5,
++                                   qwen3next_conv_step, GGML_N_TASKS_MAX, nullptr);
 +    } else {
 +        conv_input = build_conv_state(inp, conv_states_all, qkv_mixed, conv_kernel_size, conv_channels, il);
 +    }

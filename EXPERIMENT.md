@@ -1088,7 +1088,7 @@ No `--no-think`: Ling-mini-2.0 isn't a reasoning model, and its template (`baili
 
 **Goal (your call):** "an ambitious task starting from 16B up to 30B ... breaking the limits", then "go on and do not stop, reach the max".
 
-**The result so far: Qwen3.6-35B-A3B, a 35B mixture-of-experts model, runs at 4.9 tok/s with exact routing and 5.7 tok/s at +0.7 % perplexity on an unrooted phone with about 3 GB of free RAM.** Ling-mini-2.0 (16B) runs at 11.1 tok/s exact and 15.3 tok/s with the TV box's speed settings, three times the TV box.
+**The result so far: Qwen3-Next-80B-A3B, an 80B mixture-of-experts model, runs at 2.8 tok/s with exact routing, and Qwen3.6-35B-A3B at 4.9 tok/s exact and 5.7 tok/s at +0.7 % perplexity, on an unrooted phone with about 3 GB of free RAM.** Ling-mini-2.0 (16B) runs at 11.1 tok/s exact and 15.3 tok/s with the TV box's speed settings, three times the TV box.
 
 The phone is a OnePlus Nord CE 2 (IV2201): MediaTek Dimensity 900 with 2 Cortex-A78 cores at 2.4 GHz and 6 Cortex-A55 at 2.0 GHz, dotprod but no i8mm, 7.4 GB of RAM (about 3 GB available at idle), UFS 2.2, Android 13, not rooted. Everything runs from `adb shell` over USB in `/data/local/tmp/llm`, using the TV box's static aarch64 build (`build-tv`). Wireless adb failed with "No route to host": macOS blocks the third-party `adb` binary from the local network, while Apple's own `nc` and `ping` got through.
 
@@ -1137,6 +1137,16 @@ GGML_MOE_PAGER=1 GGML_REPACK_CACHE=$PWD/cache/q36f GGML_MOE_POOL=80 GGML_MOE_BIA
   -ctk q8_0 -ctv q8_0 -ub 4 -b 64 -t 2 -C 0xC0 --cpu-strict 1
 ```
 
-**In progress:** static expert pruning from the calibration trace (`GGML_MOE_KEEP`, keeping 192, 160 or 128 of 256 experts per layer, which carry 98.6, 96.4 and 92.7 % of the calibration uses).
+| # | Experiment | Result |
+|---|---|---|
+| E164 | **Static expert pruning** (`GGML_MOE_KEEP` lists from the calibration trace, `tools/moe_keep.py`: keeping 192, 160 or 128 of 256 experts per layer, which carry 98.6, 96.4 and 92.7 % of the calibration uses) | **Keeping 192: perplexity 10.19, +34 %**, misses only 23.6 → 21.0 %. A keep list of all 256 experts reproduces the baseline exactly (4.5789 over 4 chunks), so the mechanism is fine and the lists are the problem: 3,840 calibration tokens give about 120 uses per expert, too few to tell rare-but-needed experts from unused ones. 160 and 128 were not run. Pruning by use counts needs a REAP-style importance score and far more calibration text; the routing bias gets most of the same cache benefit for +0.7 % |
+| E164 | **Where a token's time goes** (`GGML_OPPROF=1`, bias 0.01, 200 tokens at 6.12 tok/s = 163 ms) | Q4_K matmuls (non-expert weights and the head) **41 %, at 13.9 GB/s: bound by RAM bandwidth** (LPDDR4X); ARGSORT, where the pager waits for missed experts, 21 %; Q2_K expert matmuls 19 %; f32 matmuls (routers) 10 %; Gated DeltaNet 4 % |
+| E164 | **More reader threads** (bias 0.005, alternating) | 4 readers 5.7 / 5.7, 8 readers 5.7 / 5.7, 12 readers 5.7 tok/s: waiting falls from 20.1 to 18.3 s per run, speed doesn't move. 8 is kept |
+| E164 | **An fp16 copy of the routers for the prefetch predictor** (`GGML_MOE_PREGATE_F16`, half the bytes; it runs on one thread inside the router matmul) | 5.6-5.8 tok/s with and without it, at one or two horizons (8 alternating runs): the predictor isn't what the f32 matmul time is. Left on, harmless |
+
+| E165 | **Qwen3-Next-80B-A3B** (80B total, ~3B active: 48 layers of 512 experts of 2048x512, top-10 plus one shared; mradermacher's imatrix Q2_K_S experts and Q4_K non-experts with the full head, built by `tools/q36-phone.sh` with `MR`/`STEM`/`TAG`: 27.6 GB, 1.5 GB of it non-expert) | Streamed in 45 min (md5 match); the repack cache is 27.2 GB. The fused DeltaNet path, ported to `qwen3next.cpp`, gives perplexity identical to the stock path (4.3880 over 3 chunks). **Chat, exact routing, pool 48 per layer: 2.8 tok/s**, 13.0 % misses, 41 s of waiting on flash over the run, peak RSS 5.1 GB, 1.7 GB still available. The bias and pool-56 runs were cut off when the USB link dropped |
+| E165 | **Two USB drops** (once while writing the 27 GB cache, once during the 80B chat run) | The phone disappeared from the Mac's USB bus but kept running: kernel uptime unchanged, `system_server` 3 hours old (from the soft reboot in E162), the cache finished and its first token ran. It answered ping over Wi-Fi the whole time. A loose or overheating connection under sustained load, not a crash |
+
+**Where it stands for Qwen3.6:** about 5.7 tok/s at +0.7 % perplexity. Flash waits are down to about a fifth of the time and the biggest cost is now reading the 1.1 GB of non-expert weights from RAM every token, so the next gains would have to come from fewer bytes there (a smaller head or a lower-bit format for attention), which costs quality.
 
 **What went wrong:** the first cable was power-only; `am kill-all` is denied; the soft reboot above; zsh doesn't word-split `set -- $m`, so one sweep passed the model and cache names as one argument.

@@ -1,0 +1,70 @@
+=== 2026-11-13 14:09:45 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=4 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 126 words
+
+moe-pager: 107961 hits, 8613 misses (7.4 %), 38 waited on a read already started; read 13842.9 MB, waited 20.12 s; prefetched 3732, 3384 of them used
+tv-guard: exit 0, min MemAvailable 1042 MB, max RSS 4752 MB
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=8 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 129 words
+
+moe-pager: 108107 hits, 8449 misses (7.2 %), 39 waited on a read already started; read 13634.0 MB, waited 18.26 s; prefetched 3706, 3407 of them used
+tv-guard: exit 0, min MemAvailable 1108 MB, max RSS 4911 MB
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=12 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 128 words
+
+moe-pager: 108127 hits, 8435 misses (7.2 %), 33 waited on a read already started; read 13628.9 MB, waited 18.47 s; prefetched 3715, 3402 of them used
+tv-guard: exit 0, min MemAvailable 1046 MB, max RSS 4797 MB
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=4 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 125 words
+
+moe-pager: 108058 hits, 8515 misses (7.3 %), 41 waited on a read already started; read 13648.1 MB, waited 20.01 s; prefetched 3621, 3292 of them used
+tv-guard: exit 0, min MemAvailable 1113 MB, max RSS 5020 MB
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=8 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 129 words
+
+moe-pager: 108104 hits, 8453 misses (7.3 %), 38 waited on a read already started; read 13634.0 MB, waited 18.40 s; prefetched 3702, 3403 of them used
+tv-guard: exit 0, min MemAvailable 1119 MB, max RSS 5084 MB
+PHONE-MOE DONE
+=== 2026-11-13 14:18:55 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_READERS=8 GGML_MOE_PREFETCH_AHEAD=2 BUILD=p45 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 129 words
+
+moe-pager: 108105 hits, 8450 misses (7.2 %), 40 waited on a read already started; read 13634.0 MB, waited 18.49 s; prefetched 3705, 3406 of them used
+tv-guard: exit 0, min MemAvailable 883 MB, max RSS 5133 MB
+PHONE-MOE DONE
+=== 2026-11-13 14:20:37 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_READERS=8 GGML_MOE_PREFETCH_AHEAD=2,1 BUILD=p45 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.6 tok/s | 119 words
+
+moe-pager: 108332 hits, 7775 misses (6.7 %), 523 waited on a read already started; read 15157.9 MB, waited 17.88 s; prefetched 5693, 5088 of them used
+tv-guard: exit 0, min MemAvailable 1034 MB, max RSS 4957 MB
+PHONE-MOE DONE
+=== 2026-11-13 14:22:21 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_READERS=8 GGML_MOE_PREFETCH_AHEAD=2 BUILD=p44 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 129 words
+
+moe-pager: 108099 hits, 8450 misses (7.3 %), 46 waited on a read already started; read 13634.0 MB, waited 18.26 s; prefetched 3705, 3406 of them used
+tv-guard: exit 0, min MemAvailable 1123 MB, max RSS 5073 MB
+PHONE-MOE DONE
+=== 2026-11-13 14:24:03 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_READERS=8 GGML_MOE_PREFETCH_AHEAD=2,1 BUILD=p44 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 127 words
+
+moe-pager: 108763 hits, 7381 misses (6.4 %), 476 waited on a read already started; read 14369.7 MB, waited 16.68 s; prefetched 5376, 4825 of them used
+tv-guard: exit 0, min MemAvailable 1114 MB, max RSS 5187 MB
+PHONE-MOE DONE
+=== 2026-11-13 14:25:45 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_READERS=8 GGML_MOE_PREFETCH_AHEAD=2 BUILD=p45 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.8 tok/s | 129 words
+
+moe-pager: 108113 hits, 8451 misses (7.3 %), 31 waited on a read already started; read 13634.0 MB, waited 17.30 s; prefetched 3704, 3405 of them used
+tv-guard: exit 0, min MemAvailable 1076 MB, max RSS 5168 MB
+PHONE-MOE DONE
+=== 2026-11-13 14:27:26 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_READERS=8 GGML_MOE_PREFETCH_AHEAD=2,1 BUILD=p45 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 127 words
+
+moe-pager: 108666 hits, 7569 misses (6.5 %), 381 waited on a read already started; read 14649.8 MB, waited 16.81 s; prefetched 5442, 4891 of them used
+tv-guard: exit 0, min MemAvailable 1064 MB, max RSS 5055 MB
+PHONE-MOE DONE
+=== 2026-11-13 14:29:08 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_READERS=8 GGML_MOE_PREFETCH_AHEAD=2 BUILD=p44 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.7 tok/s | 129 words
+
+moe-pager: 108109 hits, 8450 misses (7.2 %), 36 waited on a read already started; read 13634.0 MB, waited 18.27 s; prefetched 3705, 3406 of them used
+tv-guard: exit 0, min MemAvailable 1075 MB, max RSS 5243 MB
+PHONE-MOE DONE
+=== 2026-11-13 14:30:51 q36-q2-full.gguf
+phone q36-q2-full.gguf | GGML_MOE_POOL=80 GGML_MOE_PREFETCH_K=8 GGML_MOE_BIAS=0.005 GGML_MOE_READERS=8 GGML_MOE_PREFETCH_AHEAD=2,1 BUILD=p44 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 5.6 tok/s | 125 words
+
+moe-pager: 108860 hits, 7362 misses (6.3 %), 393 waited on a read already started; read 14216.8 MB, waited 16.40 s; prefetched 5239, 4725 of them used
+tv-guard: exit 0, min MemAvailable 1093 MB, max RSS 4895 MB
+PHONE-MOE DONE

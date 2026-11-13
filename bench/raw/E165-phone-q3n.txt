@@ -1,0 +1,11 @@
+LLAMA_CONV_FUSED=0 LLAMA_GDN_GATHER=1 | 3.31.048.713 I Final estimate: PPL = 4.3880 +/- 0.69686 moe-pager: 50088 hits, 40142 misses (44.5 %), 0 waited on a read already started; read 43273.3 MB, waited 90.62 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 1265 MB, max RSS 4551 MB  | 213 s
+LLAMA_CONV_FUSED=1 | 3.23.273.595 I Final estimate: PPL = 4.3880 +/- 0.69686 moe-pager: 50088 hits, 40142 misses (44.5 %), 0 waited on a read already started; read 43273.3 MB, waited 87.10 s; prefetched 0, 0 of them used tv-guard: exit 0, min MemAvailable 1790 MB, max RSS 4994 MB  | 206 s
+=== 2026-11-13 15:41:14 q3n-q2-full.gguf
+phone q3n-q2-full.gguf | GGML_MOE_POOL=48 GGML_MOE_BIAS=0 GGML_MOE_PREFETCH_K=10 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=8 -- -t 2 -C 0xC0 --cpu-strict 1 loops  0/2 | repeats mean   0.0 median   0.0 % | longest run median    0 | loop starts at word - | 2.8 tok/s | 113 words
+
+moe-pager: 121319 hits, 18104 misses (13.0 %), 67 waited on a read already started; read 58773.0 MB, waited 41.34 s; prefetched 36310, 26589 of them used
+tv-guard: exit 0, min MemAvailable 1721 MB, max RSS 5070 MB
+phone q3n-q2-full.gguf | GGML_MOE_POOL=48 GGML_MOE_BIAS=0.005 GGML_MOE_PREFETCH_K=10 GGML_MOE_PREFETCH_AHEAD=2 GGML_MOE_READERS=8 -- -t 2 -C 0xC0 --cpu-strict 1: FAILED at seed 0: Remote end closed connection without response
+
+server died: 
+PHONE-MOE DONE
