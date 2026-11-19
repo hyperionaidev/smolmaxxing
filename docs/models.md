@@ -49,6 +49,19 @@ Download with `hf download hyperionaidev/<repo>` and `adb push` the files to `/d
 | Qwen3-Next-80B-A3B | [hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF): `q3n-q2-full-0000{1,2}-of-00002.gguf` | `MR=.../mradermacher/Qwen3-Next-80B-A3B-Instruct-i1-GGUF/resolve/main STEM=Qwen3-Next-80B-A3B-Instruct TAG=q3n HEAD=full tools/q36-phone.sh` | 27.6 GB | `mradermacher/Qwen3-Next-80B-A3B-Instruct-i1-GGUF` |
 | Ling-mini-2.0 | [hyperionaidev/Ling-mini-2.0-tvbox-GGUF](https://huggingface.co/hyperionaidev/Ling-mini-2.0-tvbox-GGUF) (the TV file) | `tools/rebuild-models.sh lm` | 5.5 GB | as on the TV box |
 
+## Kindle
+
+The Kindle numbers use ordinary GGUF files with stock llama.cpp v0.7.0, with or without the fp16 patch. The repo's pruned-head files need the repo's own patch to load, and that build wasn't tried on the Kindle. Copy them to `/mnt/us/` over SSH or USB storage. See [docs/kindle.md](kindle.md#running-it).
+
+| Model | Download | Size | SHA-256 | tok/s (patched) |
+|---|---|---|---|---|
+| SmolLM2-135M-Instruct Q4_0 | [bartowski/SmolLM2-135M-Instruct-GGUF](https://huggingface.co/bartowski/SmolLM2-135M-Instruct-GGUF) | 92 MB | `bcc3af28…0c04b03` | 1.71 |
+| Gemma 3 270M IT Q4_K_M | [unsloth/gemma-3-270m-it-GGUF](https://huggingface.co/unsloth/gemma-3-270m-it-GGUF) | 253 MB | `b1baabd6…688e39` | 0.84 |
+| SmolLM2-360M-Instruct Q4_0 | [bartowski/SmolLM2-360M-Instruct-GGUF](https://huggingface.co/bartowski/SmolLM2-360M-Instruct-GGUF) | 230 MB | `c3608933…da58627` | 0.73 |
+| Qwen2.5-Coder-0.5B-Instruct Q4_0 | [bartowski/Qwen2.5-Coder-0.5B-Instruct-GGUF](https://huggingface.co/bartowski/Qwen2.5-Coder-0.5B-Instruct-GGUF) | 353 MB | `bf52e650…a330c6c` | 0.57 |
+| Bonsai-1.7B Q1_0 | [prism-ml/Bonsai-1.7B-gguf](https://huggingface.co/prism-ml/Bonsai-1.7B-gguf) | 248 MB | `3d7c6c90…cae5f7e3` | 0.20 |
+| Bonsai-4B Q1_0 | [prism-ml/Bonsai-4B-gguf](https://huggingface.co/prism-ml/Bonsai-4B-gguf) | 572 MB | `4524b3f9…2e42168` | 0.03 (from flash) |
+
 ## Rebuilding the TV files
 
 [`tools/rebuild-models.sh`](../tools/rebuild-models.sh) recreates every TV file from public Hugging Face files, streaming them through `tools/gguf_build.py` onto the TV. The SHA-256s below are of the files used in the experiments. Rebuilds of the 4B, Bonsai-8B and 9B files were checked **byte-identical**.
