@@ -38,7 +38,7 @@ Generation speed, `llama-bench -p 0 -n 128`, mean of the repo default 2 runs, pa
 | Qwen3-4B Q4_K_M | 2.32 GB | 1.48 | 2.81 |
 | Ling-mini-2.0 16B MoE (pager, pool 128, bias 0.3) | 5.5 GB | **5.13** | 4.73 |
 
-Ling-mini-2.0 runs with the [phone.md](phone.md) pager recipe (pool 80 -> 96 -> 128 gave 4.90 -> 4.99 -> 5.13 tok/s; 3.5 GB available was enough for pool 128). The 5.5 GB model on eMMC, served to the LAN, was the biggest model tried.
+Ling-mini-2.0 runs with the [phone.md](phone.md) pager recipe (pool 80 -> 96 -> 128 gave 4.90 -> 4.99 -> 5.13 tok/s; 3.5 GB available was enough for pool 128). The 5.5 GB model on eMMC, served to the LAN, was the biggest model tried - and then passed over: it buys 16B-class answers at the speed of the 1.7B dense models, so the deployment stays with the 0.6B + 1.7B pair below.
 
 ## What the missing dotprod costs
 
