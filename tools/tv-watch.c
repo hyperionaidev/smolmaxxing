@@ -27,7 +27,7 @@ int main(int c, char ** v) {
     pid_t p = fork();
     if (p == 0) { dup2(lf, 1); dup2(lf, 2); execvp(v[2], v + 2); perror("exec"); _exit(127); }
     char st[64], b[8192], o[512]; snprintf(st, sizeof st, "/proc/%d/status", p);
-    long minav = 1L << 40, maxrss = 0, prevpg = -1; int status = 0, killed = 0;
+    long long minav = 1LL << 40, maxrss = 0, prevpg = -1; int status = 0, killed = 0;
     for (;;) {
         pid_t w = waitpid(p, &status, WNOHANG);
         if (w == p) break;
@@ -58,7 +58,7 @@ int main(int c, char ** v) {
         nanosleep(&ts, NULL);
     }
     int rc = killed ? 137 : WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
-    dprintf(lf, "tv-guard: exit %d, min MemAvailable %ld MB, max RSS %ld MB\n", rc, minav, maxrss);
+    dprintf(lf, "tv-guard: exit %d, min MemAvailable %lld MB, max RSS %lld MB\n", rc, minav, maxrss);
     if (mf) fclose(mf);
     fsync(lf); close(lf);
     return rc;

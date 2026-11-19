@@ -9,18 +9,18 @@
 
 TV boxes, old phones and tablets, single-board computers and routers all have a CPU, some RAM and flash storage that sit idle most of the day. smolmaxxing finds the biggest model each of them can really run, then pushes it further with custom kernels, careful memory use and weights streamed from flash. Every number in this repo was measured on the device itself.
 
-## Three devices so far
+## Five devices so far
 
-| | 📺 Xiaomi TV Box S (3rd Gen) | 📱 iPad Air (2013) | 📲 OnePlus Nord CE 2 (2022) |
-|---|---|---|---|
-| **Chip** | Amlogic S7D, 4× Cortex-A55 | Apple A7, 2 cores | MediaTek Dimensity 900, 2× Cortex-A78 + 6× A55 |
-| **RAM** | 1.9 GB (about 1 GB usable) | 1 GB (about 700 MB usable) | 7.4 GB (about 3 GB free) |
-| **OS** | Android 14, no root | iOS 12.5.7, jailbroken | Android 13, no root |
-| **Everyday model** | Qwen3.5-2B at **7.7 tok/s** | Bonsai-1.7B (1-bit) at **24-26 tok/s** | Qwen3.6-35B-A3B at **4.9-5.7 tok/s** |
-| **Biggest model** | Ling-mini-2.0, 16B, at **5.1 tok/s** | Ling-mini-2.0, 16B, at **2.6-4.5 tok/s** | Qwen3-Next-80B-A3B at **2.6-3.1 tok/s** |
-| **Full results** | [docs/tv-box.md](docs/tv-box.md) | [ipad-air/README.md](ipad-air/README.md) | [docs/phone.md](docs/phone.md) |
+| | 📺 Xiaomi TV Box S (3rd Gen) | 📱 iPad Air (2013) | 📲 OnePlus Nord CE 2 (2022) | 📺 BuzzTV XR4500 | 📖 Kindle Paperwhite 3 (2015) |
+|---|---|---|---|---|---|
+| **Chip** | Amlogic S7D, 4× Cortex-A55 | Apple A7, 2 cores | MediaTek Dimensity 900, 2× Cortex-A78 + 6× A55 | Amlogic SM1 (S905X3 class), 4× Cortex-A55, 32-bit | NXP i.MX6 SoloLite, 1× Cortex-A9, 32-bit |
+| **RAM** | 1.9 GB (about 1 GB usable) | 1 GB (about 700 MB usable) | 7.4 GB (about 3 GB free) | 2 GB (about 1.3 GB free) | 512 MB (about 440 MB free) |
+| **OS** | Android 14, no root | iOS 12.5.7, jailbroken | Android 13, no root | Android 9 (32-bit), no root | Jailbroken, own Alpine Linux userspace |
+| **Everyday model** | Qwen3.5-2B at **7.7 tok/s** | Bonsai-1.7B (1-bit) at **24-26 tok/s** | Qwen3.6-35B-A3B at **4.9-5.7 tok/s** | Qwen3-0.6B (Q8_0) at **1.7 tok/s** | SmolLM2-135M at **1.7 tok/s** |
+| **Biggest model** | Ling-mini-2.0, 16B, at **5.1 tok/s** | Ling-mini-2.0, 16B, at **2.6-4.5 tok/s** | Qwen3-Next-80B-A3B at **2.6-3.1 tok/s** | Qwen3.5-2B at **0.4 tok/s** | Bonsai-4B (1-bit) at **0.03 tok/s**, from flash |
+| **Full results** | [docs/tv-box.md](docs/tv-box.md) | [ipad-air/README.md](ipad-air/README.md) | [docs/phone.md](docs/phone.md) | [docs/buzztv-xr4500.md](docs/buzztv-xr4500.md) | [docs/kindle.md](docs/kindle.md) |
 
-The TV box and the iPad run 8B and 16B mixture-of-experts models on about 1 GB of RAM, and the phone runs 35B and 80B ones with about 3 GB free. They all keep only part of each model in memory and read the rest from flash as it's needed.
+The TV box and the iPad run 8B and 16B mixture-of-experts models on about 1 GB of RAM, and the phone runs 35B and 80B ones with about 3 GB free. They all keep only part of each model in memory and read the rest from flash as it's needed. The BuzzTV box, measured by a contributor, is the first 32-bit device: the same cores as the Xiaomi box, but a 32-bit Android that rules out the arm64-only kernels. The Kindle runs a chatbot and a coding assistant on one 32-bit Cortex-A9 with 512 MB of RAM.
 
 The chart below compares the two 1 GB devices size class by size class; the phone plays in a bigger league, and its results are in [docs/phone.md](docs/phone.md).
 
@@ -48,6 +48,7 @@ All of it is a patch on [llama.cpp](https://github.com/ggml-org/llama.cpp). The 
 The quickest start is a ready-made model file from Hugging Face. The TV box and iPad files need the patched llama.cpp (stock llama.cpp can't load their pruned heads); the phone files load anywhere, but their speeds need the patch's expert pager.
 
 - **TV box or another ARMv8.2 Android device:** [docs/tv-box-setup.md](docs/tv-box-setup.md)
+- **32-bit ARM (armv7) Android device:** [docs/buzztv-xr4500.md](docs/buzztv-xr4500.md#build)
 - **Jailbroken iPad on iOS 12:** [ipad-air/README.md](ipad-air/README.md#run-it)
 - **Android phone with 8 GB of RAM:** [Qwen3.6-35B-A3B](https://huggingface.co/hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF) (12.3 GB) and [Qwen3-Next-80B-A3B](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF) (27.6 GB, two files), set up as in [docs/phone.md](docs/phone.md#running-it).
 - **All model files and how to rebuild them:** [docs/models.md](docs/models.md)
@@ -59,10 +60,12 @@ The quickest start is a ready-made model file from Hugging Face. The TV box and 
 | [docs/tv-box.md](docs/tv-box.md) | device #1: every model run on the TV box, speed and quality |
 | [ipad-air/README.md](ipad-air/README.md) | device #2: the iPad Air results, setup and scripts |
 | [docs/phone.md](docs/phone.md) | device #3: the OnePlus phone, from 16B to an 80B model |
+| [docs/buzztv-xr4500.md](docs/buzztv-xr4500.md) | device #4: a 32-bit Android TV box, submitted by a contributor |
+| [docs/kindle.md](docs/kindle.md) | device #5: a jailbroken Kindle Paperwhite 3 on one Cortex-A9, and an fp16 fix for llama.cpp on older 32-bit Arm |
 | [docs/how-it-works.md](docs/how-it-works.md) | the kernels, memory tricks, expert pager and streaming engine |
 | [docs/models.md](docs/models.md) | downloads for all three devices, rebuild targets and checksums |
 | [docs/lessons.md](docs/lessons.md) | what we learned, including what didn't work |
-| [EXPERIMENT.md](EXPERIMENT.md) | the full lab notebook: 165 experiments, failures included |
+| [EXPERIMENT.md](EXPERIMENT.md) | the full lab notebook: 171 experiments, failures included |
 
 ## What's in the repo
 
@@ -76,6 +79,8 @@ The quickest start is a ready-made model file from Hugging Face. The TV box and 
 | `data/` | vocabulary lists and evaluation texts |
 | `tiny-llm-web/` | the first experiment: a 260K-parameter story model |
 | `zigcc/` | zig wrappers for cross-compiling static aarch64 binaries |
+| `zigcc32/` | the same for 32-bit ARM (armv7) devices |
+| `kindle/` | device #5: the Kindle build, the fp16 patch and the benchmark scripts |
 
 ## Similar projects
 

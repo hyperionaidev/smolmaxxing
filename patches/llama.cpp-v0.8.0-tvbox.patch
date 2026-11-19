@@ -1,5 +1,5 @@
 diff --git a/ggml/include/ggml-cpu.h b/ggml/include/ggml-cpu.h
-index dc6453c..a141aa3 100644
+index dc6453c6e..a141aa38a 100644
 --- a/ggml/include/ggml-cpu.h
 +++ b/ggml/include/ggml-cpu.h
 @@ -34,6 +34,12 @@ extern "C" {
@@ -16,7 +16,7 @@ index dc6453c..a141aa3 100644
      GGML_BACKEND_API bool    ggml_is_numa(void); // true if init detected that system has >1 NUMA node
  
 diff --git a/ggml/src/ggml-cpu/binary-ops.cpp b/ggml/src/ggml-cpu/binary-ops.cpp
-index 75e3829..8b49957 100644
+index 75e382900..8b49957ae 100644
 --- a/ggml/src/ggml-cpu/binary-ops.cpp
 +++ b/ggml/src/ggml-cpu/binary-ops.cpp
 @@ -58,9 +58,20 @@ static void apply_binary_op(const ggml_compute_params * params, ggml_tensor * ds
@@ -41,8 +41,48 @@ index 75e3829..8b49957 100644
  #ifdef GGML_USE_ACCELERATE
      vDSP_fn_t vDSP_op = nullptr;
      // TODO - avoid the f32-only check using type 'trait' lookup tables and row-based src-to-float conversion functions
+diff --git a/ggml/src/ggml-cpu/ggml-cpu-impl.h b/ggml/src/ggml-cpu/ggml-cpu-impl.h
+index 0d48c9a22..5d0cb3a63 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu-impl.h
++++ b/ggml/src/ggml-cpu/ggml-cpu-impl.h
+@@ -129,6 +129,7 @@ inline static float vmaxvq_f32(float32x4_t v) {
+             MAX(vgetq_lane_f32(v, 2), vgetq_lane_f32(v, 3)));
+ }
+ 
++#if !defined(__clang__)
+ inline static int32x4_t vcvtnq_s32_f32(float32x4_t v) {
+     int32x4_t res;
+ 
+@@ -139,6 +140,27 @@ inline static int32x4_t vcvtnq_s32_f32(float32x4_t v) {
+ 
+     return res;
+ }
++#endif // !__clang__
++
++#if defined(__ARM_NEON) && !defined(__aarch64__)
++// 32-bit NEON compat: arm64-only ACLE forms used by the tvbox patch kernels
++inline static int16x8_t vmovl_high_s8(int8x16_t v) { return vmovl_s8(vget_high_s8(v)); }
++inline static int32x4_t vmovl_high_s16(int16x8_t v) { return vmovl_s16(vget_high_s16(v)); }
++inline static int32x4_t vdotq_laneq_s32(int32x4_t r, int8x16_t a, int8x16_t b, const int lane) {
++    const int8_t * ap = (const int8_t *) &a;
++    const int8_t * bp = (const int8_t *) &b;
++    int32_t      * rp = (int32_t *)      &r;
++    for (int i = 0; i < 4; i++) {
++        int32_t s = rp[i];
++        for (int j = 0; j < 4; j++) {
++            s += (int32_t) ap[4*i+j] * (int32_t) bp[4*lane+j];
++        }
++        rp[i] = s;
++    }
++    return r;
++}
++#endif
++
+ 
+ inline static uint8x8_t vzip1_u8(uint8x8_t a, uint8x8_t b) {
+     uint8x8_t res;
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
-index 53d39d2..de6a1bd 100644
+index 53d39d249..de6a1bd4d 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.c
 +++ b/ggml/src/ggml-cpu/ggml-cpu.c
 @@ -1480,6 +1480,10 @@ struct mmid_row_mapping {
@@ -241,7 +281,7 @@ index 53d39d2..de6a1bd 100644
  #ifdef GGML_USE_OPENMP
      GGML_PRINT_DEBUG("thread #%d compute-done cplan %p\n", state->ith, (const void *)cplan);
 diff --git a/ggml/src/ggml-cpu/ggml-cpu.cpp b/ggml/src/ggml-cpu/ggml-cpu.cpp
-index 81ff5d7..a743078 100644
+index 81ff5d79f..a743078cf 100644
 --- a/ggml/src/ggml-cpu/ggml-cpu.cpp
 +++ b/ggml/src/ggml-cpu/ggml-cpu.cpp
 @@ -167,10 +167,16 @@ static enum ggml_status ggml_backend_cpu_graph_plan_compute(ggml_backend_t backe
@@ -289,7 +329,7 @@ index 81ff5d7..a743078 100644
              auto * buf_extra = (ggml::cpu::extra_buffer_type *) op->src[i]->buffer->buft->context;
 diff --git a/ggml/src/ggml-cpu/moe-pager-tv.inc b/ggml/src/ggml-cpu/moe-pager-tv.inc
 new file mode 100644
-index 0000000..c1a0760
+index 000000000..c1a07609d
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/moe-pager-tv.inc
 @@ -0,0 +1,532 @@
@@ -826,7 +866,7 @@ index 0000000..c1a0760
 +    if (ith == 0) { s.wait_ns += mp_now() - t0; }
 +}
 diff --git a/ggml/src/ggml-cpu/ops.cpp b/ggml/src/ggml-cpu/ops.cpp
-index 85e1701..c54fbc7 100644
+index 85e17018c..c54fbc7fd 100644
 --- a/ggml/src/ggml-cpu/ops.cpp
 +++ b/ggml/src/ggml-cpu/ops.cpp
 @@ -2,6 +2,8 @@
@@ -1440,7 +1480,7 @@ index 85e1701..c54fbc7 100644
  
 diff --git a/ggml/src/ggml-cpu/repack-q1-tv.inc b/ggml/src/ggml-cpu/repack-q1-tv.inc
 new file mode 100644
-index 0000000..a021850
+index 000000000..a02185034
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/repack-q1-tv.inc
 @@ -0,0 +1,180 @@
@@ -1626,7 +1666,7 @@ index 0000000..a021850
 +#endif
 diff --git a/ggml/src/ggml-cpu/repack-q1lut-tv.inc b/ggml/src/ggml-cpu/repack-q1lut-tv.inc
 new file mode 100644
-index 0000000..078bf24
+index 000000000..ae94f5b7a
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/repack-q1lut-tv.inc
 @@ -0,0 +1,150 @@
@@ -1691,7 +1731,7 @@ index 0000000..078bf24
 +    return 0;
 +}
 +
-+#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD)
++#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD) && defined(__aarch64__)
 +// Tables of 128-column groups g0..g1-1 of one activation row.
 +static void q1lut_tables(const float * GGML_RESTRICT x, void * GGML_RESTRICT wrow, int64_t n, int64_t g0, int64_t g1) {
 +    const int64_t nb128 = n / 128;
@@ -1782,7 +1822,7 @@ index 0000000..078bf24
 +
 diff --git a/ggml/src/ggml-cpu/repack-q20c-tv.inc b/ggml/src/ggml-cpu/repack-q20c-tv.inc
 new file mode 100644
-index 0000000..493e0a3
+index 000000000..493e0a3c6
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/repack-q20c-tv.inc
 @@ -0,0 +1,471 @@
@@ -2259,7 +2299,7 @@ index 0000000..493e0a3
 +#endif
 diff --git a/ggml/src/ggml-cpu/repack-q2k-tv.inc b/ggml/src/ggml-cpu/repack-q2k-tv.inc
 new file mode 100644
-index 0000000..b50247e
+index 000000000..368ab5423
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/repack-q2k-tv.inc
 @@ -0,0 +1,192 @@
@@ -2303,7 +2343,7 @@ index 0000000..b50247e
 +    return 0;
 +}
 +
-+#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD)
++#if defined(__ARM_NEON) && defined(__ARM_FEATURE_DOTPROD) && defined(__aarch64__)
 +static void ggml_gemv_q2_K_8x4_q8_K_tv(int n, float * GGML_RESTRICT s, size_t bs, const void * GGML_RESTRICT vx, const void * GGML_RESTRICT vy, int nr, int nc) {
 +    GGML_UNUSED(bs); GGML_UNUSED(nr);
 +    const int nb = n / QK_K;
@@ -2457,7 +2497,7 @@ index 0000000..b50247e
 +#endif
 diff --git a/ggml/src/ggml-cpu/repack-tq-tv.inc b/ggml/src/ggml-cpu/repack-tq-tv.inc
 new file mode 100644
-index 0000000..ab5dc8d
+index 000000000..ab5dc8d71
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/repack-tq-tv.inc
 @@ -0,0 +1,446 @@
@@ -2908,7 +2948,7 @@ index 0000000..ab5dc8d
 +static void ggml_gemm_q2_0_tq1g64_q8_K_tv(int, float *, size_t, const void *, const void *, int, int) { GGML_ABORT("needs dotprod"); }
 +#endif
 diff --git a/ggml/src/ggml-cpu/repack.cpp b/ggml/src/ggml-cpu/repack.cpp
-index 9282ca2..ebafc03 100644
+index 9282ca299..ebafc0323 100644
 --- a/ggml/src/ggml-cpu/repack.cpp
 +++ b/ggml/src/ggml-cpu/repack.cpp
 @@ -17,6 +17,9 @@
@@ -3591,7 +3631,7 @@ index 9282ca2..ebafc03 100644
                             },
 diff --git a/ggml/src/ggml-cpu/stream-tv.inc b/ggml/src/ggml-cpu/stream-tv.inc
 new file mode 100644
-index 0000000..3471c83
+index 000000000..3471c8392
 --- /dev/null
 +++ b/ggml/src/ggml-cpu/stream-tv.inc
 @@ -0,0 +1,274 @@
@@ -3870,7 +3910,7 @@ index 0000000..3471c83
 +extern "C" void ggml_cpu_stream_stats(void) {}
 +#endif
 diff --git a/ggml/src/ggml-cpu/unary-ops.cpp b/ggml/src/ggml-cpu/unary-ops.cpp
-index f5d57d6..05a9f80 100644
+index f5d57d6f9..05a9f80b4 100644
 --- a/ggml/src/ggml-cpu/unary-ops.cpp
 +++ b/ggml/src/ggml-cpu/unary-ops.cpp
 @@ -118,6 +118,16 @@ static void apply_unary_op(const ggml_compute_params * params, ggml_tensor * dst
@@ -3891,7 +3931,7 @@ index f5d57d6..05a9f80 100644
  
      for (int64_t ir = ir0; ir < ir1; ++ir) {
 diff --git a/ggml/src/ggml-vulkan/ggml-vulkan.cpp b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
-index c094368..b6c80db 100644
+index c0943689f..b6c80db5f 100644
 --- a/ggml/src/ggml-vulkan/ggml-vulkan.cpp
 +++ b/ggml/src/ggml-vulkan/ggml-vulkan.cpp
 @@ -2878,6 +2878,11 @@ void ggml_vk_load_shaders(vk_device& device, vk_pipeline requested) {
@@ -3934,7 +3974,7 @@ index c094368..b6c80db 100644
      }
  
 diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
-index 5d8449a..5c41d4a 100644
+index 5d8449a88..5c41d4ada 100644
 --- a/ggml/src/ggml.c
 +++ b/ggml/src/ggml.c
 @@ -6437,7 +6437,8 @@ struct ggml_tensor * ggml_gated_delta_net(
@@ -3948,7 +3988,7 @@ index 5d8449a..5c41d4a 100644
      const int64_t S_v      = v->ne[0];
      const int64_t H        = v->ne[1];
 diff --git a/src/llama-arch.cpp b/src/llama-arch.cpp
-index 497e426..d2973bf 100644
+index 497e42692..d2973bf49 100644
 --- a/src/llama-arch.cpp
 +++ b/src/llama-arch.cpp
 @@ -500,6 +500,7 @@ static const std::map<llm_tensor, const char *> LLM_TENSOR_NAMES = {
@@ -3968,7 +4008,7 @@ index 497e426..d2973bf 100644
      {LLM_TENSOR_CLS_OUT,                    {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL_MAT}},
      {LLM_TENSOR_CLS_NORM,                   {LLM_TENSOR_LAYER_OUTPUT,    GGML_OP_MUL}},
 diff --git a/src/llama-arch.h b/src/llama-arch.h
-index eca6d18..8873717 100644
+index eca6d18af..8873717fa 100644
 --- a/src/llama-arch.h
 +++ b/src/llama-arch.h
 @@ -506,6 +506,7 @@ enum llm_tensor {
@@ -3980,7 +4020,7 @@ index eca6d18..8873717 100644
      LLM_TENSOR_OUTPUT_NORM_LFM2, // fix for wrong tensor name
      LLM_TENSOR_ROPE_FREQS,
 diff --git a/src/llama-context.cpp b/src/llama-context.cpp
-index 33ad784..b330678 100644
+index 33ad7845f..b3306783e 100644
 --- a/src/llama-context.cpp
 +++ b/src/llama-context.cpp
 @@ -1529,6 +1529,11 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
@@ -4022,7 +4062,7 @@ index 33ad784..b330678 100644
          LLAMA_LOG_ERROR("%s: failed to compute graph, compute status: %d\n", __func__, status);
          ret = status;
 diff --git a/src/llama-graph.cpp b/src/llama-graph.cpp
-index cffd083..37a8bef 100644
+index cffd083d3..37a8bef46 100644
 --- a/src/llama-graph.cpp
 +++ b/src/llama-graph.cpp
 @@ -24,6 +24,8 @@
@@ -4252,7 +4292,7 @@ index cffd083..37a8bef 100644
  
          embd1 = inp->embd;
 diff --git a/src/llama-graph.h b/src/llama-graph.h
-index c1a7d36..0efed9c 100644
+index c1a7d36ee..0efed9cb9 100644
 --- a/src/llama-graph.h
 +++ b/src/llama-graph.h
 @@ -1239,7 +1239,10 @@ struct llm_graph_context {
@@ -4268,7 +4308,7 @@ index c1a7d36..0efed9c 100644
      ggml_tensor * build_inp_attn_scale() const;
      ggml_tensor * build_inp_out_ids() const;
 diff --git a/src/llama-model-loader.cpp b/src/llama-model-loader.cpp
-index a963f24..65d18e4 100644
+index a963f2480..65d18e451 100644
 --- a/src/llama-model-loader.cpp
 +++ b/src/llama-model-loader.cpp
 @@ -1,4 +1,10 @@
@@ -4445,7 +4485,7 @@ index a963f24..65d18e4 100644
          if (progress_callback) {
              // Even though the model is done loading, we still honor
 diff --git a/src/llama-model.cpp b/src/llama-model.cpp
-index 81af890..8913696 100644
+index 81af8903f..891369664 100644
 --- a/src/llama-model.cpp
 +++ b/src/llama-model.cpp
 @@ -1570,6 +1570,21 @@ void llama_model_base::load_hparams(llama_model_loader & ml) {
@@ -4518,7 +4558,7 @@ index 81af890..8913696 100644
                              /* n_seq_max         */ cparams.n_seq_max,
                              /* n_rs_seq          */ cparams.n_rs_seq,
 diff --git a/src/llama-model.h b/src/llama-model.h
-index 222238e..0ba958c 100644
+index 222238efe..0ba958cb5 100644
 --- a/src/llama-model.h
 +++ b/src/llama-model.h
 @@ -747,6 +747,7 @@ struct llama_model {
@@ -4530,7 +4570,7 @@ index 222238e..0ba958c 100644
      struct ggml_tensor * output_norm_enc = nullptr;
  
 diff --git a/src/models/bailingmoe2.cpp b/src/models/bailingmoe2.cpp
-index d7003ef..1cfd4b7 100644
+index d7003ef7e..1cfd4b756 100644
 --- a/src/models/bailingmoe2.cpp
 +++ b/src/models/bailingmoe2.cpp
 @@ -1,3 +1,4 @@
@@ -4597,7 +4637,7 @@ index d7003ef..1cfd4b7 100644
      cb(cur, "result_output", -1);
      res->t_logits = cur;
 diff --git a/src/models/bailingmoe3.cpp b/src/models/bailingmoe3.cpp
-index 49c0f7f..951621f 100644
+index 49c0f7fea..951621f83 100644
 --- a/src/models/bailingmoe3.cpp
 +++ b/src/models/bailingmoe3.cpp
 @@ -1,3 +1,4 @@
@@ -4681,7 +4721,7 @@ index 49c0f7f..951621f 100644
      res->t_logits = cur;
  }
 diff --git a/src/models/delta-net-base.cpp b/src/models/delta-net-base.cpp
-index 2e15777..b438821 100644
+index 2e15777ee..b43882161 100644
 --- a/src/models/delta-net-base.cpp
 +++ b/src/models/delta-net-base.cpp
 @@ -549,10 +549,27 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
@@ -4717,7 +4757,7 @@ index 2e15777..b438821 100644
          return output;
      }
 diff --git a/src/models/granite-hybrid.cpp b/src/models/granite-hybrid.cpp
-index a752a36..47dff21 100644
+index a752a365c..47dff2155 100644
 --- a/src/models/granite-hybrid.cpp
 +++ b/src/models/granite-hybrid.cpp
 @@ -1,5 +1,26 @@
@@ -4790,7 +4830,7 @@ index a752a36..47dff21 100644
      res->t_logits = cur;
  }
 diff --git a/src/models/granite-swa.cpp b/src/models/granite-swa.cpp
-index 60c1eb8..08edf2e 100644
+index 60c1eb8ba..08edf2e8a 100644
 --- a/src/models/granite-swa.cpp
 +++ b/src/models/granite-swa.cpp
 @@ -53,7 +53,7 @@ void llama_model_granite_swa::load_arch_hparams(llama_model_loader & ml) {
@@ -4831,7 +4871,7 @@ index 60c1eb8..08edf2e 100644
                  NULL,                            NULL, NULL,
                  model.layers[il].ffn_down_shexp, NULL, NULL,
 diff --git a/src/models/qwen3.cpp b/src/models/qwen3.cpp
-index c01f838..978fc06 100644
+index c01f83829..978fc06ce 100644
 --- a/src/models/qwen3.cpp
 +++ b/src/models/qwen3.cpp
 @@ -1,5 +1,21 @@
@@ -4894,7 +4934,7 @@ index c01f838..978fc06 100644
      cb(cur, "result_output", -1);
      res->t_logits = cur;
 diff --git a/src/models/qwen35.cpp b/src/models/qwen35.cpp
-index 8a4e434..c327192 100644
+index 8a4e43411..c327192c3 100644
 --- a/src/models/qwen35.cpp
 +++ b/src/models/qwen35.cpp
 @@ -1,6 +1,98 @@
@@ -5115,7 +5155,7 @@ index 8a4e434..c327192 100644
  
      res->t_logits = cur;
 diff --git a/src/models/qwen35moe.cpp b/src/models/qwen35moe.cpp
-index 939f10f..5c368fd 100644
+index 939f10f7f..5c368fd54 100644
 --- a/src/models/qwen35moe.cpp
 +++ b/src/models/qwen35moe.cpp
 @@ -1,6 +1,99 @@
@@ -5308,7 +5348,7 @@ index 939f10f..5c368fd 100644
  
      ggml_tensor * conv_output_silu = ggml_silu(ctx0, conv_output_proper);
 diff --git a/src/models/qwen3next.cpp b/src/models/qwen3next.cpp
-index 98fafd9..e2bc213 100644
+index 98fafd917..e2bc21383 100644
 --- a/src/models/qwen3next.cpp
 +++ b/src/models/qwen3next.cpp
 @@ -1,6 +1,77 @@
@@ -5439,7 +5479,7 @@ index 98fafd9..e2bc213 100644
  
      ggml_tensor * conv_output_silu = ggml_silu(ctx0, conv_output_proper);
 diff --git a/tools/llama-bench/llama-bench.cpp b/tools/llama-bench/llama-bench.cpp
-index 96ae487..a0149d0 100644
+index 96ae4870f..a0149d02a 100644
 --- a/tools/llama-bench/llama-bench.cpp
 +++ b/tools/llama-bench/llama-bench.cpp
 @@ -2216,7 +2216,11 @@ static bool test_gen(llama_context * ctx, int n_gen, int n_threads) {
@@ -5456,7 +5496,7 @@ index 96ae487..a0149d0 100644
      return true;
  }
 diff --git a/tools/perplexity/perplexity.cpp b/tools/perplexity/perplexity.cpp
-index 601361a..aaef5c3 100644
+index 601361acd..aaef5c31b 100644
 --- a/tools/perplexity/perplexity.cpp
 +++ b/tools/perplexity/perplexity.cpp
 @@ -106,13 +106,19 @@ static double log_softmax(int n_vocab, const float * logits, uint16_t * log_prob

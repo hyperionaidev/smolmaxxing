@@ -1,0 +1,6 @@
+2026-11-19 SmolLM2-135M-Instruct-Q4_0.gguf en PPL 16.4505 tokens 6273 bits/byte 1.1503
+2026-11-19 SmolLM2-360M-Instruct-Q4_0.gguf en PPL 12.5662 tokens 6273 bits/byte 1.0397
+2026-11-19 Qwen2.5-Coder-0.5B-Instruct-Q4_0.gguf en PPL 23.3399 tokens 5756 bits/byte 1.1874
+2026-11-19 Bonsai-1.7B-Q1_0.gguf en PPL 21.5902 tokens 5756 bits/byte 1.158
+2026-11-19 gemma-3-270m-it-Q4_K_M.gguf en PPL 34.2582 tokens 5946 bits/byte 1.376
+2026-11-19 Bonsai-4B-Q1_0.gguf en PPL 17.2081 tokens 5756 bits/byte 1.0725

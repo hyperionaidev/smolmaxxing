@@ -1,0 +1,19 @@
+== memory smollm2-135m-q4_0.gguf 13:03:04
+run 1: 2.128399 tok/s wall=15s peakRSS=106MB lowest_avail=443MB guard_killed=0
+middle: 2.128399 tok/s
+== memory smollm2-360m-q4_0.gguf 13:03:25
+run 1: 0.861267 tok/s wall=34s peakRSS=242MB lowest_avail=436MB guard_killed=0
+middle: 0.861267 tok/s
+== memory qwen2.5-coder-0.5b-q4_0.gguf 13:04:07
+run 1: 0.608031 tok/s wall=54s peakRSS=365MB lowest_avail=425MB guard_killed=0
+middle: 0.608031 tok/s
+== memory gemma-3-270m-it-Q4_K_M.gguf 13:05:09
+run 1: 0.940787 tok/s wall=38s peakRSS=272MB lowest_avail=424MB guard_killed=0
+middle: 0.940787 tok/s
+== memory Bonsai-1.7B-Q1_0.gguf 13:05:55
+run 1: 0.212255 tok/s wall=95s peakRSS=291MB lowest_avail=401MB guard_killed=0
+middle: 0.212255 tok/s
+== Bonsai-4B-Q1_0.gguf (572 MB file, 503 MB RAM) 13:07:41
+run 1: 0.028546 tok/s wall=328s peakRSS=398MB lowest_avail=393MB guard_killed=0
+middle: 0.028546 tok/s
+mem done 13:13:47
