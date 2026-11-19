@@ -1,4 +1,4 @@
-# 📲 Device #5: Realme 5 Pro
+# 📲 Device #6: Realme 5 Pro
 
 Snapdragon 710: 2x Kryo 360 Gold ("Cortex-A76-based") at 2.3 GHz and 6x Kryo 360 Silver (Cortex-A55) at 1.7 GHz, **6 GB of RAM** (about 3.2-3.6 GB available at idle with the phone's own apps running), eMMC 5.1 flash, Android 10, kernel 4.9, no root. Everything runs on the CPU as the adb `shell` user, over wifi ADB (`adb tcpip 5555`), everything in `/data/local/tmp/llm`.
 
