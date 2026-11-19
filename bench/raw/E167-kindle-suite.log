@@ -1,0 +1,78 @@
+suite start Thu Nov 19 10:39:20 IST 2026
+ondemand
+
+== decode smollm2-135m-q4_0.gguf patched 10:39:20
+run 1: 1.707776 tok/s wall=79s peakRSS=0MB lowest_avail=443MB guard_killed=0
+run 2: 1.717918 tok/s wall=78s peakRSS=0MB lowest_avail=443MB guard_killed=0
+run 3: 1.711989 tok/s wall=78s peakRSS=0MB lowest_avail=443MB guard_killed=0
+middle: 1.711989 tok/s
+
+== decode smollm2-135m-q4_0.gguf stock 10:43:45
+run 1: 1.119157 tok/s wall=116s peakRSS=0MB lowest_avail=443MB guard_killed=0
+run 2: 1.119287 tok/s wall=116s peakRSS=0MB lowest_avail=443MB guard_killed=0
+run 3: 1.119246 tok/s wall=116s peakRSS=0MB lowest_avail=443MB guard_killed=0
+middle: 1.119246 tok/s
+
+== decode smollm2-360m-q4_0.gguf patched 10:50:09
+run 1: 0.730254 tok/s wall=182s peakRSS=0MB lowest_avail=436MB guard_killed=0
+run 2: 0.725160 tok/s wall=183s peakRSS=0MB lowest_avail=436MB guard_killed=0
+run 3: 0.737329 tok/s wall=180s peakRSS=0MB lowest_avail=436MB guard_killed=0
+middle: 0.730254 tok/s
+
+== decode smollm2-360m-q4_0.gguf stock 11:00:03
+run 1: 0.460555 tok/s wall=279s peakRSS=0MB lowest_avail=436MB guard_killed=0
+run 2: 0.460135 tok/s wall=280s peakRSS=0MB lowest_avail=436MB guard_killed=0
+run 3: 0.460117 tok/s wall=280s peakRSS=0MB lowest_avail=436MB guard_killed=0
+middle: 0.460135 tok/s
+
+== decode qwen2.5-coder-0.5b-q4_0.gguf patched 11:15:08
+run 1: 0.570496 tok/s wall=241s peakRSS=0MB lowest_avail=426MB guard_killed=0
+run 2: 0.566853 tok/s wall=242s peakRSS=0MB lowest_avail=425MB guard_killed=0
+run 3: 0.571084 tok/s wall=241s peakRSS=0MB lowest_avail=425MB guard_killed=0
+middle: 0.570496 tok/s
+
+== decode qwen2.5-coder-0.5b-q4_0.gguf stock 11:28:12
+run 1: 0.353341 tok/s wall=372s peakRSS=0MB lowest_avail=425MB guard_killed=0
+middle: 0.353341 tok/s
+
+== decode gemma-3-270m-it-Q4_K_M.gguf patched 11:34:52
+run 1: 0.843072 tok/s wall=165s peakRSS=0MB lowest_avail=424MB guard_killed=0
+run 2: 0.845152 tok/s wall=164s peakRSS=0MB lowest_avail=424MB guard_killed=0
+run 3: 0.842803 tok/s wall=165s peakRSS=0MB lowest_avail=424MB guard_killed=0
+middle: 0.843072 tok/s
+
+== decode gemma-3-270m-it-Q4_K_M.gguf stock 11:43:51
+run 1: 0.584597 tok/s wall=229s peakRSS=0MB lowest_avail=424MB guard_killed=0
+middle: 0.584597 tok/s
+
+== decode Bonsai-1.7B-Q1_0.gguf patched 11:47:59
+run 1: 0.196853 tok/s wall=637s peakRSS=0MB lowest_avail=401MB guard_killed=0
+run 2: 0.197383 tok/s wall=635s peakRSS=0MB lowest_avail=401MB guard_killed=0
+run 3: 0.197429 tok/s wall=635s peakRSS=0MB lowest_avail=401MB guard_killed=0
+middle: 0.197383 tok/s
+
+== decode Bonsai-1.7B-Q1_0.gguf stock 12:21:57
+run 1: 0.131489 tok/s wall=944s peakRSS=0MB lowest_avail=401MB guard_killed=0
+middle: 0.131489 tok/s
+
+== prompt64 smollm2-135m-q4_0.gguf patched 12:38:44
+run 1: 4.238582 tok/s wall=36s peakRSS=0MB lowest_avail=442MB guard_killed=0
+middle: 4.238582 tok/s
+
+== prompt64 smollm2-360m-q4_0.gguf patched 12:39:27
+run 1: 1.519477 tok/s wall=95s peakRSS=0MB lowest_avail=433MB guard_killed=0
+middle: 1.519477 tok/s
+
+== prompt64 qwen2.5-coder-0.5b-q4_0.gguf patched 12:41:13
+run 1: 1.367062 tok/s wall=116s peakRSS=0MB lowest_avail=423MB guard_killed=0
+middle: 1.367062 tok/s
+
+== prompt64 gemma-3-270m-it-Q4_K_M.gguf patched 12:43:21
+run 1: 3.653521 tok/s wall=54s peakRSS=0MB lowest_avail=422MB guard_killed=0
+middle: 3.653521 tok/s
+
+== prompt64 Bonsai-1.7B-Q1_0.gguf patched 12:44:24
+run 1: 0.280893 tok/s wall=449s peakRSS=0MB lowest_avail=395MB guard_killed=0
+middle: 0.280893 tok/s
+
+suite done Thu Nov 19 12:52:25 IST 2026
