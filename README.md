@@ -5,6 +5,9 @@
 <p align="center"><a href="https://hackergit.org/r/hyperionaidev/smolmaxxing"><img src="https://hackergit.org/badge/hyperionaidev/smolmaxxing.svg?style=rank" alt="Hacker News rank via HackerGit" width="250" height="55"></a>
   <a href="https://huggingface.co/hyperionaidev"><img src="https://huggingface.co/datasets/huggingface/badges/resolve/main/model-on-hf-xl.svg" alt="Models on Hugging Face" width="190" height="55"></a></p>
 
+<p align="center">🎉 <b>Over 5,000 downloads on <a href="https://huggingface.co/hyperionaidev">Hugging Face</a></b> 🎉<br>
+<sub>📰 Featured in <a href="https://tproger.ru/news/proekt-smolmaxxing-zapustil-model-na-80-mlrd-parametrov-na-tele">Tproger</a> and <a href="https://gigazine.net/news/20261113-smolmaxxing/">GIGAZINE</a></sub></p>
+
 **Run the biggest language model you can on the smallest hardware you own.**
 
 TV boxes, old phones and tablets, single-board computers and routers all have a CPU, some RAM and flash storage that sit idle most of the day. smolmaxxing finds the biggest model each of them can really run, then pushes it further with custom kernels, careful memory use and weights streamed from flash. Every number in this repo was measured on the device itself.
