@@ -46,6 +46,40 @@ tv-llm-ui/start.sh          # the 2B with fp16 state; open http://<tv-ip>:8090 f
 tv-llm-ui/start.sh stop
 ```
 
+## Offline: chat on the TV itself
+
+The **SmolChat** app runs the chat on the box alone: it starts the model server at every boot, and opening SmolChat from the TV home screen shows the chat page. No Mac, adb or internet is needed once it's installed.
+
+```sh
+tv-llm-ui/android/build.sh       # once: JDK 17 + Android build-tools 34 and platform 34 in third_party/android-sdk (see the script)
+tv-llm-ui/android/install.sh     # installs the app and copies Qwen3.5-0.8B into its storage (from the box, or MODEL_FILE=<file>)
+```
+
+How it works:
+
+- **The model:** Qwen3.5-0.8B (`q08-q4k-h65p8.gguf`). The 2B doesn't fit next to the chat page: the memory guard killed it at about 110 MB free, even in headless mode at 640×360 (E7 found the same with the TV browser).
+- **Speed:** about 15-16 tok/s with the chat on screen, and about 520 MB stays free.
+- **The binaries:** the app carries the patched `llama-server` and `tv-watch` as `lib*.so`, because an app may only run files from its native library folder.
+  - This box runs a 32-bit Android on a 64-bit kernel, so the static aarch64 binaries go in the app's `armeabi-v7a` folder. The kernel runs them fine.
+- **The service:** a foreground service runs the server under the memory guard and restarts it if it exits.
+- **Settings:** the same as `start.sh`: `patched25`, 3 threads, fp16 DeltaNet state.
+- **Not used:** headless mode. An app can't stop other apps, and the 0.8B fits without it.
+- **To remove it:** `adb uninstall com.smolmaxxing.tvchat`.
+
+Without the app, `chat.sh` does the same from an adb shell. It also turns on headless mode and opens the page in the TV's own browser, at 11-12 tok/s at 1080p or about 16.7 with `LEVEL=2` (640×360). A reboot stops it.
+
+```sh
+tv-llm-ui/install-offline.sh                              # once, from the Mac
+adb -s $ADB_SERIAL shell sh /data/local/tmp/llm/chat.sh   # start; "chat.sh stop" stops it
+```
+
+For the 2B, run `BROWSER=0 MODEL=w-q4k-h65p8.gguf sh chat.sh` and open `http://<tv-ip>:8090/` from a phone on the same Wi-Fi; a router with no internet works.
+
+If `adb connect` fails with "No route to host" while `ping` and `nc -z <tv-ip> 5555` work, macOS Local Network privacy is blocking adb:
+
+- Allow your terminal under System Settings → Privacy & Security → Local Network.
+- Or run `tools/adb-relay.sh <tv-ip>` in a Terminal window, then `adb connect 127.0.0.1:15555`.
+
 ## Other models
 
 `start.sh` takes the model file in `MODEL`. For the mixture-of-experts models it turns on headless mode, the expert pager, routing bias, prefetch and the repeat penalty; `POOL`, `BIAS` and `EXPERTS` override them.

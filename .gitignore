@@ -14,3 +14,6 @@ __pycache__/
 *.pyc
 .DS_Store
 !data/moe-warm-*.txt
+
+# SmolChat TV app build output
+tv-llm-ui/android/build/
