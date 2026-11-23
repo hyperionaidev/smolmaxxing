@@ -2,11 +2,10 @@
 
 <p align="center"><img src="assets/banner.png" alt="smolmaxxing: run the biggest model you can on the smallest hardware you own. 260K to 80B parameters." width="100%"></p>
 
-<p align="center"><a href="https://hackergit.org/r/hyperionaidev/smolmaxxing"><img src="https://hackergit.org/badge/hyperionaidev/smolmaxxing.svg?style=rank" alt="Hacker News rank via HackerGit" width="250" height="55"></a>
-  <a href="https://huggingface.co/hyperionaidev"><img src="https://huggingface.co/datasets/huggingface/badges/resolve/main/model-on-hf-xl.svg" alt="Models on Hugging Face" width="190" height="55"></a></p>
+<p align="center"><a href="https://hackergit.org/r/hyperionaidev/smolmaxxing"><img src="https://hackergit.org/badge/hyperionaidev/smolmaxxing.svg?style=rank" alt="Hacker News rank via HackerGit" width="250" height="55"></a></p>
 
 <p align="center">🎉 <b>Over 5,000 downloads on <a href="https://huggingface.co/hyperionaidev">Hugging Face</a></b> 🎉<br>
-<sub>📰 Featured in <a href="https://tproger.ru/news/proekt-smolmaxxing-zapustil-model-na-80-mlrd-parametrov-na-tele">Tproger</a> and <a href="https://gigazine.net/news/20261113-smolmaxxing/">GIGAZINE</a></sub></p>
+<sub>📰 Featured in <a href="https://tproger.ru/news/proekt-smolmaxxing-zapustil-model-na-80-mlrd-parametrov-na-tele">Tproger</a>, <a href="https://gigazine.net/news/20261113-smolmaxxing/">GIGAZINE</a> and <a href="https://www.techno-edge.net/article/2026/11/23/5790.html">TechnoEdge</a></sub></p>
 
 **Run the biggest language model you can on the smallest hardware you own.**
 
