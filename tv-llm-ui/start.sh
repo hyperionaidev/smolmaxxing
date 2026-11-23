@@ -79,8 +79,8 @@ name = meta.get("general.name", "LLM")
 rows = out[0][1][1] if out else 0
 mb = round(out[0][4] / 1e6) if out else 0
 mtpmb = round(sum(t[4] for t in T if t[0].startswith("blk.%d." % (meta.get("qwen35.block_count", 0) - 1))) / 1e6) if mtp else 0
-print(name, rows, mb, mtpmb)')
-read -r NAME ROWS HMB MTPMB <<<"$hdr"
+print(rows, mb, mtpmb, name)   # name last: it can contain spaces')
+read -r ROWS HMB MTPMB NAME <<<"$hdr"
 MTP=""; [ "$MTPMB" != "0" ] && MTP="1 layer, ${MTPMB} MB"
 cat > config.json <<EOF
 {"model_name": "$NAME", "threads": $THREADS, "temp": $TEMP, "patched": true,
