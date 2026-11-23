@@ -9,18 +9,76 @@
 
 TV boxes, old phones and tablets, single-board computers and routers all have a CPU, some RAM and flash storage that sit idle most of the day. smolmaxxing finds the biggest model each of them can really run, then pushes it further with custom kernels, careful memory use and weights streamed from flash. Every number in this repo was measured on the device itself.
 
-## Six devices so far
+## Eight devices so far
 
-| | 📺 Xiaomi TV Box S (3rd Gen) | 📱 iPad Air (2013) | 📲 OnePlus Nord CE 2 (2022) | 📺 BuzzTV XR4500 | 📖 Kindle Paperwhite 3 (2015) | 📲 Realme 5 Pro (2019) |
-|---|---|---|---|---|---|---|
-| **Chip** | Amlogic S7D, 4× Cortex-A55 | Apple A7, 2 cores | MediaTek Dimensity 900, 2× Cortex-A78 + 6× A55 | Amlogic SM1 (S905X3 class), 4× Cortex-A55, 32-bit | NXP i.MX6 SoloLite, 1× Cortex-A9, 32-bit | Snapdragon 710, 2× Kryo 360 (A76-class) + 6× A55, no dotprod |
-| **RAM** | 1.9 GB (about 1 GB usable) | 1 GB (about 700 MB usable) | 7.4 GB (about 3 GB free) | 2 GB (about 1.3 GB free) | 512 MB (about 440 MB free) | 6 GB (about 3.3 GB free) |
-| **OS** | Android 14, no root | iOS 12.5.7, jailbroken | Android 13, no root | Android 9 (32-bit), no root | Jailbroken, own Alpine Linux userspace | Android 10, no root |
-| **Everyday model** | Qwen3.5-2B at **7.7 tok/s** | Bonsai-1.7B (1-bit) at **24-26 tok/s** | Qwen3.6-35B-A3B at **4.9-5.7 tok/s** | Qwen3-0.6B (Q8_0) at **1.7 tok/s** | SmolLM2-135M at **1.7 tok/s** | Qwen3-0.6B (Q8_0) at **14.6 tok/s** |
-| **Biggest model** | Ling-mini-2.0, 16B, at **5.1 tok/s** | Ling-mini-2.0, 16B, at **2.6-4.5 tok/s** | Qwen3-Next-80B-A3B at **2.6-3.1 tok/s** | Qwen3.5-2B at **0.4 tok/s** | Bonsai-4B (1-bit) at **0.03 tok/s**, from flash | Qwen3-1.7B (Q8_0) at **5.7 tok/s** |
-| **Full results** | [docs/tv-box.md](docs/tv-box.md) | [ipad-air/README.md](ipad-air/README.md) | [docs/phone.md](docs/phone.md) | [docs/buzztv-xr4500.md](docs/buzztv-xr4500.md) | [docs/kindle.md](docs/kindle.md) | [docs/realme-5pro.md](docs/realme-5pro.md) |
+<table>
+<tr>
+<td valign="top" width="33%">
+<b>📺 Xiaomi TV Box S (3rd Gen)</b><br>
+<sub>Amlogic S7D, 4× Cortex-A55<br>1.9 GB RAM (about 1 GB usable) · Android 14, no root</sub><br><br>
+Everyday: Qwen3.5-2B at <b>7.7 tok/s</b><br>
+Biggest: Ling-mini-2.0, 16B, at <b>5.1 tok/s</b><br><br>
+<a href="docs/tv-box.md">Full results →</a>
+</td>
+<td valign="top" width="33%">
+<b>📱 iPad Air (2013)</b><br>
+<sub>Apple A7, 2 cores<br>1 GB RAM (about 700 MB usable) · iOS 12.5.7, jailbroken</sub><br><br>
+Everyday: Bonsai-1.7B (1-bit) at <b>24-26 tok/s</b><br>
+Biggest: Ling-mini-2.0, 16B, at <b>2.6-4.5 tok/s</b><br><br>
+<a href="ipad-air/README.md">Full results →</a>
+</td>
+<td valign="top" width="33%">
+<b>📲 OnePlus Nord CE 2 (2022)</b><br>
+<sub>MediaTek Dimensity 900, 2× Cortex-A78 + 6× A55<br>7.4 GB RAM (about 3 GB free) · Android 13, no root</sub><br><br>
+Everyday: Qwen3.6-35B-A3B at <b>4.9-5.7 tok/s</b><br>
+Biggest: Qwen3-Next-80B-A3B at <b>2.6-3.1 tok/s</b><br><br>
+<a href="docs/phone.md">Full results →</a>
+</td>
+</tr>
+<tr>
+<td valign="top" width="33%">
+<b>📺 BuzzTV XR4500</b><br>
+<sub>Amlogic SM1 (S905X3 class), 4× Cortex-A55, 32-bit<br>2 GB RAM (about 1.3 GB free) · Android 9 (32-bit), no root</sub><br><br>
+Everyday: Qwen3-0.6B (Q8_0) at <b>1.7 tok/s</b><br>
+Biggest: Qwen3.5-2B at <b>0.4 tok/s</b><br><br>
+<a href="docs/buzztv-xr4500.md">Full results →</a>
+</td>
+<td valign="top" width="33%">
+<b>📖 Kindle Paperwhite 3 (2015)</b><br>
+<sub>NXP i.MX6 SoloLite, 1× Cortex-A9, 32-bit<br>512 MB RAM (about 440 MB free) · Jailbroken, own Alpine Linux userspace</sub><br><br>
+Everyday: SmolLM2-135M at <b>1.7 tok/s</b><br>
+Biggest: Bonsai-4B (1-bit) at <b>0.03 tok/s</b>, from flash<br><br>
+<a href="docs/kindle.md">Full results →</a>
+</td>
+<td valign="top" width="33%">
+<b>📲 Realme 5 Pro (2019)</b><br>
+<sub>Snapdragon 710, 2× Kryo 360 (A76-class) + 6× A55, no dotprod<br>6 GB RAM (about 3.3 GB free) · Android 10, no root</sub><br><br>
+Everyday: Qwen3-0.6B (Q8_0) at <b>14.6 tok/s</b><br>
+Biggest: Qwen3-1.7B (Q8_0) at <b>5.7 tok/s</b><br><br>
+<a href="docs/realme-5pro.md">Full results →</a>
+</td>
+</tr>
+<tr>
+<td valign="top" width="33%">
+<b>📲 Samsung Galaxy S24 Ultra (2024)</b><br>
+<sub>Snapdragon 8 Gen 3, 1× Cortex-X4 + 5× A720 + 2× A520<br>12 GB RAM, 3.0 GB RSS for server + model · Android 17</sub><br><br>
+Everyday: Qwen3.6-35B-A3B at <b>12-16 tok/s</b><br>
+Biggest: the same 35B MoE, from the phone GGUF (12.3 GB)<br><br>
+<a href="https://github.com/hyperionaidev/smolmaxxing/issues/13">Submission →</a> · <a href="https://github.com/drqebas-crypto/phone-giant">setup scripts</a><br>
+<sub>Submitted by <a href="https://github.com/drqebas-crypto">drqebas-crypto</a></sub>
+</td>
+<td valign="top" width="33%">
+<b>📲 Infinix GT 20 Pro (2024)</b><br>
+<sub>MediaTek Dimensity 8200 Ultimate, 1× Cortex-A78 + 3× A78 + 4× A55<br>8 GB RAM · XOS 16.3.0</sub><br><br>
+Everyday: Qwen3.6-35B-A3B at <b>3.1 tok/s</b><br>
+Biggest: the same 35B MoE, from the phone GGUF (no log yet)<br><br>
+<a href="https://github.com/hyperionaidev/smolmaxxing/issues/14">Submission →</a><br>
+<sub>Submitted by <a href="https://github.com/kouunbliss319">kouunbliss319</a></sub>
+</td>
+</tr>
+</table>
 
-The TV box and the iPad run 8B and 16B mixture-of-experts models on about 1 GB of RAM, and the phone runs 35B and 80B ones with about 3 GB free. They all keep only part of each model in memory and read the rest from flash as it's needed. The BuzzTV box, measured by a contributor, is the first 32-bit device: the same cores as the Xiaomi box, but a 32-bit Android that rules out the arm64-only kernels. The Kindle runs a chatbot and a coding assistant on one 32-bit Cortex-A9 with 512 MB of RAM. The Realme 5 Pro, also measured by a contributor, is the first device without the dot-product extension: its A76-class cores carry fp16 but not dotprod, so it runs the plain-NEON build and its numbers show what that costs.
+The TV box and the iPad run 8B and 16B mixture-of-experts models on about 1 GB of RAM, and the phone runs 35B and 80B ones with about 3 GB free. They all keep only part of each model in memory and read the rest from flash as it's needed. The BuzzTV box, measured by a contributor, is the first 32-bit device: the same cores as the Xiaomi box, but a 32-bit Android that rules out the arm64-only kernels. The Kindle runs a chatbot and a coding assistant on one 32-bit Cortex-A9 with 512 MB of RAM. The Realme 5 Pro, also measured by a contributor, is the first device without the dot-product extension: its A76-class cores carry fp16 but not dotprod, so it runs the plain-NEON build and its numbers show what that costs. Two more contributors ran the phone's 35B mixture-of-experts on their own phones: a Galaxy S24 Ultra on a Snapdragon 8 Gen 3 at 12-16 tok/s, the fastest 35B run here ([drqebas-crypto](https://github.com/drqebas-crypto)), and an Infinix GT 20 Pro at 3.1 tok/s ([kouunbliss319](https://github.com/kouunbliss319)).
 
 The chart below compares the two 1 GB devices size class by size class; the phone plays in a bigger league, and its results are in [docs/phone.md](docs/phone.md).
 
@@ -48,6 +106,7 @@ All of it is a patch on [llama.cpp](https://github.com/ggml-org/llama.cpp). The 
 The quickest start is a ready-made model file from Hugging Face. The TV box and iPad files need the patched llama.cpp (stock llama.cpp can't load their pruned heads); the phone files load anywhere, but their speeds need the patch's expert pager.
 
 - **TV box or another ARMv8.2 Android device:** [docs/tv-box-setup.md](docs/tv-box-setup.md)
+- **Chat on the TV itself, offline:** the SmolChat app starts the model server at every boot and opens the chat from the TV home screen, with no computer or internet: [docs/tv-box-setup.md](docs/tv-box-setup.md#offline-chat-on-the-tv-itself)
 - **32-bit ARM (armv7) Android device:** [docs/buzztv-xr4500.md](docs/buzztv-xr4500.md#build)
 - **Jailbroken iPad on iOS 12:** [ipad-air/README.md](ipad-air/README.md#run-it)
 - **Android phone with 8 GB of RAM:** [Qwen3.6-35B-A3B](https://huggingface.co/hyperionaidev/Qwen3.6-35B-A3B-phone-GGUF) (12.3 GB) and [Qwen3-Next-80B-A3B](https://huggingface.co/hyperionaidev/Qwen3-Next-80B-A3B-phone-GGUF) (27.6 GB, two files), set up as in [docs/phone.md](docs/phone.md#running-it).
@@ -75,7 +134,7 @@ The quickest start is a ready-made model file from Hugging Face. The TV box and 
 |---|---|
 | `patches/` | every change to llama.cpp for the TV box and the phone (the iPad's patch is in `ipad-air/patches/`) |
 | `tools/` | model rebuilding, GGUF rewriting, benchmarks and kernel checks |
-| `tv-llm-ui/` | the live token-stream chat page and its launcher |
+| `tv-llm-ui/` | the live token-stream chat page, its launchers, and `android/`: the SmolChat TV app that runs it offline from boot |
 | `ipad-air/` | device #2: iOS 12 build, `smolchat`, deploy and benchmark scripts |
 | `bench/` | every chat benchmark (`results.jsonl`) and the raw logs |
 | `data/` | vocabulary lists and evaluation texts |
